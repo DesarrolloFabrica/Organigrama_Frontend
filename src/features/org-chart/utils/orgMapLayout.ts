@@ -53,6 +53,12 @@ export function buildOrgMap(root: OrgNode): OrgMapGraph {
         id: `${parentId}-${node.id}`,
         source: parentId,
         target: node.id,
+        type: 'smoothstep',
+        animated: false,
+        style: {
+          stroke: 'rgba(34, 211, 238, 0.45)',
+          strokeWidth: 1.6,
+        },
       })
     }
 
