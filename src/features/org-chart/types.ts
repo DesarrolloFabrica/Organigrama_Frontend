@@ -78,6 +78,11 @@ export type OrgNode = {
   email: string | null
   edu_email: string | null
   phone: string | null
+  /**
+   * Número de reportes directos en BD (puede ser > 0 aunque `children` esté vacío
+   * por corte de profundidad o datos parciales).
+   */
+  direct_reports_count?: number
   children: OrgNode[]
   hierarchy: OrgNodeHierarchy | null
   area: OrgNodeArea | null
@@ -88,6 +93,11 @@ export type OrgNode = {
   contract_type: OrgNodeContractType | null
   region_id: number | null
   location: OrgNodeLocation | null
+  /**
+   * Indica que existen reportes bajo este nodo pero fueron omitidos por un límite
+   * de profundidad de vista (exploración en `/org-chart/team/:id`).
+   */
+  deferred_team?: boolean
 }
 
 /** Un eslabón de la ruta jerárquica (search / detalle de persona). */
@@ -164,6 +174,17 @@ export function formatRoleLabel(node: OrgNode): string {
 }
 
 /**
+ * Indica si la persona tiene equipo directo a cargo, aunque `children` no venga poblado
+ * (p. ej. `truncateTreeToMaxLevels` + `deferred_team`) o haya huecos en el árbol.
+ */
+export function orgNodeHasDirectReports(node: OrgNode): boolean {
+  if (node.deferred_team === true) return true
+  const n = node.direct_reports_count
+  if (typeof n === 'number' && n > 0) return true
+  return node.children.length > 0
+}
+
+/**
  * Cuenta todas las personas bajo un nodo (no incluye al nodo mismo).
  * Útil para métricas en vistas futuras.
  */
@@ -172,4 +193,20 @@ export function countPeopleUnder(node: OrgNode): number {
     (total, child) => total + 1 + countPeopleUnder(child),
     0,
   )
+}
+
+/**
+ * Cuenta descendientes respetando un tope de profundidad relativo al nodo dado
+ * (`node` = profundidad 0; no cuenta al propio nodo).
+ */
+export function countPeopleUnderWithinDepth(
+  node: OrgNode,
+  maxDepth: number,
+  depthFromNode = 0,
+): number {
+  if (depthFromNode >= maxDepth) return 0
+  return node.children.reduce((total, child) => {
+    const below = countPeopleUnderWithinDepth(child, maxDepth, depthFromNode + 1)
+    return total + 1 + below
+  }, 0)
 }

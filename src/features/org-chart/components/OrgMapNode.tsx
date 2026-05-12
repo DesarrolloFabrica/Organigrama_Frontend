@@ -1,65 +1,254 @@
+import type { MouseEvent } from "react";
+import { useLayoutEffect } from "react";
 import type { NodeProps } from "@xyflow/react";
-import { Handle, Position } from "@xyflow/react";
+import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
 
 import { formatRoleLabel } from "../types";
-import type { OrgMapNodeData } from "../utils/orgMapLayout";
+import type { OrgMapNodeInteractiveData } from "../utils/orgMapLayout";
+import { orgMapLevelThemeToCssVars } from "../utils/orgMapLevelTheme";
+import { OrgMapExpandedTeamPanel } from "./OrgMapExpandedTeamPanel";
 
-export function OrgMapNode({ data, selected }: NodeProps) {
-  const typedData = data as OrgMapNodeData;
+/* ── Iconos lineales tácticos (stroke fino; sin rellenos “dashboard”) ───────── */
+
+function IconBranch({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <path
+        d="M10 3v5M10 8c-2.5 0-4 1.35-4 3v4M14 14v-3c0-1.65-1.5-3-4-3"
+        stroke="currentColor"
+        strokeWidth="1.35"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle
+        cx="10"
+        cy="3.5"
+        r="1.85"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <circle cx="6" cy="17" r="1.75" stroke="currentColor" strokeWidth="1.2" />
+      <circle
+        cx="14"
+        cy="17"
+        r="1.75"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+    </svg>
+  );
+}
+
+function IconScan({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <path
+        d="M4 7V4h3M13 4h3v3M4 13v3h3M13 16h3v-3"
+        stroke="currentColor"
+        strokeWidth="1.25"
+        strokeLinecap="round"
+      />
+      <circle
+        cx="10"
+        cy="10"
+        r="3.25"
+        stroke="currentColor"
+        strokeWidth="1.25"
+      />
+      <circle cx="10" cy="10" r="0.9" fill="currentColor" />
+    </svg>
+  );
+}
+
+/**
+ * Entidad holográfica en el lienzo OP.
+ * Fila 2 expandida: la tarjeta crece y el nivel 3 se muestra como grid interno (hub).
+ */
+export function OrgMapNode({ id, data, selected }: NodeProps) {
+  const typedData = data as OrgMapNodeInteractiveData;
+  const updateNodeInternals = useUpdateNodeInternals();
 
   const node = typedData.orgNode;
-  const directReportsCount = node.children.length;
+  const isExpanded = typedData.isExpanded;
+  const isCanvasRoot = typedData.isCanvasRoot ?? true;
+  const internalTeamMembers = typedData.internalTeamMembers ?? [];
+
+  const showTeamHub =
+    !isCanvasRoot &&
+    isExpanded &&
+    internalTeamMembers.length > 0;
+
+  useLayoutEffect(() => {
+    updateNodeInternals(id);
+  }, [id, isExpanded, internalTeamMembers.length, showTeamHub, updateNodeInternals]);
+
+  const stopMouse = (e: MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  const levelLabel = node.hierarchy?.name ?? "NIVEL ░ SIN ASIGNAR";
+  const visualLevel = typedData.visualLevel;
+  const levelCss = orgMapLevelThemeToCssVars(visualLevel);
+  const memberLayoutDepth = typedData.mapLayoutDepth + 1;
 
   return (
     <article
-      className={`org-map-node relative min-w-[280px] overflow-hidden rounded-2xl border px-4 py-3 backdrop-blur transition ${
-        selected
-          ? "org-map-node--selected border-cyan-300/80 bg-cyan-50 text-slate-950 ring-2 ring-cyan-300/40"
-          : "border-white/10 bg-white/[0.92] text-slate-950 hover:border-cyan-300/60"
-      }`}
+      className={[
+        "org-map-holo relative",
+        showTeamHub ? "org-map-holo--hub" : "min-w-[288px] max-w-[300px]",
+        selected ? "org-map-holo--selected" : "",
+        isExpanded ? "org-map-holo--expanded" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      style={levelCss}
+      data-visual-level={visualLevel}
+      data-expanded={isExpanded ? "true" : "false"}
+      data-selected={selected ? "true" : "false"}
     >
-      {/*
-        Banda de brillo simula borde superior iluminado (volumen) sin usar rotate en el nodo
-        completo: los Handle siguen alineados con el layout que calcula React Flow.
-      */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-blue-400 to-transparent" />
-
-      {/* Borde inferior tenue: sensación de plano apoyado sin salir del overflow del nodo. */}
-      <div
-        className="pointer-events-none absolute inset-x-4 bottom-0 h-px bg-gradient-to-r from-transparent via-slate-900/15 to-transparent"
-        aria-hidden
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="org-map-holo__handle org-map-holo__handle--target"
       />
+      <div className="org-map-holo__topbar">
+        <p className="org-map-holo__level font-mono text-[10px] font-semibold uppercase tracking-[0.22em]">
+          {levelLabel}
+        </p>
 
-      <Handle type="target" position={Position.Top} />
+        <span className="org-map-holo__status">
+          <span className="org-map-holo__status-dot" />
+          ACTIVO
+        </span>
+      </div>
 
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-700">
-            {node.hierarchy?.name ?? "Nivel sin asignar"}
-          </p>
+      <div className="org-map-holo__specular pointer-events-none" aria-hidden />
 
-          <h3 className="mt-1 max-w-[220px] text-sm font-bold leading-snug text-slate-950">
+      <div
+        className="
+          org-map-holo__body
+          relative
+          z-1
+          flex
+          flex-col
+          items-center
+          text-center
+          gap-4
+          pb-2
+          pt-1
+        "
+      >
+        <div className="org-map-holo__nucleus-wrap shrink-0" aria-hidden>
+          <div className="org-map-holo__nucleus relative flex size-23 items-center justify-center">
+            <div className="org-map-holo__ring org-map-holo__ring--outer" />
+            <div className="org-map-holo__ring org-map-holo__ring--orbit" />
+            <div className="org-map-holo__ring org-map-holo__ring--inner" />
+            <div className="org-map-holo__core" />
+            <div className="org-map-holo__crosshair" />
+          </div>
+        </div>
+
+        <div className="min-w-0 flex flex-col items-center gap-1 text-center pt-1">
+          <h3
+            className="org-map-holo__name mt-1.5 truncate text-[15px] font-semibold leading-tight tracking-tight text-slate-100"
+            title={node.name}
+          >
             {node.name}
           </h3>
 
-          <p className="mt-1 max-w-[220px] text-xs font-semibold text-slate-600">
+          <p className="org-map-holo__role mt-1 line-clamp-2 text-[11px] font-medium leading-snug tracking-wide text-slate-400/92">
             {formatRoleLabel(node)}
           </p>
         </div>
+      </div>
 
-        <div className="grid size-9 place-items-center rounded-xl border border-cyan-200 bg-cyan-50 text-xs font-black text-cyan-700 shadow-inner">
-          {directReportsCount}
+      <div className="org-map-holo__actions relative z-1 mt-4 flex flex-wrap justify-center gap-2">
+        {typedData.showMapExpand ? (
+          <button
+            type="button"
+            className="org-map-holo__btn nodrag nopan"
+            aria-expanded={isExpanded}
+            aria-label={
+              isExpanded
+                ? isCanvasRoot
+                  ? "Colapsar reportes en mapa"
+                  : "Colapsar equipo en panel"
+                : isCanvasRoot
+                  ? "Expandir reportes en mapa"
+                  : "Expandir equipo en panel"
+            }
+            onPointerDown={stopMouse}
+            onClick={(e) => {
+              e.stopPropagation();
+              typedData.onToggleExpand(id);
+            }}
+          >
+            <IconBranch className="org-map-holo__btn-icon-svg size-4 shrink-0" />
+            <span>{isExpanded ? "Colapsar" : "Expandir"}</span>
+          </button>
+        ) : null}
+        {typedData.hasDeferredTeam && typedData.onExploreTeam ? (
+          <button
+            type="button"
+            className="org-map-holo__btn org-map-holo__btn--explore nodrag nopan"
+            aria-label="Explorar estructura del equipo en una nueva vista"
+            onPointerDown={stopMouse}
+            onClick={(e) => {
+              e.stopPropagation();
+              typedData.onExploreTeam?.(id);
+            }}
+          >
+            <IconBranch className="org-map-holo__btn-icon-svg org-map-holo__btn-icon-svg--explore size-4 shrink-0" />
+            <span>Explorar estructura</span>
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="org-map-holo__btn org-map-holo__btn--detail nodrag nopan"
+          aria-label="Abrir análisis de entidad"
+          onPointerDown={stopMouse}
+          onClick={(e) => {
+            e.stopPropagation();
+            typedData.onOpenDetail(id);
+          }}
+        >
+          <IconScan className="org-map-holo__btn-icon-svg org-map-holo__btn-icon-svg--detail size-4 shrink-0" />
+          <span>Detalle</span>
+        </button>
+      </div>
+
+      {showTeamHub ? (
+        <div className="org-map-holo__team-shell relative z-1 mt-3 w-full min-w-0 px-0.5 pb-1">
+          <OrgMapExpandedTeamPanel
+            leaderName={node.name}
+            members={internalTeamMembers}
+            memberLayoutDepth={memberLayoutDepth}
+            onOpenDetail={typedData.onOpenDetail}
+            onExploreTeam={typedData.onExploreTeam}
+            stopMouse={stopMouse}
+          />
         </div>
-      </div>
+      ) : null}
 
-      <div className="mt-3 flex items-center justify-between rounded-xl border border-slate-200/70 bg-slate-50/90 px-3 py-2 text-[11px] font-semibold text-slate-600">
-        <span>
-          {directReportsCount > 0 ? "Reportes directos" : "Sin reportes"}
-        </span>
-        <span className="text-slate-950">{directReportsCount}</span>
-      </div>
+      <div className="org-map-holo__bottom-reader" aria-hidden />
 
-      <Handle type="source" position={Position.Bottom} />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="org-map-holo__handle org-map-holo__handle--source"
+      />
     </article>
   );
 }

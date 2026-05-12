@@ -34,6 +34,12 @@ export async function fetchOrgChart(): Promise<OrgNode> {
   return getJson<OrgNode>('/api/org-chart')
 }
 
+/** Subárbol con la persona como raíz (`GET /api/org-chart/team/:id`). */
+export async function fetchOrgChartSubtree(rootPersonId: string): Promise<OrgNode> {
+  const safeId = encodeURIComponent(rootPersonId)
+  return getJson<OrgNode>(`/api/org-chart/team/${safeId}`)
+}
+
 /**
  * Búsqueda de personas con ruta jerárquica.
  * (Reservado para siguientes iteraciones de la UI.)

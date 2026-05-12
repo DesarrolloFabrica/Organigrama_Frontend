@@ -1,33 +1,39 @@
-import { useState } from 'react'
-import type { OrgNode } from '../types'
-import { OrgNodeCard } from './OrgNodeCard'
+import { useState } from "react";
+import type { OrgNode } from "../types";
+import { OrgNodeCard } from "./OrgNodeCard";
+import { RadarBackground } from "./RadarBackground";
 
 type Props = {
-  root: OrgNode
-  selectedPersonId: string | null
-  onSelectNode: (id: string) => void
-}
+  root: OrgNode;
+  selectedPersonId: string | null;
+  onSelectNode: (id: string) => void;
+};
 
 type BranchProps = {
-  node: OrgNode
-  depth: number
-  selectedPersonId: string | null
-  onSelectNode: (id: string) => void
-}
+  node: OrgNode;
+  depth: number;
+  selectedPersonId: string | null;
+  onSelectNode: (id: string) => void;
+};
 
 /**
  * Rama recursiva: cada nodo con hijos mantiene su propio estado de expansión.
  * La selección para el panel lateral sube por `onSelectNode`.
  */
-function OrgBranch({ node, depth, selectedPersonId, onSelectNode }: BranchProps) {
-  const directCount = node.children.length
-  const [expanded, setExpanded] = useState(depth < 1)
+function OrgBranch({
+  node,
+  depth,
+  selectedPersonId,
+  onSelectNode,
+}: BranchProps) {
+  const directCount = node.children.length;
+  const [expanded, setExpanded] = useState(depth < 1);
 
   return (
     <div className="flex flex-col gap-3">
       <OrgNodeCard
         node={node}
-        emphasis={depth === 0 ? 'root' : 'default'}
+        emphasis={depth === 0 ? "root" : "default"}
         directReportsCount={directCount}
         childrenExpanded={expanded}
         selected={selectedPersonId === node.id}
@@ -56,26 +62,25 @@ function OrgBranch({ node, depth, selectedPersonId, onSelectNode }: BranchProps)
         </ul>
       ) : null}
     </div>
-  )
+  );
 }
 
 /** Contenedor del árbol: recibe selección desde la página para resaltar nodos. */
-export function OrgChartView({
-  root,
-  selectedPersonId,
-  onSelectNode,
-}: Props) {
+export function OrgChartView({ root, selectedPersonId, onSelectNode }: Props) {
   return (
     <section
-      className="h-full min-h-[280px] rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-8 shadow-sm sm:px-8"
+      className="relative overflow-hidden h-full min-h-[280px] rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-8 shadow-sm sm:px-8"
       aria-label="Organigrama"
     >
+      <RadarBackground />
+      <div className="relative z-10">
       <OrgBranch
         node={root}
         depth={0}
         selectedPersonId={selectedPersonId}
         onSelectNode={onSelectNode}
       />
+      </div>
     </section>
-  )
+  );
 }

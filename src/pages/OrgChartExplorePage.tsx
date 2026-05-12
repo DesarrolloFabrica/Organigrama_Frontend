@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import {
+  Link,
+  Navigate,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 import { type OrgNode, countPeopleUnder } from "../features/org-chart/types";
 import { findNodeInTree } from "../features/org-chart/utils/findNodeInTree";
 import {
   fetchHealth,
-  fetchOrgChart,
+  fetchOrgChartSubtree,
 } from "../features/org-chart/services/orgChartService";
 import { OrgMapView } from "../features/org-chart/components/OrgMapView";
 import { PersonDetailPanel } from "../features/org-chart/components/PersonDetailPanel";
@@ -13,17 +18,20 @@ type ConnState = "checking" | "online" | "offline";
 
 const MAP_MAX_LEVELS = 3;
 
+type ExploreBodyProps = {
+  personId: string;
+  conn: ConnState;
+};
+
 /**
- * Página principal: lienzo de mapa a pantalla completa bajo el header;
- * ficha técnica como panel superpuesto cuando hay persona seleccionada.
+ * Contenido acoplado a una persona: al cambiar `personId` en la ruta, el padre remonta
+ * este bloque con `key` para evitar resets síncronos dentro del efecto de carga.
  */
-export function OrgChartPage() {
+function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
   const navigate = useNavigate();
-  const [conn, setConn] = useState<ConnState>("checking");
   const [tree, setTree] = useState<OrgNode | null>(null);
   const [chartError, setChartError] = useState<string | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
-  /** Panel de ficha oculto pero selección conservada (mapa usable a pantalla completa). */
   const [detailPanelMinimized, setDetailPanelMinimized] = useState(false);
 
   const treeDescendantCount =
@@ -34,7 +42,6 @@ export function OrgChartPage() {
         })()
       : null;
 
-  /** Selección desde el mapa: abre la ficha (sale de minimizado si aplica). */
   const handleSelectNodeFromMap = useCallback((id: string) => {
     setDetailPanelMinimized(false);
     setSelectedPersonId(id);
@@ -50,15 +57,7 @@ export function OrgChartPage() {
   useEffect(() => {
     let cancelled = false;
 
-    fetchHealth()
-      .then(() => {
-        if (!cancelled) setConn("online");
-      })
-      .catch(() => {
-        if (!cancelled) setConn("offline");
-      });
-
-    fetchOrgChart()
+    fetchOrgChartSubtree(personId)
       .then((data) => {
         if (!cancelled) {
           setTree(data);
@@ -71,7 +70,7 @@ export function OrgChartPage() {
           setChartError(
             err instanceof Error
               ? err.message
-              : "Error desconocido al cargar datos",
+              : "Error desconocido al cargar el equipo",
           );
         }
       });
@@ -79,12 +78,11 @@ export function OrgChartPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [personId]);
 
   const apiBaseDisplay =
     import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
 
-  /** Barra superior: una sola fila; estado API en `title` para no saturar la UI. */
   const statusPill =
     conn === "checking" ? (
       <div
@@ -136,65 +134,38 @@ export function OrgChartPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col [--app-header-h:2.75rem] sm:[--app-header-h:3rem]">
-      {/*
-        Barra de aplicación: compacta, horizontal, espacio para acciones globales (estado + sesión).
-      */}
       <header className="sticky top-0 z-20 shrink-0 border-b border-slate-200/90 bg-linear-to-b from-slate-50/95 via-white to-slate-100/90 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.1)] backdrop-blur-md">
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-cyan-500/30 to-transparent"
           aria-hidden
         />
         <div className="relative mx-auto flex h-11 max-w-7xl items-center justify-between gap-3 px-3 sm:h-12 sm:gap-4 sm:px-5 lg:px-8">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <h1 className="truncate text-sm font-semibold tracking-tight text-slate-900 sm:text-[0.9375rem]">
-              Organigrama OP
-            </h1>
-            <span
-              className="hidden h-3 w-px shrink-0 bg-slate-200 sm:block"
-              aria-hidden
-            />
-            <span className="hidden truncate font-mono text-[10px] font-medium uppercase tracking-wider text-slate-500 sm:inline">
-              Dirección de Operaciones
-            </span>
-          </div>
-
-          <div className="pointer-events-none absolute left-1/2 hidden -translate-x-1/2 sm:block">
-            <span className="inline-flex items-center gap-1 rounded-full border border-slate-200/60 bg-white/50 px-2 py-0.5 font-mono text-[9px] font-medium uppercase tracking-[0.14em] text-slate-400">
-              <span
-                className="size-1 rounded-full bg-cyan-500/55"
-                aria-hidden
-              />
-              Mapa operacional
-            </span>
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+            <Link
+              to="/"
+              className="shrink-0 rounded-md border border-slate-200/80 bg-white/90 px-2 py-1 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-cyan-300/50 hover:bg-slate-50 hover:text-slate-900"
+            >
+              ← Organigrama
+            </Link>
+            <span className="hidden h-3 w-px shrink-0 bg-slate-200 sm:block" aria-hidden />
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-semibold tracking-tight text-slate-900 sm:text-[0.9375rem]">
+                {tree ? (
+                  <>
+                    Equipo: <span className="text-cyan-900">{tree.name}</span>
+                  </>
+                ) : (
+                  "Exploración de equipo"
+                )}
+              </h1>
+              <p className="hidden truncate text-[10px] font-medium uppercase tracking-wider text-slate-500 sm:block">
+                Sub-organigrama · tres niveles visibles
+              </p>
+            </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             {statusPill}
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200/90 bg-white/90 px-2 py-1 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-cyan-300/50 hover:bg-slate-50/95 hover:text-slate-900"
-              onClick={() => {
-                /* Futuro: flujo de cierre de sesión / revocación de token */
-              }}
-            >
-              <span className="text-slate-400" aria-hidden>
-                <svg
-                  className="size-3.5"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M12 3h3a2 2 0 012 2v10a2 2 0 01-2 2h-3M8 14l4-4-4-4M3 9h9"
-                    stroke="currentColor"
-                    strokeWidth="1.35"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
-              <span className="hidden sm:inline">Cerrar sesión</span>
-            </button>
           </div>
         </div>
       </header>
@@ -206,13 +177,20 @@ export function OrgChartPage() {
               role="alert"
               className="max-w-lg rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900"
             >
-              <p className="font-medium">No se pudo cargar el organigrama</p>
+              <p className="font-medium">No se pudo cargar el equipo</p>
               <p className="mt-1 text-rose-800/90">{chartError}</p>
+              <p className="mt-3">
+                <Link
+                  to="/"
+                  className="font-semibold text-cyan-800 underline decoration-cyan-400/60 underline-offset-2 hover:text-cyan-950"
+                >
+                  Volver al organigrama completo
+                </Link>
+              </p>
             </div>
           </div>
         ) : tree ? (
           <>
-            {/* Capa mapa: ocupa todo el main; no empuja el overlay. */}
             <div className="absolute inset-0 z-0 flex min-h-0 flex-col">
               <OrgMapView
                 key={tree.id}
@@ -227,7 +205,6 @@ export function OrgChartPage() {
               />
             </div>
 
-            {/* Overlay: sólo el panel recibe puntero; el mapa sigue interactivo fuera de él. */}
             <div
               className="pointer-events-none absolute inset-0 z-30 flex max-sm:items-end max-sm:justify-center sm:items-stretch sm:justify-end sm:p-4"
               aria-hidden={!detailOverlayOpen}
@@ -271,11 +248,44 @@ export function OrgChartPage() {
         ) : (
           <div className="flex h-full min-h-0 items-center justify-center overflow-auto p-6">
             <div className="rounded-xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-600">
-              Cargando organigrama…
+              Cargando equipo…
             </div>
           </div>
         )}
       </main>
     </div>
+  );
+}
+
+/**
+ * Vista de exploración profunda: el árbol se recarga con la persona de la URL como raíz
+ * y se aplica el mismo tope de niveles que en el organigrama principal.
+ */
+export function OrgChartExplorePage() {
+  const { personId } = useParams<{ personId: string }>();
+  const [conn, setConn] = useState<ConnState>("checking");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchHealth()
+      .then(() => {
+        if (!cancelled) setConn("online");
+      })
+      .catch(() => {
+        if (!cancelled) setConn("offline");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!personId) {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <OrgChartExploreBody key={personId} personId={personId} conn={conn} />
   );
 }

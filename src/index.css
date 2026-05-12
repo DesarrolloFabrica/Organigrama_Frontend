@@ -8,64 +8,876 @@
 
   • Se pierde la composición correcta: el pan/zoom deja de actualizar la misma propiedad.
   • El comportamiento del puntero (arrastre, clics en nodos) deja de alinearse con lo visible.
-  • El contenido puede quedar cortado porque el navegador recorta según una caja inclinada
+  • El contenido puede quedar cortado porque el navegador corta según una caja inclinada
     distinta a la que usa el motor para calcular vistas y minimapa.
 
-  Por eso no se modifica aquí el transform de .react-flow__viewport. La sensación “3D”
-  se logra con capas decorativas + sombras en los nodos (clase .org-map-node).
+  Por eso no se modifica aquí el transform de .react-flow__viewport. La lectura “HUD / holograma”
+  se logra con capas y sombras en el nodo (clase .org-map-holo), no rotando el canvas.
 */
 
-/* Sombra bajo los nodos: no interfiere con el transform del viewport. */
+/* Gira la línea del radar desde el centro del SVG */
+.radar-sweep {
+  transform-origin: 450px 450px;
+  animation: radarSweepRotate 8s linear infinite;
+}
+
+/* Respeta usuarios con reducción de movimiento */
+@media (prefers-reduced-motion: reduce) {
+  .radar-sweep {
+    animation: none;
+  }
+}
+
+@keyframes radarSweepRotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Contenedor padre donde vive el organigrama */
+.org-chart-shell {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Capa decorativa detrás del árbol */
+.radar-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  opacity: 0.38;
+}
+
+/* SVG del radar */
+.radar-background-svg {
+  width: min(900px, 90vw);
+  height: min(900px, 90vw);
+
+  stroke: rgba(59, 130, 246, 0.18);
+  stroke-width: 1.2;
+}
+
+/* Punto central del radar */
+.radar-center {
+  fill: rgba(59, 130, 246, 0.35);
+  stroke: none;
+}
+
 .org-map-flow .react-flow__node {
-  filter: drop-shadow(0 22px 32px rgba(0, 0, 0, 0.5))
-    drop-shadow(0 0 1px rgba(34, 211, 238, 0.12));
+  /* Sombra por nodo: `filter` en el estilo del nodo (OrgMapView). */
+  filter: none;
 }
 
-/*
-  Pseudo-3D sobre la tarjeta: bordes internos claros + sombras en capas dan volumen sin
-  rotar el canvas completo ni los elementos que React Flow posiciona.
-*/
-.org-map-node {
-  box-shadow:
-  0 14px 0 rgba(15, 23, 42, 0.65),
-  0 24px 38px rgba(0, 0, 0, 0.35),
-  0 0 28px rgba(34, 211, 238, 0.12);
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
 }
 
-.org-map-node::after {
-    content: "";
-    position: absolute;
-    left: 14px;
-    right: 14px;
-    bottom: -12px;
-    height: 14px;
-    border-radius: 0 0 18px 18px;
-    background: linear-gradient(
-      180deg,
-      rgba(15, 23, 42, 0.78),
-      rgba(2, 6, 23, 0.95)
+/* ═══════════════════════════════════════════════════════════════════════════
+   OrgMap holographic node (.org-map-holo)
+   Módulo translúcido + núcleo “monitoreado”. Animaciones sólo GPU-friendly (opacity/rotate/transform).
+═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes org-map-holo-core-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+    box-shadow: var(--org-lvl-breathe-weak);
+  }
+  50% {
+    opacity: 0.92;
+    transform: scale(1.04);
+    box-shadow: var(--org-lvl-breathe-strong);
+  }
+}
+
+@keyframes org-map-holo-ring-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.org-map-holo {
+  isolation: isolate;
+  border-radius: 4px;
+  /* Esquinas técnicas recortadas: lectura HUD, no rounded card SaaS */
+  clip-path: polygon(
+    10px 0,
+    calc(100% - 10px) 0,
+    100% 10px,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    14px 100%,
+    0 calc(100% - 14px),
+    0 10px
+  );
+  padding: 1rem 1rem 1rem 0.95rem;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  background:
+    radial-gradient(
+      circle at 50% 32%,
+      color-mix(in srgb, var(--org-lvl-primary) 14%, transparent) 0%,
+      color-mix(in srgb, var(--org-lvl-primary) 6%, transparent) 24%,
+      transparent 52%
+    ),
+    radial-gradient(
+      circle at 15% 10%,
+      color-mix(in srgb, var(--org-lvl-primary) 8%, transparent) 0%,
+      transparent 32%
+    ),
+    linear-gradient(
+      145deg,
+      rgba(8, 15, 28, 0.92) 0%,
+      rgba(2, 6, 23, 0.96) 42%,
+      rgba(3, 10, 24, 0.94) 100%
     );
-    opacity: 0.9;
-    pointer-events: none;
-  }
+  border: 1px solid var(--org-lvl-edge-strong);
+  box-shadow: var(--org-lvl-shadow-card);
+  color: rgb(226, 232, 240);
+  transition:
+    max-width 0.45s ease,
+    border-color 0.32s ease,
+    box-shadow 0.38s ease,
+    background 0.32s ease;
+}
 
-  .org-map-node::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background:
-      linear-gradient(135deg, rgba(34, 211, 238, 0.16), transparent 35%),
-      linear-gradient(315deg, rgba(59, 130, 246, 0.12), transparent 45%);
-    pointer-events: none;
-  }
-  
-  /* Nodo seleccionado con más energía visual. */
-  .org-map-node--selected {
+.org-map-holo__handle {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 999px !important;
+  background: color-mix(in srgb, var(--org-lvl-primary) 52%, transparent) !important;
+  border: 1px solid var(--org-lvl-edge-soft) !important;
+  box-shadow: 0 0 10px var(--org-lvl-glow) !important;
+}
+
+/* Barra superior HUD del nodo. */
+.org-map-holo__topbar {
+  position: relative;
+  z-index: 10;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  width: 100%;
+  margin-bottom: 0.4rem;
+}
+
+.org-map-holo__level {
+  color: color-mix(in srgb, var(--org-lvl-primary) 72%, rgba(226, 232, 240, 0.35));
+}
+
+/* Líneas internas tipo HUD para que el panel no se sienta vacío. */
+.org-map-holo__body::before {
+  content: "";
+  position: absolute;
+  inset: 0.35rem 0.45rem auto 0.45rem;
+  height: 42px;
+  pointer-events: none;
+
+  background:
+    linear-gradient(90deg, var(--org-lvl-hud-line), transparent 42%) left top / 44% 1px no-repeat,
+    linear-gradient(90deg, transparent 58%, color-mix(in srgb, var(--org-lvl-hud-line) 78%, transparent)) right bottom / 44% 1px no-repeat,
+    radial-gradient(circle, color-mix(in srgb, var(--org-lvl-hud-line) 95%, transparent) 0 2px, transparent 3px) center top / 100% 10px no-repeat;
+
+  opacity: 0.75;
+  filter: drop-shadow(0 0 6px var(--org-lvl-hud-glow));
+}
+
+/* Pequeño código decorativo lateral, estilo lectura de sistema. */
+.org-map-holo__body::after {
+  content: "SYS • OP";
+  position: absolute;
+  right: 0.75rem;
+  top: 2.9rem;
+
+  color: color-mix(in srgb, var(--org-lvl-primary) 28%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.48rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+/* Módulo inferior central tipo lector de energía HUD. */
+.org-map-holo__bottom-reader {
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  z-index: 12;
+
+  width: 70px;
+  height: 8px;
+
+  transform: translateX(-50%);
+  pointer-events: none;
+
+  background: repeating-linear-gradient(
+    90deg,
+    var(--org-lvl-bottom-reader) 0 3px,
+    transparent 3px 6px
+  );
+
+  clip-path: polygon(
+    8px 0,
+    calc(100% - 8px) 0,
+    100% 100%,
+    0 100%
+  );
+
+  opacity: 0.9;
+
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--org-lvl-primary) 55%, transparent))
+    drop-shadow(0 0 12px var(--org-lvl-glow));
+}
+
+/* Estado operativo holográfico (tinte del nivel). */
+.org-map-holo__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  color: var(--org-lvl-status-text);
+
+  font-size: 0.54rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+
+  text-shadow: 0 0 10px var(--org-lvl-status-glow);
+}
+
+/* Punto vivo de actividad. */
+.org-map-holo__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+
+  background: var(--org-lvl-status-dot);
+
+  box-shadow: var(--org-lvl-status-dot-shadow);
+}
+
+/* Capa extra de borde holográfico: crea líneas internas y esquinas más vivas. */
+.org-map-holo::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  z-index: 0;
+  pointer-events: none;
+
+  clip-path: inherit;
+  border: 1px solid color-mix(in srgb, var(--org-lvl-primary) 38%, transparent);
+
+  box-shadow:
+    inset 0 0 18px color-mix(in srgb, var(--org-lvl-primary) 16%, transparent),
+    0 0 18px color-mix(in srgb, var(--org-lvl-primary) 18%, transparent);
+}
+
+/* Pequeñas barras luminosas tipo HUD en las esquinas. */
+.org-map-holo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+
+  background:
+    linear-gradient(90deg, var(--org-lvl-corner) 0 34px, transparent 34px) top left / 90px 2px no-repeat,
+    linear-gradient(90deg, transparent calc(100% - 34px), var(--org-lvl-corner) calc(100% - 34px)) top right / 90px 2px no-repeat,
+    linear-gradient(90deg, var(--org-lvl-corner) 0 34px, transparent 34px) bottom left / 90px 2px no-repeat,
+    linear-gradient(90deg, transparent calc(100% - 34px), var(--org-lvl-corner) calc(100% - 34px)) bottom right / 90px 2px no-repeat;
+
+  opacity: 0.85;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--org-lvl-primary) 55%, transparent));
+}
+
+.org-map-holo:hover {
+  border-color: color-mix(in srgb, var(--org-lvl-primary) 32%, rgba(148, 163, 184, 0.25));
+  box-shadow: var(--org-lvl-shadow-card-hover);
+}
+
+/* Expandido: más energía en el borde (misma familia cromática). */
+.org-map-holo--expanded {
+  border-color: color-mix(in srgb, var(--org-lvl-primary) 38%, transparent);
+  background:
+    linear-gradient(
+      150deg,
+      rgba(14, 28, 45, 0.68) 0%,
+      rgba(8, 16, 32, 0.82) 40%,
+      rgba(17, 32, 48, 0.62) 100%
+    );
+  box-shadow: var(--org-lvl-shadow-expanded);
+}
+
+@keyframes org-map-holo-expanded-frame {
+  0%,
+  100% {
+    opacity: 0.78;
     box-shadow:
-      0 14px 0 rgba(8, 145, 178, 0.55),
-      0 28px 48px rgba(34, 211, 238, 0.26),
-      0 0 42px rgba(34, 211, 238, 0.34);
+      inset 0 0 18px color-mix(in srgb, var(--org-lvl-primary) 16%, transparent),
+      0 0 14px color-mix(in srgb, var(--org-lvl-primary) 18%, transparent);
+  }
+  50% {
+    opacity: 1;
+    box-shadow:
+      inset 0 0 26px color-mix(in srgb, var(--org-lvl-primary) 24%, transparent),
+      0 0 22px color-mix(in srgb, var(--org-lvl-primary) 26%, transparent);
+  }
+}
+
+.org-map-holo--expanded::before {
+  animation: org-map-holo-expanded-frame 2.8s ease-in-out infinite;
+}
+
+/* Hub: fila 2 con equipo interno (nivel 3 dentro de la tarjeta) */
+.org-map-holo--hub {
+  max-width: min(900px, 85vw);
+  width: max-content;
+}
+
+.org-map-team-panel__divider {
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--org-lvl-team-divider),
+    transparent
+  );
+}
+
+.org-map-team-panel__heading {
+  color: var(--org-lvl-team-heading);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .org-map-holo {
+    transition-duration: 0.01ms;
   }
 
+  .org-map-holo__team-shell {
+    animation: none;
+  }
 
+  .org-map-holo--expanded::before {
+    animation: none;
+  }
+}
+
+@keyframes org-map-team-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.org-map-holo__team-shell {
+  animation: org-map-team-reveal 0.34s ease-out both;
+}
+
+/* Seleccionado: halo externo + saturación leve del nivel */
+.org-map-holo--selected {
+  border-color: color-mix(in srgb, var(--org-lvl-primary) 48%, rgba(255, 255, 255, 0.2));
+  box-shadow: var(--org-lvl-shadow-selected);
+}
+
+/* Bruma / brillo foto-táctico en vértices */
+.org-map-holo__specular {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  clip-path: inherit;
+  background:
+    linear-gradient(
+      118deg,
+      color-mix(in srgb, var(--org-lvl-primary) 12%, transparent) 0%,
+      transparent 38%
+    ),
+    linear-gradient(
+      -35deg,
+      transparent 52%,
+      color-mix(in srgb, var(--org-lvl-primary) 6%, transparent) 100%
+    );
+  opacity: 0.75;
+}
+
+.org-map-holo__name {
+  filter: drop-shadow(0 0 12px var(--org-lvl-name-glow));
+}
+
+/* ── Núcleo ───────────────────────────────────────────────────────────────── */
+
+.org-map-holo__nucleus-wrap {
+  filter: var(--org-lvl-nucleus-filter);
+}
+
+.org-map-holo__nucleus {
+  border-radius: 9999px;
+}
+
+.org-map-holo__ring {
+  position: absolute;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  border-color: var(--org-lvl-ring);
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--org-lvl-primary) 18%, transparent),
+    inset 0 0 10px color-mix(in srgb, var(--org-lvl-primary) 8%, transparent);
+}
+
+.org-map-holo__ring--outer {
+  inset: -2px;
+  border-color: var(--org-lvl-ring-outer);
+}
+
+.org-map-holo__ring--inner {
+  inset: 6px;
+  border-color: var(--org-lvl-ring-inner);
+}
+
+/* Órbita segmentada: velocidad muy baja para no distraer */
+.org-map-holo__ring--orbit {
+  inset: -10px;
+  border: 3px dashed var(--org-lvl-orbit);
+  border-radius: 9999px;
+  animation: org-map-holo-ring-orbit 96s linear infinite;
+  opacity: 0.55;
+}
+
+.org-map-holo:hover .org-map-holo__ring--orbit,
+.org-map-holo--selected .org-map-holo__ring--orbit {
+  opacity: 0.82;
+}
+
+/* Silueta humana holográfica dentro del núcleo. */
+.org-map-holo__core::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 48%;
+
+  width: 18px;
+  height: 24px;
+
+  transform: translate(-50%, -50%);
+
+  background:
+    radial-gradient(
+      circle at 50% 22%,
+      color-mix(in srgb, var(--org-lvl-primary) 88%, white) 0 5px,
+      transparent 5.5px
+    ),
+    radial-gradient(
+      ellipse at 50% 72%,
+      color-mix(in srgb, var(--org-lvl-core-mid) 82%, transparent) 0 10px,
+      transparent 10.5px
+    );
+
+  filter: var(--org-lvl-core-silhouette);
+
+  opacity: 0.9;
+}
+
+.org-map-holo__core {
+  position: relative;
+  overflow: hidden;
+  width: 54%;
+  height: 54%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.78), transparent 18%),
+    radial-gradient(
+      circle,
+      var(--org-lvl-core-mid) 0%,
+      var(--org-lvl-core-deep) 38%,
+      color-mix(in srgb, var(--org-lvl-primary) 12%, transparent) 68%,
+      transparent 78%
+    );
+  box-shadow: var(--org-lvl-core-shadow);
+  border: 1px solid var(--org-lvl-core-border);
+  animation: org-map-holo-core-breathe 2s ease-in-out infinite;
+}
+
+.org-map-holo__crosshair {
+  position: absolute;
+  inset: 18%;
+  border-radius: 9999px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background:
+    linear-gradient(transparent 48%, var(--org-lvl-crosshair) 50%, transparent 52%),
+    linear-gradient(90deg, transparent 48%, var(--org-lvl-crosshair) 50%, transparent 52%);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.org-map-holo--selected .org-map-holo__core {
+  border-color: rgba(255, 255, 255, 0.35);
+  animation-duration: 5.5s;
+}
+
+/* ── Badge conexiones (disco holográfico) ───────────────────────────────────── */
+
+.org-map-holo__link-disk-inner {
+  border-radius: 9999px;
+  background:
+    radial-gradient(
+      circle at 30% 25%,
+      color-mix(in srgb, var(--org-lvl-primary) 16%, transparent),
+      transparent 55%
+    ),
+    rgba(15, 23, 42, 0.6);
+  border: 1px solid color-mix(in srgb, var(--org-lvl-primary) 22%, transparent);
+  box-shadow:
+    0 0 12px color-mix(in srgb, var(--org-lvl-primary) 10%, transparent),
+    inset 0 0 14px rgba(2, 6, 23, 0.5);
+}
+
+.org-map-holo:hover .org-map-holo__link-disk-inner {
+  border-color: color-mix(in srgb, var(--org-lvl-primary) 36%, transparent);
+}
+
+/* ── Botones tácticos ─────────────────────────────────────────────────────── */
+
+.org-map-holo__btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 30px;
+  padding: 0.35rem 0.65rem 0.35rem 0.45rem;
+  border-radius: 3px;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(226, 232, 240);
+  background: var(--org-lvl-btn-bg);
+  color: color-mix(in srgb, var(--org-lvl-primary) 22%, rgba(226, 232, 240, 0.95));
+  border: 1px solid var(--org-lvl-btn-border);
+  box-shadow: var(--org-lvl-btn-shadow);
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+
+  clip-path: polygon(
+    8px 0,
+    100% 0,
+    100% calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    0 100%,
+    0 8px
+  );
+}
+
+.org-map-holo__btn:hover {
+  color: white;
+  border-color: color-mix(in srgb, var(--org-lvl-primary) 62%, transparent);
+  background: var(--org-lvl-btn-hover-bg);
+  box-shadow: var(--org-lvl-btn-hover-shadow);
+  transform: translateY(-1px);
+}
+
+.org-map-holo__btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--org-lvl-btn-focus);
+}
+
+.org-map-holo__btn:active {
+  transform: translateY(0);
+}
+
+.org-map-holo__btn--detail {
+  border-color: var(--org-lvl-btn-detail-border);
+}
+
+.org-map-holo__btn--explore {
+  border-color: var(--org-lvl-btn-explore-border);
+  background: var(--org-lvl-btn-explore-bg);
+}
+
+.org-map-holo__btn--explore:hover {
+  border-color: var(--org-lvl-btn-explore-hover-border);
+}
+
+.org-map-holo__btn svg,
+.org-map-holo__btn-icon-svg {
+  color: var(--org-lvl-btn-icon);
+  filter: drop-shadow(0 0 6px var(--org-lvl-btn-icon-glow));
+}
+
+.org-map-holo__btn-icon-svg--explore {
+  color: color-mix(in srgb, var(--org-lvl-primary) 35%, #6ee7b7);
+}
+
+.org-map-holo__btn-icon-svg--detail {
+  color: color-mix(in srgb, var(--org-lvl-primary) 28%, #bae6fd);
+}
+
+/* Mini-cards del hub (variables por miembro / nivel) */
+.org-map-mini-card {
+  border: 1px solid var(--org-lvl-mini-border);
+  box-shadow: inset 0 0 0 1px var(--org-lvl-mini-inset);
+}
+
+.org-map-mini-card:hover {
+  border-color: color-mix(in srgb, var(--org-lvl-primary) 36%, transparent);
+  background-color: rgba(2, 6, 23, 0.82);
+  box-shadow: var(--org-lvl-mini-shadow-hover);
+}
+
+.org-map-mini-card__avatar {
+  border: 1px solid var(--org-lvl-mini-avatar-border);
+  background: linear-gradient(
+    to bottom,
+    var(--org-lvl-mini-avatar-from),
+    var(--org-lvl-mini-avatar-to)
+  );
+  color: var(--org-lvl-mini-avatar-text);
+  box-shadow: 0 0 12px var(--org-lvl-mini-avatar-glow);
+}
+
+.org-map-mini-card__active-row {
+  color: var(--org-lvl-mini-active-label);
+}
+
+.org-map-mini-card__pulse {
+  background: var(--org-lvl-mini-pulse);
+  box-shadow: 0 0 6px var(--org-lvl-mini-pulse-shadow);
+}
+
+.org-map-mini-card__explore {
+  border: 1px solid var(--org-lvl-mini-explore-border);
+  background: var(--org-lvl-mini-explore-bg);
+  color: color-mix(in srgb, var(--org-lvl-primary) 18%, rgba(255, 255, 255, 0.92));
+}
+
+.org-map-mini-card__explore:hover {
+  border-color: var(--org-lvl-mini-explore-hover-border);
+  background: var(--org-lvl-mini-explore-hover-bg);
+  color: white;
+}
+
+.org-map-mini-card__explore-icon {
+  color: color-mix(in srgb, var(--org-lvl-primary) 32%, #6ee7b7);
+}
+
+.org-map-mini-card__detail {
+  border: 1px solid var(--org-lvl-mini-detail-border);
+  color: var(--org-lvl-mini-detail-text);
+}
+
+.org-map-mini-card__detail:hover {
+  border-color: var(--org-lvl-mini-detail-hover-border);
+  background: var(--org-lvl-mini-detail-hover-bg);
+  color: white;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Mesa holográfica (.org-map-shell*)
+   Capas: atmósfera (degradado leve) → bisel vidrio frío translúcido → superficie con regazo hacia lo oscuro.
+   Sin halo blur agresivo: la lectura es “mesa flotante operativa”, no bloque cyberpunk ni rectángulo pegado al main.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Variante lienzo principal: menos pedestal, cadena flex para altura fluida. */
+.org-map-shell.org-map-shell--fullscreen {
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 4px;
+  border-radius: 14px;
+  box-shadow:
+    0 12px 40px -20px rgba(51, 65, 85, 0.2),
+    0 6px 16px rgba(15, 23, 42, 0.12);
+}
+
+.org-map-shell.org-map-shell--fullscreen .org-map-shell__atmosphere {
+  inset: 4px;
+  border-radius: 12px;
+}
+
+.org-map-shell.org-map-shell--fullscreen .org-map-shell__bezel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border-radius: 12px;
+}
+
+.org-map-shell.org-map-shell--fullscreen .org-map-shell__surface {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+}
+
+.org-map-shell.org-map-shell--fullscreen .org-map-shell__surface > section {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.org-map-shell {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  margin: 0 auto;
+  border-radius: 44px;
+  /* Superficie clara de “pedestal”: el bisel y el canvas viven por encima; se nota sin depender del glow */
+  background: radial-gradient(
+    ellipse 105% 88% at 50% 38%,
+    rgba(248, 250, 252, 0.72) 0%,
+    rgba(226, 232, 240, 0.58) 55%,
+    rgba(203, 213, 225, 0.45) 100%
+  );
+  border: 1px solid rgba(203, 213, 225, 0.65);
+  /* Elevación: difuso azulado + sombra de contacto inferior */
+  box-shadow:
+    0 48px 100px -32px rgba(51, 65, 85, 0.24),
+    0 34px 70px -40px rgba(30, 41, 59, 0.18),
+    0 22px 44px -20px rgba(15, 23, 42, 0.2),
+    0 10px 18px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+/* Degradado transparente → cyan imperceptible: capa bajo el bisel, sin filter: blur */
+.org-map-shell__atmosphere {
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+  inset: 8px;
+  border-radius: 38px;
+  background: radial-gradient(
+    ellipse 94% 76% at 50% 40%,
+    transparent 0%,
+    transparent 54%,
+    rgba(125, 211, 252, 0.05) 76%,
+    rgba(56, 189, 248, 0.032) 88%,
+    transparent 100%
+  );
+}
+
+/* Bisel: gris azulado translúcido + blur suave; borde frío premium */
+.org-map-shell__bezel {
+  position: relative;
+  z-index: 1;
+  border-radius: 38px;
+  padding: 14px;
+  background: linear-gradient(
+    168deg,
+    rgba(252, 252, 253, 0.78) 0%,
+    rgba(241, 245, 249, 0.58) 38%,
+    rgba(226, 232, 240, 0.52) 72%,
+    rgba(203, 213, 225, 0.44) 100%
+  );
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.58),
+    inset 0 -1px 0 rgba(148, 163, 184, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* Transición bien → canvas oscuro: trinchera slate + relieve interior suave (sin borde cyan duro) */
+.org-map-shell__surface {
+  position: relative;
+  z-index: 1;
+  border-radius: 30px;
+  overflow: hidden;
+  border: 1px solid rgba(100, 116, 139, 0.38);
+  box-shadow:
+    inset 0 0 0 1px rgba(15, 23, 42, 0.5),
+    inset 0 0 0 2px rgba(248, 250, 252, 0.06),
+    inset 0 3px 8px rgba(2, 6, 23, 0.25),
+    inset 0 -28px 48px rgba(2, 6, 23, 0.22);
+}
+
+/* Panel flotante de ficha (OrgChartPage > aside.entity-detail-overlay) */
+@keyframes entity-detail-overlay-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 640px) {
+  @keyframes entity-detail-overlay-enter {
+    from {
+      opacity: 0;
+      transform: translateX(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+}
+
+.entity-detail-overlay {
+  animation: entity-detail-overlay-enter 0.32s ease-out both;
+  border: 1px solid rgba(203, 213, 225, 0.72);
+  border-radius: 1rem;
+  background: rgba(248, 250, 252, 0.42);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entity-detail-overlay {
+    animation: none;
+  }
+}
+
+/* Panel ficha entidad: scroll estable y barra discreta (PersonDetailPanel) */
+.entity-scan-scroll {
+  scrollbar-gutter: stable;
+}
+.entity-scan-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.entity-scan-scroll::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.6);
+  border-radius: 9999px;
+}
+.entity-scan-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.55);
+  border-radius: 9999px;
+}
+.entity-scan-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 211, 238, 0.35);
+}
