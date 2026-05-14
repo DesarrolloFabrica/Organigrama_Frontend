@@ -748,79 +748,65 @@ body,
 .org-map-shell {
   position: relative;
   isolation: isolate;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 12px;
-  margin: 0 auto;
-  border-radius: 44px;
-  /* Superficie clara de “pedestal”: el bisel y el canvas viven por encima; se nota sin depender del glow */
-  background: radial-gradient(
-    ellipse 105% 88% at 50% 38%,
-    rgba(248, 250, 252, 0.72) 0%,
-    rgba(226, 232, 240, 0.58) 55%,
-    rgba(203, 213, 225, 0.45) 100%
-  );
-  border: 1px solid rgba(203, 213, 225, 0.65);
-  /* Elevación: difuso azulado + sombra de contacto inferior */
+  min-height: 0;
+  flex: 1;
+  padding: 10px;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(34, 211, 238, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.98));
+  border: 1px solid rgba(103, 232, 249, 0.18);
   box-shadow:
-    0 48px 100px -32px rgba(51, 65, 85, 0.24),
-    0 34px 70px -40px rgba(30, 41, 59, 0.18),
-    0 22px 44px -20px rgba(15, 23, 42, 0.2),
-    0 10px 18px rgba(15, 23, 42, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    0 24px 70px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  overflow: hidden;
 }
 
 /* Degradado transparente → cyan imperceptible: capa bajo el bisel, sin filter: blur */
 .org-map-shell__atmosphere {
-  pointer-events: none;
   position: absolute;
-  z-index: 0;
-  inset: 8px;
-  border-radius: 38px;
-  background: radial-gradient(
-    ellipse 94% 76% at 50% 40%,
-    transparent 0%,
-    transparent 54%,
-    rgba(125, 211, 252, 0.05) 76%,
-    rgba(56, 189, 248, 0.032) 88%,
-    transparent 100%
-  );
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.13), transparent 34%),
+    radial-gradient(circle at 18% 16%, rgba(20, 184, 166, 0.10), transparent 28%),
+    linear-gradient(135deg, rgba(148, 163, 184, 0.06), transparent 42%);
+  opacity: 0.9;
 }
 
 /* Bisel: gris azulado translúcido + blur suave; borde frío premium */
 .org-map-shell__bezel {
   position: relative;
-  z-index: 1;
-  border-radius: 38px;
-  padding: 14px;
-  background: linear-gradient(
-    168deg,
-    rgba(252, 252, 253, 0.78) 0%,
-    rgba(241, 245, 249, 0.58) 38%,
-    rgba(226, 232, 240, 0.52) 72%,
-    rgba(203, 213, 225, 0.44) 100%
-  );
-  border: 1px solid rgba(148, 163, 184, 0.42);
+  min-height: 0;
+  flex: 1;
+  border-radius: 18px;
+  padding: 6px;
+  background:
+    linear-gradient(135deg, rgba(103, 232, 249, 0.28), rgba(15, 23, 42, 0.45) 32%, rgba(20, 184, 166, 0.18)),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(2, 6, 23, 0.95));
+  border: 1px solid rgba(125, 211, 252, 0.22);
   box-shadow:
-    inset 0 2px 0 rgba(255, 255, 255, 0.58),
-    inset 0 -1px 0 rgba(148, 163, 184, 0.2),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    inset 0 0 28px rgba(34, 211, 238, 0.08),
+    0 18px 52px rgba(0, 0, 0, 0.42);
+  overflow: hidden;
 }
 
 /* Transición bien → canvas oscuro: trinchera slate + relieve interior suave (sin borde cyan duro) */
 .org-map-shell__surface {
   position: relative;
-  z-index: 1;
-  border-radius: 30px;
+  min-height: 0;
+  height: 100%;
+  border-radius: 14px;
   overflow: hidden;
-  border: 1px solid rgba(100, 116, 139, 0.38);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(8, 145, 178, 0.12), transparent 36%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.96), rgba(3, 7, 18, 1));
+  border: 1px solid rgba(103, 232, 249, 0.16);
   box-shadow:
-    inset 0 0 0 1px rgba(15, 23, 42, 0.5),
-    inset 0 0 0 2px rgba(248, 250, 252, 0.06),
-    inset 0 3px 8px rgba(2, 6, 23, 0.25),
-    inset 0 -28px 48px rgba(2, 6, 23, 0.22);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+    inset 0 0 42px rgba(0, 0, 0, 0.55);
 }
 
 /* Panel flotante de ficha (OrgChartPage > aside.entity-detail-overlay) */
@@ -880,4 +866,61 @@ body,
 }
 .entity-scan-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(34, 211, 238, 0.35);
+}
+
+/* Animación de expansión suave para los anillos tipo radar. */
+@keyframes radarPulse {
+  0% {
+    transform: scale(0.86);
+    opacity: 0.14;
+  }
+
+  50% {
+    transform: scale(1.08);
+    opacity: 0.42;
+  }
+
+  100% {
+    transform: scale(0.86);
+    opacity: 0.14;
+  }
+}
+
+/* Animación del brillo que acompaña al logo. */
+@keyframes logoGlow {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.2;
+  }
+
+  50% {
+    transform: scale(1.12);
+    opacity: 0.65;
+  }
+
+  100% {
+    transform: scale(0.9);
+    opacity: 0.2;
+  }
+}
+
+/* Animación tipo respiración para el logo. */
+@keyframes logoBreath {
+  0% {
+    transform: scale(0.96);
+    opacity: 0.72;
+    filter: drop-shadow(0 0 10px rgba(103, 232, 249, 0.18));
+  }
+
+  50% {
+    transform: scale(1.04);
+    opacity: 1;
+    filter: drop-shadow(0 0 26px rgba(103, 232, 249, 0.46));
+  }
+
+  100% {
+    transform: scale(0.96);
+    opacity: 0.72;
+    filter: drop-shadow(0 0 10px rgba(103, 232, 249, 0.18));
+  }
 }

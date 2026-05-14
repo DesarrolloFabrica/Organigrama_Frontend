@@ -8,6 +8,7 @@ import {
 } from "../features/org-chart/services/orgChartService";
 import { OrgMapView } from "../features/org-chart/components/OrgMapView";
 import { PersonDetailPanel } from "../features/org-chart/components/PersonDetailPanel";
+import { LogoutButton } from "../features/org-chart/components/LogoutButton";
 
 type ConnState = "checking" | "online" | "offline";
 
@@ -86,80 +87,81 @@ export function OrgChartPage() {
 
   /** Barra superior: una sola fila; estado API en `title` para no saturar la UI. */
   const statusPill =
-    conn === "checking" ? (
-      <div
-        role="status"
-        title={`API: ${apiBaseDisplay}`}
-        className="inline-flex max-w-44 items-center gap-1.5 rounded-md border border-slate-200/90 bg-white/80 px-2 py-1 shadow-sm"
-      >
-        <span className="relative flex size-1.5 shrink-0" aria-hidden>
-          <span className="absolute inline-flex size-1.5 animate-ping rounded-full bg-amber-400/50" />
-          <span className="relative size-1.5 rounded-full bg-amber-500" />
-        </span>
-        <span className="truncate text-[11px] font-medium text-slate-700">
-          Verificando…
-        </span>
-      </div>
-    ) : conn === "online" ? (
-      <div
-        role="status"
-        title={`API: ${apiBaseDisplay}`}
-        className="inline-flex max-w-44 items-center gap-1.5 rounded-md border border-emerald-200/80 bg-emerald-50/80 px-2 py-1 shadow-sm ring-1 ring-cyan-500/8"
-      >
-        <span
-          className="size-1.5 shrink-0 rounded-full bg-emerald-500"
-          aria-hidden
-        />
-        <span className="truncate text-[11px] font-semibold text-slate-800">
-          Conectado
-        </span>
-      </div>
-    ) : (
-      <div
-        role="status"
-        title={`API: ${apiBaseDisplay}`}
-        className="inline-flex max-w-44 items-center gap-1.5 rounded-md border border-rose-200/90 bg-rose-50/90 px-2 py-1 shadow-sm"
-      >
-        <span
-          className="size-1.5 shrink-0 rounded-full bg-rose-500"
-          aria-hidden
-        />
-        <span className="truncate text-[11px] font-medium text-rose-900">
-          Sin conexión
-        </span>
-      </div>
-    );
+  conn === "checking" ? (
+    <div
+      role="status"
+      title={`API: ${apiBaseDisplay}`}
+      className="inline-flex max-w-44 items-center gap-1.5 rounded-md border border-amber-300/20 bg-amber-400/8 px-2 py-1 shadow-[0_0_24px_rgba(251,191,36,0.08)] backdrop-blur-md"
+    >
+      <span className="relative flex size-1.5 shrink-0" aria-hidden>
+        <span className="absolute inline-flex size-1.5 animate-ping rounded-full bg-amber-400/40" />
+        <span className="relative size-1.5 rounded-full bg-amber-300" />
+      </span>
 
-  const detailOverlayOpen = Boolean(
-    selectedPersonId && !detailPanelMinimized,
+      <span className="truncate text-[11px] font-medium tracking-wide text-amber-100/90">
+        Verificando…
+      </span>
+    </div>
+  ) : conn === "online" ? (
+    <div
+      role="status"
+      title={`API: ${apiBaseDisplay}`}
+      className="inline-flex max-w-44 items-center gap-1.5 rounded-md border border-emerald-300/20 bg-emerald-400/10 px-2 py-1 shadow-[0_0_24px_rgba(16,185,129,0.14)] backdrop-blur-md"
+    >
+      <span
+        className="size-1.5 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.9)]"
+        aria-hidden
+      />
+
+      <span className="truncate text-[11px] font-semibold tracking-wide text-emerald-50">
+        Conectado
+      </span>
+    </div>
+  ) : (
+    <div
+      role="status"
+      title={`API: ${apiBaseDisplay}`}
+      className="inline-flex max-w-44 items-center gap-1.5 rounded-md border border-rose-300/20 bg-rose-400/10 px-2 py-1 shadow-[0_0_24px_rgba(244,63,94,0.12)] backdrop-blur-md"
+    >
+      <span
+        className="size-1.5 shrink-0 rounded-full bg-rose-300 shadow-[0_0_10px_rgba(253,164,175,0.8)]"
+        aria-hidden
+      />
+
+      <span className="truncate text-[11px] font-medium tracking-wide text-rose-100">
+        Sin conexión
+      </span>
+    </div>
   );
+
+  const detailOverlayOpen = Boolean(selectedPersonId && !detailPanelMinimized);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col [--app-header-h:2.75rem] sm:[--app-header-h:3rem]">
       {/*
         Barra de aplicación: compacta, horizontal, espacio para acciones globales (estado + sesión).
       */}
-      <header className="sticky top-0 z-20 shrink-0 border-b border-slate-200/90 bg-linear-to-b from-slate-50/95 via-white to-slate-100/90 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.1)] backdrop-blur-md">
+      <header className="sticky top-0 z-20 shrink-0 border-b border-cyan-300/15 bg-[#020617]/82 shadow-[0_12px_38px_-20px_rgba(34,211,238,0.45)] backdrop-blur-xl">
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-cyan-500/30 to-transparent"
           aria-hidden
         />
-        <div className="relative mx-auto flex h-11 max-w-7xl items-center justify-between gap-3 px-3 sm:h-12 sm:gap-4 sm:px-5 lg:px-8">
+        <div className="mx-auto flex h-[var(--app-header-h)] max-w-7xl items-center justify-between px-3 sm:px-4 lg:px-6">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <h1 className="truncate text-sm font-semibold tracking-tight text-slate-900 sm:text-[0.9375rem]">
+            <h1 className="truncate text-sm font-semibold tracking-tight text-slate-100 sm:text-[0.9375rem]">
               Organigrama OP
             </h1>
             <span
               className="hidden h-3 w-px shrink-0 bg-slate-200 sm:block"
               aria-hidden
             />
-            <span className="hidden truncate font-mono text-[10px] font-medium uppercase tracking-wider text-slate-500 sm:inline">
+            <span className="hidden truncate font-mono text-[10px] font-medium uppercase tracking-wider text-cyan-100/90 sm:inline">
               Dirección de Operaciones
             </span>
           </div>
 
           <div className="pointer-events-none absolute left-1/2 hidden -translate-x-1/2 sm:block">
-            <span className="inline-flex items-center gap-1 rounded-full border border-slate-200/60 bg-white/50 px-2 py-0.5 font-mono text-[9px] font-medium uppercase tracking-[0.14em] text-slate-400">
+            <span className="hidden rounded-full border border-cyan-300/15 bg-cyan-300/5 px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.28em] text-cyan-100/65 shadow-[0_0_22px_rgba(34,211,238,0.08)] sm:inline-flex">
               <span
                 className="size-1 rounded-full bg-cyan-500/55"
                 aria-hidden
@@ -170,36 +172,16 @@ export function OrgChartPage() {
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             {statusPill}
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200/90 bg-white/90 px-2 py-1 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-cyan-300/50 hover:bg-slate-50/95 hover:text-slate-900"
-              onClick={() => {
-                /* Futuro: flujo de cierre de sesión / revocación de token */
-              }}
-            >
-              <span className="text-slate-400" aria-hidden>
-                <svg
-                  className="size-3.5"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M12 3h3a2 2 0 012 2v10a2 2 0 01-2 2h-3M8 14l4-4-4-4M3 9h9"
-                    stroke="currentColor"
-                    strokeWidth="1.35"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
-              <span className="hidden sm:inline">Cerrar sesión</span>
-            </button>
+            <LogoutButton />
           </div>
         </div>
       </header>
 
-      <main className="relative min-h-0 flex-1 overflow-hidden bg-slate-50">
+      <main className="relative min-h-0 flex-1 overflow-hidden bg-transparent">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_48%,rgba(34,211,238,0.12),transparent_24%),radial-gradient(circle_at_50%_50%,rgba(14,165,233,0.10),transparent_42%)]"
+        />
         {chartError ? (
           <div className="flex h-full min-h-0 items-center justify-center overflow-auto p-6">
             <div

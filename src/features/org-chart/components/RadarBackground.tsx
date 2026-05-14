@@ -27,7 +27,7 @@ export function RadarBackground() {
             cy="450"
             r="155"
             stroke="rgba(125, 249, 255, 0.28)"
-            strokeWidth="3"
+            strokeWidth="1"
             strokeDasharray="10 14"
           />
           <circle

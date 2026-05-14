@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  Link,
-  Navigate,
-  useNavigate,
-  useParams,
-} from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { type OrgNode, countPeopleUnder } from "../features/org-chart/types";
 import { findNodeInTree } from "../features/org-chart/utils/findNodeInTree";
 import {
@@ -13,10 +8,12 @@ import {
 } from "../features/org-chart/services/orgChartService";
 import { OrgMapView } from "../features/org-chart/components/OrgMapView";
 import { PersonDetailPanel } from "../features/org-chart/components/PersonDetailPanel";
+import { LogoutButton } from "../features/org-chart/components/LogoutButton";
+
 
 type ConnState = "checking" | "online" | "offline";
 
-const MAP_MAX_LEVELS = 3;
+const MAP_MAX_LEVELS = 4;
 
 type ExploreBodyProps = {
   personId: string;
@@ -128,49 +125,51 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
       </div>
     );
 
-  const detailOverlayOpen = Boolean(
-    selectedPersonId && !detailPanelMinimized,
-  );
+  const detailOverlayOpen = Boolean(selectedPersonId && !detailPanelMinimized);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col [--app-header-h:2.75rem] sm:[--app-header-h:3rem]">
-      <header className="sticky top-0 z-20 shrink-0 border-b border-slate-200/90 bg-linear-to-b from-slate-50/95 via-white to-slate-100/90 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.1)] backdrop-blur-md">
+      <header className="sticky top-0 z-20 shrink-0 border-b border-cyan-300/15 bg-[#020617]/82 shadow-[0_12px_38px_-20px_rgba(34,211,238,0.45)] backdrop-blur-xl">
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-cyan-500/30 to-transparent"
           aria-hidden
         />
-        <div className="relative mx-auto flex h-11 max-w-7xl items-center justify-between gap-3 px-3 sm:h-12 sm:gap-4 sm:px-5 lg:px-8">
-          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-            <Link
-              to="/"
-              className="shrink-0 rounded-md border border-slate-200/80 bg-white/90 px-2 py-1 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-cyan-300/50 hover:bg-slate-50 hover:text-slate-900"
-            >
-              ← Organigrama
-            </Link>
-            <span className="hidden h-3 w-px shrink-0 bg-slate-200 sm:block" aria-hidden />
-            <div className="min-w-0">
-              <h1 className="truncate text-sm font-semibold tracking-tight text-slate-900 sm:text-[0.9375rem]">
-                {tree ? (
-                  <>
-                    Equipo: <span className="text-cyan-900">{tree.name}</span>
-                  </>
-                ) : (
-                  "Exploración de equipo"
-                )}
-              </h1>
-              <p className="hidden truncate text-[10px] font-medium uppercase tracking-wider text-slate-500 sm:block">
-                Sub-organigrama · tres niveles visibles
-              </p>
-            </div>
+        <div className="mx-auto flex h-[var(--app-header-h)] max-w-7xl items-center justify-between px-3 sm:px-4 lg:px-6">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <h1 className="truncate text-sm font-semibold tracking-tight text-slate-100 sm:text-[0.9375rem]">
+              Organigrama OP
+            </h1>
+            <span
+              className="hidden h-3 w-px shrink-0 bg-slate-200 sm:block"
+              aria-hidden
+            />
+            <span className="hidden truncate font-mono text-[10px] font-medium uppercase tracking-wider text-cyan-100/90 sm:inline">
+              Dirección de Operaciones
+            </span>
+          </div>
+
+          <div className="pointer-events-none absolute left-1/2 hidden -translate-x-1/2 sm:block">
+            <span className="hidden rounded-full border border-cyan-300/15 bg-cyan-300/5 px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.28em] text-cyan-100/65 shadow-[0_0_22px_rgba(34,211,238,0.08)] sm:inline-flex">
+              <span
+                className="size-1 rounded-full bg-cyan-500/55"
+                aria-hidden
+              />
+              Mapa operacional
+            </span>
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             {statusPill}
+            <LogoutButton />
           </div>
         </div>
       </header>
 
-      <main className="relative min-h-0 flex-1 overflow-hidden bg-slate-50">
+      <main className="relative min-h-0 flex-1 overflow-hidden bg-transparent">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_48%,rgba(34,211,238,0.12),transparent_24%),radial-gradient(circle_at_50%_50%,rgba(14,165,233,0.10),transparent_42%)]"
+        />
         {chartError ? (
           <div className="flex h-full min-h-0 items-center justify-center overflow-auto p-6">
             <div
@@ -202,6 +201,8 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
                 maxRenderLevels={MAP_MAX_LEVELS}
                 initialShowRootChildren
                 onExploreTeam={handleExploreTeam}
+                showBackButton
+                onBack={() => navigate("/org")}
               />
             </div>
 
@@ -285,7 +286,5 @@ export function OrgChartExplorePage() {
     return <Navigate to="/" replace />;
   }
 
-  return (
-    <OrgChartExploreBody key={personId} personId={personId} conn={conn} />
-  );
+  return <OrgChartExploreBody key={personId} personId={personId} conn={conn} />;
 }

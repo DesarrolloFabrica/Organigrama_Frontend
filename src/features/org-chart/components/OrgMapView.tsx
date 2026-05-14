@@ -26,22 +26,13 @@ type Props = {
   root: OrgNode;
   selectedPersonId: string | null;
   onSelectNode: (id: string) => void;
-  /** Marco pedestal reducido; lienzo útil casi a pantalla completa. */
   variant?: "default" | "fullscreen";
-  /** Panel de ficha abierto en escritorio: desplaza minimapa para no solaparse. */
   detailDrawerOpen?: boolean;
-  /**
-   * Si se define, el mapa y el minimapa no incluyen nodos por debajo de este número
-   * de niveles (la raíz cuenta como nivel 1). En el límite se ofrece exploración profunda.
-   */
   maxRenderLevels?: number;
-  /**
-   * Si la fila 2 (reportes directos de la raíz del lienzo) debe mostrarse en el grafo al inicio.
-   * Suborganigramas: `true` (recomendado). Vista principal: `false` para empezar sólo con la raíz.
-   */
   initialShowRootChildren?: boolean;
-  /** Navegación a la vista de equipo centrada en la persona. */
   onExploreTeam?: (nodeId: string) => void;
+  showBackButton?: boolean;
+  onBack?: () => void;
 };
 
 type CameraIntent = {
@@ -277,8 +268,12 @@ export function OrgMapView({
   maxRenderLevels,
   initialShowRootChildren = false,
   onExploreTeam,
+  showBackButton = false,
+  onBack,
 }: Props): ReactElement {
-  const [showRootChildren, setShowRootChildren] = useState(false);
+  const [showRootChildren, setShowRootChildren] = useState(
+    initialShowRootChildren,
+  );
   /** A lo sumo un nodo de fila 2 con panel de equipo interno abierto. */
   const [expandedHubNodeId, setExpandedHubNodeId] = useState<string | null>(
     null,
@@ -516,6 +511,20 @@ export function OrgMapView({
       {/* Bisel vidrio frío: el canvas oscuro queda físicamente “dentro” de la mesa */}
       <div className="org-map-shell__bezel">
         <div className="org-map-shell__surface">
+          {showBackButton && onBack && (
+            <div className="pointer-events-none absolute left-4 top-4 z-30 flex items-start">
+              <button
+                type="button"
+                onClick={onBack}
+                className="pointer-events-auto inline-flex items-center gap-2 rounded-xl border border-cyan-300/15 bg-[#020617]/72 px-3 py-2 text-xs font-bold tracking-wide text-cyan-50/80 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-xl transition hover:border-cyan-200/35 hover:bg-cyan-400/10 hover:text-white"
+              >
+                <span className="text-sm" aria-hidden>
+                  ←
+                </span>
+                Volver
+              </button>
+            </div>
+          )}
           <section
             className="relative h-full min-h-0 w-full overflow-visible bg-[#020617]"
             aria-label="Mapa del organigrama"
