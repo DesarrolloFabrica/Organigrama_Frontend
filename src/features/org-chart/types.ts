@@ -3,6 +3,15 @@
  * y las respuestas de los controladores). Sirven como contrato único en el cliente.
  */
 
+/** Elemento de GET /api/org-chart/summary/general-areas */
+export interface GeneralAreaSummary {
+  id: string
+  name: string
+  roleName?: string | null
+  totalPeople: number
+  vacancies: number
+}
+
 export type OrgNodeRole = {
   id: string
   name: string

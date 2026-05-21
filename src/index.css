@@ -85,6 +85,14 @@ body,
   overflow: hidden;
 }
 
+/* Ajusta todos los trazos internos del logo SVG de carga. */
+.loading-logo-cun * {
+  fill: none;
+  stroke: #67e8f9;
+  stroke-width: 3;
+  opacity: 0.35;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    OrgMap holographic node (.org-map-holo)
    Módulo translúcido + núcleo “monitoreado”. Animaciones sólo GPU-friendly (opacity/rotate/transform).

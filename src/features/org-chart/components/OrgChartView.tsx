@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fetchOrgChartChildren } from "../services/orgChartService";
 import type { OrgNode } from "../types";
 import { OrgNodeCard } from "./OrgNodeCard";
 import { RadarBackground } from "./RadarBackground";
@@ -26,7 +27,13 @@ function OrgBranch({
   selectedPersonId,
   onSelectNode,
 }: BranchProps) {
-  const directCount = node.children.length;
+  const [children, setChildren] = useState<OrgNode[]>(node.children ?? []);
+  const [loadingChildren, setLoadingChildren] = useState(false);
+  const [childrenLoaded, setChildrenLoaded] = useState(
+    (node.children?.length ?? 0) > 0,
+  );
+
+  const directCount = children.length;
   const [expanded, setExpanded] = useState(depth < 1);
 
   return (
@@ -38,10 +45,29 @@ function OrgBranch({
         childrenExpanded={expanded}
         selected={selectedPersonId === node.id}
         onSelectNode={onSelectNode}
-        onToggleChildren={
-          directCount > 0 ? () => setExpanded((prev) => !prev) : undefined
-        }
+        onToggleChildren={async () => {
+          if (expanded) {
+            setExpanded(false);
+            return;
+          }
+
+          if (!childrenLoaded) {
+            try {
+              setLoadingChildren(true);
+              const loadedChildren = await fetchOrgChartChildren(node.id);
+              setChildren(loadedChildren);
+              setChildrenLoaded(true);
+            } finally {
+              setLoadingChildren(false);
+            }
+          }
+
+          setExpanded(true);
+        }}
       />
+      {loadingChildren ? (
+        <p className="ml-4 text-xs text-slate-500">Cargando equipo...</p>
+      ) : null}
 
       {directCount > 0 && expanded ? (
         <ul
@@ -49,7 +75,7 @@ function OrgBranch({
           role="group"
           aria-label={`Equipo directo de ${node.name}`}
         >
-          {node.children.map((child) => (
+          {children.map((child) => (
             <li key={child.id}>
               <OrgBranch
                 node={child}
@@ -74,12 +100,12 @@ export function OrgChartView({ root, selectedPersonId, onSelectNode }: Props) {
     >
       <RadarBackground />
       <div className="relative z-10">
-      <OrgBranch
-        node={root}
-        depth={0}
-        selectedPersonId={selectedPersonId}
-        onSelectNode={onSelectNode}
-      />
+        <OrgBranch
+          node={root}
+          depth={0}
+          selectedPersonId={selectedPersonId}
+          onSelectNode={onSelectNode}
+        />
       </div>
     </section>
   );

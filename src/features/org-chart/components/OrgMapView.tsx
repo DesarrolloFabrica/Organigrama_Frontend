@@ -11,6 +11,7 @@ import { Controls, ReactFlow, MarkerType, useReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
 import type { OrgNode } from "../types";
+import { orgNodeHasDirectReports } from "../types";
 import { OrgMapMiniMap } from "./OrgMapMiniMap";
 import { OrgMapNode } from "./OrgMapNode";
 import { buildVisibleSubtree } from "../utils/buildVisibleSubtree";
@@ -31,6 +32,8 @@ type Props = {
   maxRenderLevels?: number;
   initialShowRootChildren?: boolean;
   onExploreTeam?: (nodeId: string) => void;
+  /** Carga hijos directos bajo demanda y actualiza el árbol en la página. */
+  onLoadChildren?: (parentId: string) => Promise<OrgNode[]>;
   showBackButton?: boolean;
   onBack?: () => void;
 };
@@ -268,6 +271,7 @@ export function OrgMapView({
   maxRenderLevels,
   initialShowRootChildren = false,
   onExploreTeam,
+  onLoadChildren,
   showBackButton = false,
   onBack,
 }: Props): ReactElement {
@@ -278,6 +282,20 @@ export function OrgMapView({
   const [expandedHubNodeId, setExpandedHubNodeId] = useState<string | null>(
     null,
   );
+  const [loadingChildrenNodeId, setLoadingChildrenNodeId] = useState<
+    string | null
+  >(null);
+  const [mapReady, setMapReady] = useState(false);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      setMapReady(true);
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, []);
 
   const mapMeasureRef = useRef<HTMLDivElement | null>(null);
   const [mapViewportWidth, setMapViewportWidth] = useState(() =>
@@ -375,8 +393,28 @@ export function OrgMapView({
     [graph.nodes],
   );
 
+  const ensureChildrenLoaded = useCallback(
+    async (node: OrgNode) => {
+      if (
+        !onLoadChildren ||
+        node.children.length > 0 ||
+        !orgNodeHasDirectReports(node)
+      ) {
+        return;
+      }
+
+      setLoadingChildrenNodeId(node.id);
+      try {
+        await onLoadChildren(node.id);
+      } finally {
+        setLoadingChildrenNodeId(null);
+      }
+    },
+    [onLoadChildren],
+  );
+
   const handleToggleExpand = useCallback(
-    (nodeId: string) => {
+    async (nodeId: string) => {
       const fullNode = nodeById.get(nodeId);
       if (!fullNode) return;
 
@@ -384,6 +422,9 @@ export function OrgMapView({
 
       if (isCanvasRoot) {
         const willShowRow2 = !showRootChildren;
+        if (willShowRow2) {
+          await ensureChildrenLoaded(fullNode);
+        }
         cameraIntentRef.current = { parentId: nodeId, expanded: willShowRow2 };
         setCameraNonce((n) => n + 1);
         setShowRootChildren(willShowRow2);
@@ -394,11 +435,20 @@ export function OrgMapView({
       }
 
       const openingHub = expandedHubNodeId !== nodeId;
+      if (openingHub) {
+        await ensureChildrenLoaded(fullNode);
+      }
       cameraIntentRef.current = { parentId: nodeId, expanded: openingHub };
       setCameraNonce((n) => n + 1);
       setExpandedHubNodeId(openingHub ? nodeId : null);
     },
-    [expandedHubNodeId, nodeById, root.id, showRootChildren],
+    [
+      ensureChildrenLoaded,
+      expandedHubNodeId,
+      nodeById,
+      root.id,
+      showRootChildren,
+    ],
   );
 
   /** Sólo abre el panel lateral; no confundir con expandir ramas del mapa. */
@@ -413,12 +463,18 @@ export function OrgMapView({
     () =>
       graph.nodes.map((node) => {
         const full = nodeById.get(node.id);
-        const directReportsTotal = full?.children.length ?? 0;
+        const layoutOrg = node.data.orgNode;
+        const reportNode = full ?? layoutOrg;
+        const directReportsTotal =
+          full?.direct_reports_count ??
+          layoutOrg.direct_reports_count ??
+          (orgNodeHasDirectReports(reportNode)
+            ? (full?.children.length ?? 0)
+            : 0);
         const isCanvasRoot = node.id === layoutRoot.id;
         const isExpanded = isCanvasRoot
           ? showRootChildren
           : expandedHubNodeId === node.id;
-        const layoutOrg = node.data.orgNode;
         const layoutDepth = node.data.mapLayoutDepth ?? 0;
         const visualLevel = resolveOrgMapVisualLevel(
           full ?? layoutOrg,
@@ -426,7 +482,9 @@ export function OrgMapView({
         );
         const levelTheme = getOrgMapLevelTheme(visualLevel);
         const hasDeferredTeam = Boolean(layoutOrg.deferred_team);
-        const showMapExpand = directReportsTotal > 0 && !hasDeferredTeam;
+        const hasChildren = orgNodeHasDirectReports(reportNode);
+        const showMapExpand = hasChildren && !hasDeferredTeam;
+        const loadingChildren = loadingChildrenNodeId === node.id;
         const internalTeamMembers =
           expandedHubNodeId === node.id && !isCanvasRoot && full
             ? full.children
@@ -448,9 +506,10 @@ export function OrgMapView({
             ...node.data,
             directReportsTotal,
             isExpanded,
-            hasChildren: directReportsTotal > 0,
+            hasChildren,
             hasDeferredTeam,
             showMapExpand,
+            loadingChildren,
             isCanvasRoot,
             internalTeamMembers,
             visualLevel,
@@ -466,6 +525,7 @@ export function OrgMapView({
       handleOpenDetail,
       handleToggleExpand,
       layoutRoot.id,
+      loadingChildrenNodeId,
       nodeById,
       onExploreTeam,
       selectedPersonId,
@@ -512,7 +572,15 @@ export function OrgMapView({
       <div className="org-map-shell__bezel">
         <div className="org-map-shell__surface">
           {showBackButton && onBack && (
-            <div className="pointer-events-none absolute left-4 top-4 z-30 flex items-start">
+            <div
+              className={[
+                "pointer-events-none absolute left-4 top-4 z-30 flex items-start",
+                "transition-all duration-500 ease-out delay-300",
+                mapReady
+                  ? "translate-y-0 opacity-100"
+                  : "-translate-y-2 opacity-0",
+              ].join(" ")}
+            >
               <button
                 type="button"
                 onClick={onBack}
@@ -604,7 +672,13 @@ export function OrgMapView({
         El canvas permanece 2D: pan/zoom siguen siendo la única transformación del viewport.
       */}
               <ReactFlow
-                className="org-map-flow relative z-1 h-full w-full"
+                className={[
+                  "org-map-flow relative z-1 h-full w-full",
+                  "transition-all duration-700 ease-out",
+                  mapReady
+                    ? "opacity-100 blur-0 scale-100"
+                    : "opacity-0 blur-sm scale-[0.985]",
+                ].join(" ")}
                 proOptions={{ hideAttribution: true }}
                 nodes={nodesWithSelection}
                 edges={edgesWithStyle}
@@ -629,12 +703,21 @@ export function OrgMapView({
                 />
               </ReactFlow>
 
-              <OrgMapMiniMap
-                fullGraph={fullGraph}
-                visibleNodeIds={visibleNodeIds}
-                selectedPersonId={selectedPersonId}
-                detailDrawerOpen={detailDrawerOpen}
-              />
+              <div
+                className={[
+                  "transition-all duration-700 ease-out delay-200",
+                  mapReady
+                    ? "translate-y-0 opacity-100"
+                    : "translate-y-3 opacity-0",
+                ].join(" ")}
+              >
+                <OrgMapMiniMap
+                  fullGraph={fullGraph}
+                  visibleNodeIds={visibleNodeIds}
+                  selectedPersonId={selectedPersonId}
+                  detailDrawerOpen={detailDrawerOpen}
+                />
+              </div>
             </div>
           </section>
         </div>

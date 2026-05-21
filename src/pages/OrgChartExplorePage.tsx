@@ -4,8 +4,10 @@ import { type OrgNode, countPeopleUnder } from "../features/org-chart/types";
 import { findNodeInTree } from "../features/org-chart/utils/findNodeInTree";
 import {
   fetchHealth,
-  fetchOrgChartSubtree,
+  fetchOrgChartChildren,
+  fetchOrgChartNode,
 } from "../features/org-chart/services/orgChartService";
+import { mergeChildrenIntoTree } from "../features/org-chart/utils/mergeChildrenIntoTree";
 import { OrgMapView } from "../features/org-chart/components/OrgMapView";
 import { PersonDetailPanel } from "../features/org-chart/components/PersonDetailPanel";
 import { LogoutButton } from "../features/org-chart/components/LogoutButton";
@@ -46,15 +48,26 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
 
   const handleExploreTeam = useCallback(
     (id: string) => {
-      navigate(`/org-chart/team/${encodeURIComponent(id)}`);
+      navigate(`/org/team/${encodeURIComponent(id)}`);
     },
     [navigate],
   );
 
+  const handleLoadChildren = useCallback(async (parentId: string) => {
+    const loaded = await fetchOrgChartChildren(parentId);
+    setTree((prev) =>
+      prev ? mergeChildrenIntoTree(prev, parentId, loaded) : prev,
+    );
+    return loaded;
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
-    fetchOrgChartSubtree(personId)
+    setTree(null);
+    setChartError(null);
+
+    fetchOrgChartNode(personId)
       .then((data) => {
         if (!cancelled) {
           setTree(data);
@@ -201,6 +214,7 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
                 maxRenderLevels={MAP_MAX_LEVELS}
                 initialShowRootChildren
                 onExploreTeam={handleExploreTeam}
+                onLoadChildren={handleLoadChildren}
                 showBackButton
                 onBack={() => navigate("/org")}
               />

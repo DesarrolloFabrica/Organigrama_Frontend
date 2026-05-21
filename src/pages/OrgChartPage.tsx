@@ -3,9 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { type OrgNode, countPeopleUnder } from "../features/org-chart/types";
 import { findNodeInTree } from "../features/org-chart/utils/findNodeInTree";
 import {
+  fetchGeneralAreasSummary,
   fetchHealth,
-  fetchOrgChart,
+  fetchOrgChartChildren,
 } from "../features/org-chart/services/orgChartService";
+import type { GeneralAreaSummary } from "../features/org-chart/types";
+import { GeneralAreasSummary } from "../features/org-chart/components/GeneralAreasSummary";
+import { getOrgChartRootOnce } from "../features/org-chart/services/orgChartRootCache";
+import { mergeChildrenIntoTree } from "../features/org-chart/utils/mergeChildrenIntoTree";
 import { OrgMapView } from "../features/org-chart/components/OrgMapView";
 import { PersonDetailPanel } from "../features/org-chart/components/PersonDetailPanel";
 import { LogoutButton } from "../features/org-chart/components/LogoutButton";
@@ -22,10 +27,14 @@ export function OrgChartPage() {
   const navigate = useNavigate();
   const [conn, setConn] = useState<ConnState>("checking");
   const [tree, setTree] = useState<OrgNode | null>(null);
+  const [isChartLoading, setIsChartLoading] = useState(true);
   const [chartError, setChartError] = useState<string | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   /** Panel de ficha oculto pero selección conservada (mapa usable a pantalla completa). */
   const [detailPanelMinimized, setDetailPanelMinimized] = useState(false);
+  const [areasSummary, setAreasSummary] = useState<GeneralAreaSummary[]>([]);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const treeDescendantCount =
     tree && selectedPersonId
@@ -48,6 +57,48 @@ export function OrgChartPage() {
     [navigate],
   );
 
+  const handleLoadChildren = useCallback(async (parentId: string) => {
+    const loaded = await fetchOrgChartChildren(parentId);
+    setTree((prev) =>
+      prev ? mergeChildrenIntoTree(prev, parentId, loaded) : prev,
+    );
+    return loaded;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setSummaryLoading(true);
+    setSummaryError(null);
+
+    fetchGeneralAreasSummary()
+      .then((data) => {
+        if (!cancelled) {
+          setAreasSummary(data);
+          setSummaryError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setAreasSummary([]);
+          setSummaryError(
+            err instanceof Error
+              ? err.message
+              : "No se pudo cargar el resumen por áreas generales.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSummaryLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -59,7 +110,15 @@ export function OrgChartPage() {
         if (!cancelled) setConn("offline");
       });
 
-    fetchOrgChart()
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void getOrgChartRootOnce()
       .then((data) => {
         if (!cancelled) {
           setTree(data);
@@ -75,6 +134,11 @@ export function OrgChartPage() {
               : "Error desconocido al cargar datos",
           );
         }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsChartLoading(false);
+        }
       });
 
     return () => {
@@ -87,52 +151,52 @@ export function OrgChartPage() {
 
   /** Barra superior: una sola fila; estado API en `title` para no saturar la UI. */
   const statusPill =
-  conn === "checking" ? (
-    <div
-      role="status"
-      title={`API: ${apiBaseDisplay}`}
-      className="inline-flex max-w-44 items-center gap-1.5 rounded-md border border-amber-300/20 bg-amber-400/8 px-2 py-1 shadow-[0_0_24px_rgba(251,191,36,0.08)] backdrop-blur-md"
-    >
-      <span className="relative flex size-1.5 shrink-0" aria-hidden>
-        <span className="absolute inline-flex size-1.5 animate-ping rounded-full bg-amber-400/40" />
-        <span className="relative size-1.5 rounded-full bg-amber-300" />
-      </span>
+    conn === "checking" ? (
+      <div
+        role="status"
+        title={`API: ${apiBaseDisplay}`}
+        className="inline-flex max-w-44 items-center gap-1.5 rounded-md border border-amber-300/20 bg-amber-400/8 px-2 py-1 shadow-[0_0_24px_rgba(251,191,36,0.08)] backdrop-blur-md"
+      >
+        <span className="relative flex size-1.5 shrink-0" aria-hidden>
+          <span className="absolute inline-flex size-1.5 animate-ping rounded-full bg-amber-400/40" />
+          <span className="relative size-1.5 rounded-full bg-amber-300" />
+        </span>
 
-      <span className="truncate text-[11px] font-medium tracking-wide text-amber-100/90">
-        Verificando…
-      </span>
-    </div>
-  ) : conn === "online" ? (
-    <div
-      role="status"
-      title={`API: ${apiBaseDisplay}`}
-      className="inline-flex max-w-44 items-center gap-1.5 rounded-md border border-emerald-300/20 bg-emerald-400/10 px-2 py-1 shadow-[0_0_24px_rgba(16,185,129,0.14)] backdrop-blur-md"
-    >
-      <span
-        className="size-1.5 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.9)]"
-        aria-hidden
-      />
+        <span className="truncate text-[11px] font-medium tracking-wide text-amber-100/90">
+          Verificando…
+        </span>
+      </div>
+    ) : conn === "online" ? (
+      <div
+        role="status"
+        title={`API: ${apiBaseDisplay}`}
+        className="inline-flex max-w-44 items-center gap-1.5 rounded-md border border-emerald-300/20 bg-emerald-400/10 px-2 py-1 shadow-[0_0_24px_rgba(16,185,129,0.14)] backdrop-blur-md"
+      >
+        <span
+          className="size-1.5 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.9)]"
+          aria-hidden
+        />
 
-      <span className="truncate text-[11px] font-semibold tracking-wide text-emerald-50">
-        Conectado
-      </span>
-    </div>
-  ) : (
-    <div
-      role="status"
-      title={`API: ${apiBaseDisplay}`}
-      className="inline-flex max-w-44 items-center gap-1.5 rounded-md border border-rose-300/20 bg-rose-400/10 px-2 py-1 shadow-[0_0_24px_rgba(244,63,94,0.12)] backdrop-blur-md"
-    >
-      <span
-        className="size-1.5 shrink-0 rounded-full bg-rose-300 shadow-[0_0_10px_rgba(253,164,175,0.8)]"
-        aria-hidden
-      />
+        <span className="truncate text-[11px] font-semibold tracking-wide text-emerald-50">
+          Conectado
+        </span>
+      </div>
+    ) : (
+      <div
+        role="status"
+        title={`API: ${apiBaseDisplay}`}
+        className="inline-flex max-w-44 items-center gap-1.5 rounded-md border border-rose-300/20 bg-rose-400/10 px-2 py-1 shadow-[0_0_24px_rgba(244,63,94,0.12)] backdrop-blur-md"
+      >
+        <span
+          className="size-1.5 shrink-0 rounded-full bg-rose-300 shadow-[0_0_10px_rgba(253,164,175,0.8)]"
+          aria-hidden
+        />
 
-      <span className="truncate text-[11px] font-medium tracking-wide text-rose-100">
-        Sin conexión
-      </span>
-    </div>
-  );
+        <span className="truncate text-[11px] font-medium tracking-wide text-rose-100">
+          Sin conexión
+        </span>
+      </div>
+    );
 
   const detailOverlayOpen = Boolean(selectedPersonId && !detailPanelMinimized);
 
@@ -192,8 +256,16 @@ export function OrgChartPage() {
               <p className="mt-1 text-rose-800/90">{chartError}</p>
             </div>
           </div>
-        ) : tree ? (
+        ) : tree && !isChartLoading ? (
           <>
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-start p-3 sm:p-4">
+              <GeneralAreasSummary
+                items={areasSummary}
+                loading={summaryLoading}
+                error={summaryError}
+              />
+            </div>
+
             {/* Capa mapa: ocupa todo el main; no empuja el overlay. */}
             <div className="absolute inset-0 z-0 flex min-h-0 flex-col">
               <OrgMapView
@@ -206,6 +278,7 @@ export function OrgChartPage() {
                 maxRenderLevels={MAP_MAX_LEVELS}
                 initialShowRootChildren
                 onExploreTeam={handleExploreTeam}
+                onLoadChildren={handleLoadChildren}
               />
             </div>
 
@@ -250,13 +323,24 @@ export function OrgChartPage() {
               </button>
             ) : null}
           </>
-        ) : (
-          <div className="flex h-full min-h-0 items-center justify-center overflow-auto p-6">
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-600">
-              Cargando organigrama…
+        ) : isChartLoading ? (
+          <div className="relative flex h-full min-h-0 items-center justify-center overflow-hidden p-6">
+            {/* Fondo de transición oscuro para evitar flashes blancos entre /loading y /org. */}
+            <div className="absolute inset-0 bg-[#020817]" />
+
+            {/* Glow técnico suave mientras React monta el mapa. */}
+            <div className="absolute h-[420px] w-[420px] rounded-full bg-cyan-400/10 blur-[90px]" />
+
+            {/* Indicador mínimo, coherente con la pantalla de carga principal. */}
+            <div className="relative z-10 flex items-center gap-3 rounded-full border border-cyan-300/15 bg-cyan-300/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-100/80 shadow-[0_0_32px_rgba(34,211,238,0.08)] backdrop-blur-xl">
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex size-2 animate-ping rounded-full bg-cyan-300/40" />
+                <span className="relative size-2 rounded-full bg-cyan-200" />
+              </span>
+              Sincronizando mapa
             </div>
           </div>
-        )}
+        ) : null}
       </main>
     </div>
   );

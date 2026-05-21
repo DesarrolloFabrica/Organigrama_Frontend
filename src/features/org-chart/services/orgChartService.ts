@@ -1,4 +1,5 @@
 import type {
+  GeneralAreaSummary,
   OrgChartSearchHit,
   OrgNode,
   OrgPersonDetail,
@@ -34,10 +35,21 @@ export async function fetchOrgChart(): Promise<OrgNode> {
   return getJson<OrgNode>('/api/org-chart')
 }
 
+/** Raíz del organigrama con solo hijos directos (`GET /api/org-chart/root`). */
+export async function fetchOrgChartRoot(): Promise<OrgNode> {
+  return getJson<OrgNode>('/api/org-chart/root')
+}
+
 /** Subárbol con la persona como raíz (`GET /api/org-chart/team/:id`). */
 export async function fetchOrgChartSubtree(rootPersonId: string): Promise<OrgNode> {
   const safeId = encodeURIComponent(rootPersonId)
   return getJson<OrgNode>(`/api/org-chart/team/${safeId}`)
+}
+
+/** Persona como raíz del mapa + hijos directos (`GET /api/org-chart/node/:id`). */
+export async function fetchOrgChartNode(personId: string): Promise<OrgNode> {
+  const safeId = encodeURIComponent(personId)
+  return getJson<OrgNode>(`/api/org-chart/node/${safeId}`)
 }
 
 /**
@@ -61,4 +73,19 @@ export async function fetchOrgPersonDetail(id: string): Promise<OrgPersonDetail>
 /** Comprueba que el backend responde; útil para indicadores en cabecera. */
 export async function fetchHealth(): Promise<{ ok: boolean }> {
   return getJson<{ ok: boolean }>('/api/health')
+}
+
+// Carga únicamente los hijos directos de una persona.
+// No trae nietos ni subárbol completo, por eso mejora el rendimiento.
+export async function fetchOrgChartChildren(
+  personId: string,
+): Promise<OrgNode[]> {
+  const safeId = encodeURIComponent(personId)
+
+  return getJson<OrgNode[]>(`/api/org-chart/children/${safeId}`)
+}
+
+/** Resumen por áreas generales del organigrama principal. */
+export async function fetchGeneralAreasSummary(): Promise<GeneralAreaSummary[]> {
+  return getJson<GeneralAreaSummary[]>('/api/org-chart/summary/general-areas')
 }

@@ -27,6 +27,8 @@ export type OrgMapNodeInteractiveData = OrgMapNodeData & {
   onOpenDetail: (nodeId: string) => void
   /** Navegación a vista de sub-organigrama centrada en el nodo. */
   onExploreTeam?: (nodeId: string) => void
+  /** Petición en curso de hijos directos bajo demanda. */
+  loadingChildren?: boolean
   /** Tema cromático 1..5 (resuelto en la vista). */
   visualLevel: 1 | 2 | 3 | 4 | 5
 }

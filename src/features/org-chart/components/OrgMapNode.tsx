@@ -174,31 +174,36 @@ export function OrgMapNode({ id, data, selected }: NodeProps) {
         </div>
       </div>
 
-      <div className="org-map-holo__actions relative z-1 mt-4 flex flex-wrap justify-center gap-2">
-        {typedData.showMapExpand ? (
-          <button
-            type="button"
-            className="org-map-holo__btn nodrag nopan"
-            aria-expanded={isExpanded}
-            aria-label={
-              isExpanded
-                ? isCanvasRoot
-                  ? "Colapsar reportes en mapa"
-                  : "Colapsar equipo en panel"
-                : isCanvasRoot
-                  ? "Expandir reportes en mapa"
-                  : "Expandir equipo en panel"
-            }
-            onPointerDown={stopMouse}
-            onClick={(e) => {
-              e.stopPropagation();
-              typedData.onToggleExpand(id);
-            }}
-          >
-            <IconBranch className="org-map-holo__btn-icon-svg size-4 shrink-0" />
-            <span>{isExpanded ? "Colapsar" : "Expandir"}</span>
-          </button>
-        ) : null}
+      <div className="org-map-holo__actions relative z-1 mt-4 flex flex-col items-center gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
+          {typedData.showMapExpand ? (
+            <button
+              type="button"
+              className="org-map-holo__btn nodrag nopan"
+              aria-expanded={isExpanded}
+              aria-busy={typedData.loadingChildren === true}
+              disabled={typedData.loadingChildren === true}
+              aria-label={
+                typedData.loadingChildren
+                  ? "Cargando equipo directo"
+                  : isExpanded
+                    ? isCanvasRoot
+                      ? "Colapsar reportes en mapa"
+                      : "Colapsar equipo en panel"
+                    : isCanvasRoot
+                      ? "Expandir reportes en mapa"
+                      : "Expandir equipo en panel"
+              }
+              onPointerDown={stopMouse}
+              onClick={(e) => {
+                e.stopPropagation();
+                typedData.onToggleExpand(id);
+              }}
+            >
+              <IconBranch className="org-map-holo__btn-icon-svg size-4 shrink-0" />
+              <span>{isExpanded ? "Colapsar" : "Expandir"}</span>
+            </button>
+          ) : null}
         {typedData.hasDeferredTeam && typedData.onExploreTeam ? (
           <button
             type="button"
@@ -214,19 +219,33 @@ export function OrgMapNode({ id, data, selected }: NodeProps) {
             <span>Explorar estructura</span>
           </button>
         ) : null}
-        <button
-          type="button"
-          className="org-map-holo__btn org-map-holo__btn--detail nodrag nopan"
-          aria-label="Abrir análisis de entidad"
-          onPointerDown={stopMouse}
-          onClick={(e) => {
-            e.stopPropagation();
-            typedData.onOpenDetail(id);
-          }}
-        >
-          <IconScan className="org-map-holo__btn-icon-svg org-map-holo__btn-icon-svg--detail size-4 shrink-0" />
-          <span>Detalle</span>
-        </button>
+          <button
+            type="button"
+            className="org-map-holo__btn org-map-holo__btn--detail nodrag nopan"
+            aria-label="Abrir análisis de entidad"
+            onPointerDown={stopMouse}
+            onClick={(e) => {
+              e.stopPropagation();
+              typedData.onOpenDetail(id);
+            }}
+          >
+            <IconScan className="org-map-holo__btn-icon-svg org-map-holo__btn-icon-svg--detail size-4 shrink-0" />
+            <span>Detalle</span>
+          </button>
+        </div>
+
+        {typedData.loadingChildren ? (
+          <p
+            role="status"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-500 shadow-sm animate-pulse"
+          >
+            <span
+              className="size-1.5 shrink-0 rounded-full bg-cyan-500/70"
+              aria-hidden
+            />
+            Cargando equipo...
+          </p>
+        ) : null}
       </div>
 
       {showTeamHub ? (
