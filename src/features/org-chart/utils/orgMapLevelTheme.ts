@@ -63,8 +63,8 @@ export type OrgMapLevelThemeTokens = {
   /** Aristas React Flow hacia este nivel */
   edgeStroke: string;
   edgeMarker: string;
-  /** Filtro drop-shadow del wrapper del nodo en RF */
-  nodeDropShadow: string;
+  /** Sombra del wrapper del nodo en React Flow (box-shadow, sin filter) */
+  nodeBoxShadow: string;
   /** Mini-card (equipo interno) */
   miniBorder: string;
   miniInset: string;
@@ -135,7 +135,7 @@ const L1: OrgMapLevelThemeTokens = {
   nameGlow: "rgba(94, 233, 240, 0.12)",
   edgeStroke: "rgba(94, 233, 240, 0.42)",
   edgeMarker: "rgba(94, 233, 240, 0.52)",
-  nodeDropShadow: `drop-shadow(0 18px 28px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 1px rgba(94, 233, 240, 0.14))`,
+  nodeBoxShadow: `0 14px 28px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(94, 233, 240, 0.12)`,
   miniBorder: "rgba(94, 233, 240, 0.14)",
   miniInset: "rgba(94, 233, 240, 0.06)",
   miniShadowHover: "0 0 18px rgba(94, 233, 240, 0.12)",
@@ -205,7 +205,7 @@ const L2: OrgMapLevelThemeTokens = {
   nameGlow: "rgba(52, 245, 181, 0.1)",
   edgeStroke: "rgba(52, 245, 181, 0.38)",
   edgeMarker: "rgba(52, 245, 181, 0.48)",
-  nodeDropShadow: `drop-shadow(0 18px 28px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 1px rgba(52, 245, 181, 0.12))`,
+  nodeBoxShadow: `0 14px 28px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(52, 245, 181, 0.12)`,
   miniBorder: "rgba(52, 245, 181, 0.12)",
   miniInset: "rgba(52, 245, 181, 0.05)",
   miniShadowHover: "0 0 18px rgba(52, 245, 181, 0.1)",
@@ -275,7 +275,7 @@ const L3: OrgMapLevelThemeTokens = {
   nameGlow: "rgba(240, 208, 96, 0.1)",
   edgeStroke: "rgba(240, 208, 96, 0.36)",
   edgeMarker: "rgba(240, 208, 96, 0.46)",
-  nodeDropShadow: `drop-shadow(0 18px 28px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 1px rgba(240, 208, 96, 0.12))`,
+  nodeBoxShadow: `0 14px 28px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(240, 208, 96, 0.12)`,
   miniBorder: "rgba(240, 208, 96, 0.12)",
   miniInset: "rgba(240, 208, 96, 0.05)",
   miniShadowHover: "0 0 18px rgba(240, 208, 96, 0.1)",
@@ -345,7 +345,7 @@ const L4: OrgMapLevelThemeTokens = {
   nameGlow: "rgba(196, 156, 255, 0.1)",
   edgeStroke: "rgba(196, 156, 255, 0.36)",
   edgeMarker: "rgba(196, 156, 255, 0.46)",
-  nodeDropShadow: `drop-shadow(0 18px 28px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 1px rgba(196, 156, 255, 0.12))`,
+  nodeBoxShadow: `0 14px 28px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(196, 156, 255, 0.12)`,
   miniBorder: "rgba(196, 156, 255, 0.12)",
   miniInset: "rgba(196, 156, 255, 0.05)",
   miniShadowHover: "0 0 18px rgba(196, 156, 255, 0.1)",
@@ -415,7 +415,7 @@ const L5: OrgMapLevelThemeTokens = {
   nameGlow: "rgba(255, 159, 110, 0.1)",
   edgeStroke: "rgba(255, 159, 110, 0.36)",
   edgeMarker: "rgba(255, 159, 110, 0.46)",
-  nodeDropShadow: `drop-shadow(0 18px 28px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 1px rgba(255, 159, 110, 0.12))`,
+  nodeBoxShadow: `0 14px 28px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 159, 110, 0.12)`,
   miniBorder: "rgba(255, 159, 110, 0.12)",
   miniInset: "rgba(255, 159, 110, 0.05)",
   miniShadowHover: "0 0 18px rgba(255, 159, 110, 0.1)",
@@ -448,6 +448,80 @@ export const ORG_MAP_LEVEL_THEME_MAP: Record<1 | 2 | 3 | 4 | 5, OrgMapLevelTheme
     4: L4,
     5: L5,
   };
+
+/**
+ * Tema sobrio para plazas disponibles (`nodeKind: "vacancy"`).
+ * No es un nivel 6: la vacante conserva su NIVEL 2–5 en datos; solo el cromatismo cambia.
+ */
+export const ORG_MAP_VACANCY_THEME: OrgMapLevelThemeTokens = {
+  primary: "#94a3b8",
+  border: "#94a3b8",
+  glow: "rgba(148, 163, 184, 0.18)",
+  edgeStrong: "rgba(148, 163, 184, 0.45)",
+  edgeSoft: "rgba(148, 163, 184, 0.16)",
+  shadowCard: `0 0 0 1px rgba(148, 163, 184, 0.14), 0 0 14px rgba(148, 163, 184, 0.1), 0 0 28px rgba(100, 116, 139, 0.06), 0 16px 40px rgba(0, 0, 0, 0.52)`,
+  shadowCardHover: `0 0 0 1px rgba(148, 163, 184, 0.2) inset, 0 0 24px rgba(148, 163, 184, 0.12), 0 22px 44px rgba(0, 0, 0, 0.46)`,
+  shadowExpanded: `0 0 0 1px rgba(148, 163, 184, 0.16) inset, 0 0 22px rgba(148, 163, 184, 0.1), 0 20px 40px rgba(0, 0, 0, 0.48)`,
+  shadowSelected: `0 0 0 1px rgba(255, 255, 255, 0.08) inset, 0 0 0 2px rgba(148, 163, 184, 0.32), 0 0 32px rgba(148, 163, 184, 0.14), 0 22px 50px rgba(0, 0, 0, 0.5)`,
+  hudLine: "rgba(148, 163, 184, 0.28)",
+  hudGlow: "rgba(148, 163, 184, 0.14)",
+  cornerAccent: "#94a3b8",
+  bottomReader: "rgba(148, 163, 184, 0.72)",
+  nucleusFilter: `drop-shadow(0 0 8px rgba(148, 163, 184, 0.2))`,
+  ringDefault: "rgba(148, 163, 184, 0.22)",
+  ringOuter: "rgba(203, 213, 225, 0.28)",
+  ringInner: "rgba(148, 163, 184, 0.1)",
+  orbitDash: "rgba(148, 163, 184, 0.42)",
+  coreGradientMid: "rgba(148, 163, 184, 0.55)",
+  coreGradientDeep: "rgba(51, 65, 85, 0.5)",
+  coreBorder: "rgba(148, 163, 184, 0.28)",
+  coreShadow: `0 0 12px rgba(148, 163, 184, 0.22), inset 0 0 14px rgba(15, 23, 42, 0.45)`,
+  coreSilhouette: `none`,
+  crosshair: "rgba(148, 163, 184, 0.06)",
+  breatheWeak: `0 0 10px rgba(148, 163, 184, 0.1), inset 0 0 12px rgba(51, 65, 85, 0.2)`,
+  breatheStrong: `0 0 16px rgba(148, 163, 184, 0.16), inset 0 0 16px rgba(51, 65, 85, 0.28)`,
+  btnBorder: "rgba(148, 163, 184, 0.24)",
+  btnBg: `linear-gradient(180deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.82))`,
+  btnShadow: `inset 0 0 12px rgba(148, 163, 184, 0.05), 0 0 10px rgba(148, 163, 184, 0.05)`,
+  btnHoverBg: `linear-gradient(180deg, rgba(148, 163, 184, 0.1), rgba(30, 41, 59, 0.62))`,
+  btnHoverShadow: `inset 0 0 14px rgba(148, 163, 184, 0.1), 0 0 14px rgba(148, 163, 184, 0.1)`,
+  btnFocusRing: "rgba(148, 163, 184, 0.34)",
+  btnIcon: "#cbd5e1",
+  btnIconGlow: "rgba(148, 163, 184, 0.22)",
+  btnDetailBorder: "rgba(148, 163, 184, 0.26)",
+  btnExploreBorder: "rgba(100, 116, 139, 0.34)",
+  btnExploreBg: `linear-gradient(180deg, rgba(30, 41, 59, 0.44) 0%, rgba(15, 23, 42, 0.72) 100%)`,
+  btnExploreHoverBorder: "rgba(100, 116, 139, 0.48)",
+  statusText: "rgba(203, 213, 225, 0.88)",
+  statusGlow: "rgba(148, 163, 184, 0.12)",
+  statusDot: "#64748b",
+  statusDotShadow: `0 0 6px rgba(148, 163, 184, 0.2)`,
+  nameGlow: "rgba(148, 163, 184, 0.06)",
+  edgeStroke: "rgba(148, 163, 184, 0.34)",
+  edgeMarker: "rgba(100, 116, 139, 0.5)",
+  nodeBoxShadow: `0 12px 26px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(148, 163, 184, 0.1)`,
+  miniBorder: "rgba(148, 163, 184, 0.2)",
+  miniInset: "rgba(148, 163, 184, 0.06)",
+  miniShadowHover: "0 0 14px rgba(148, 163, 184, 0.08)",
+  miniAvatarBorder: "rgba(148, 163, 184, 0.28)",
+  miniAvatarBgFrom: "rgba(30, 41, 59, 0.75)",
+  miniAvatarBgTo: "rgba(15, 23, 42, 0.9)",
+  miniAvatarText: "rgba(203, 213, 225, 0.85)",
+  miniAvatarGlow: "rgba(148, 163, 184, 0.08)",
+  miniDetailBorder: "rgba(148, 163, 184, 0.22)",
+  miniDetailText: "rgba(226, 232, 240, 0.82)",
+  miniDetailHoverBorder: "rgba(148, 163, 184, 0.38)",
+  miniDetailHoverBg: "rgba(30, 41, 59, 0.5)",
+  miniExploreBorder: "rgba(100, 116, 139, 0.28)",
+  miniExploreBg: "rgba(30, 41, 59, 0.45)",
+  miniExploreHoverBorder: "rgba(100, 116, 139, 0.42)",
+  miniExploreHoverBg: "rgba(30, 41, 59, 0.55)",
+  miniPulse: "rgba(148, 163, 184, 0.55)",
+  miniPulseShadow: "rgba(148, 163, 184, 0.2)",
+  miniActiveLabel: "rgba(203, 213, 225, 0.72)",
+  teamDivider: "rgba(148, 163, 184, 0.18)",
+  teamHeading: "rgba(148, 163, 184, 0.42)",
+};
 
 const HIERARCHY_LEVEL_RE =
   /\b(?:nivel|level|lv\.?|capa)\s*[:.]?\s*(\d{1,2})\b/i;
@@ -493,11 +567,45 @@ export function getOrgMapLevelTheme(level: 1 | 2 | 3 | 4 | 5): OrgMapLevelThemeT
   return ORG_MAP_LEVEL_THEME_MAP[level];
 }
 
+export function isOrgNodeVacancy(orgNode: OrgNode | undefined): boolean {
+  return orgNode?.nodeKind === "vacancy";
+}
+
+export type OrgMapResolvedTheme = {
+  visualLevel: 1 | 2 | 3 | 4 | 5;
+  tokens: OrgMapLevelThemeTokens;
+  isVacancy: boolean;
+};
+
+/**
+ * Resuelve nivel jerárquico (1–5) y tokens cromáticos.
+ * Vacantes usan `ORG_MAP_VACANCY_THEME`; el nivel sigue reflejando el puesto (NIVEL 2–5).
+ */
+export function resolveOrgMapTheme(
+  orgNode: OrgNode | undefined,
+  mapLayoutDepth: number,
+): OrgMapResolvedTheme {
+  const visualLevel = resolveOrgMapVisualLevel(orgNode, mapLayoutDepth);
+  const isVacancy = isOrgNodeVacancy(orgNode);
+  return {
+    visualLevel,
+    tokens: isVacancy ? ORG_MAP_VACANCY_THEME : getOrgMapLevelTheme(visualLevel),
+    isVacancy,
+  };
+}
+
+export function getOrgMapThemeForNode(
+  orgNode: OrgNode | undefined,
+  mapLayoutDepth: number,
+): OrgMapLevelThemeTokens {
+  return resolveOrgMapTheme(orgNode, mapLayoutDepth).tokens;
+}
+
 /** Custom properties para inyectar en el contenedor (nodo o mini-card). */
-export function orgMapLevelThemeToCssVars(
-  level: 1 | 2 | 3 | 4 | 5,
+export function orgMapThemeTokensToCssVars(
+  tokens: OrgMapLevelThemeTokens,
 ): CSSProperties {
-  const t = getOrgMapLevelTheme(level);
+  const t = tokens;
   const prefix = "--org-lvl" as const;
   return {
     [`${prefix}-primary`]: t.primary,
@@ -545,7 +653,7 @@ export function orgMapLevelThemeToCssVars(
     [`${prefix}-name-glow`]: t.nameGlow,
     [`${prefix}-edge-stroke`]: t.edgeStroke,
     [`${prefix}-edge-marker`]: t.edgeMarker,
-    [`${prefix}-node-drop`]: t.nodeDropShadow,
+    [`${prefix}-node-shadow`]: t.nodeBoxShadow,
     [`${prefix}-mini-border`]: t.miniBorder,
     [`${prefix}-mini-inset`]: t.miniInset,
     [`${prefix}-mini-shadow-hover`]: t.miniShadowHover,
@@ -568,4 +676,21 @@ export function orgMapLevelThemeToCssVars(
     [`${prefix}-team-divider`]: t.teamDivider,
     [`${prefix}-team-heading`]: t.teamHeading,
   } as CSSProperties;
+}
+
+/** Custom properties por nivel 1–5 (sin vacantes). */
+export function orgMapLevelThemeToCssVars(
+  level: 1 | 2 | 3 | 4 | 5,
+): CSSProperties {
+  return orgMapThemeTokensToCssVars(getOrgMapLevelTheme(level));
+}
+
+/** Custom properties según nodo (incluye tema vacancy por `nodeKind`). */
+export function orgMapNodeThemeToCssVars(
+  orgNode: OrgNode | undefined,
+  mapLayoutDepth: number,
+): CSSProperties {
+  return orgMapThemeTokensToCssVars(
+    resolveOrgMapTheme(orgNode, mapLayoutDepth).tokens,
+  );
 }

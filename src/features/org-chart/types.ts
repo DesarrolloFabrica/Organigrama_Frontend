@@ -70,6 +70,8 @@ export type OrgNodeLocation = {
   campus: OrgNodeCampus | null
 }
 
+export type OrgNodeKind = "person" | "vacancy"
+
 /**
  * Nodo del árbol devuelto por GET /api/org-chart.
  * `children` contiene los reportes directos; vacío en hojas.
@@ -78,6 +80,11 @@ export type OrgNode = {
   id: string
   document: string
   name: string
+  /**
+   * `person`: colaborador real; `vacancy`: placeholder en core.person.
+   * La vacante hereda el NIVEL del puesto (2–5); no es un NIVEL 6.
+   */
+  nodeKind?: OrgNodeKind
   role_id: string | null
   role: OrgNodeRole | null
   hierarchy_id: string | null
@@ -102,6 +109,8 @@ export type OrgNode = {
   contract_type: OrgNodeContractType | null
   region_id: number | null
   location: OrgNodeLocation | null
+  /** URL provisional de foto; null si no hay imagen disponible. */
+  photoUrl?: string | null
   /**
    * Indica que existen reportes bajo este nodo pero fueron omitidos por un límite
    * de profundidad de vista (exploración en `/org-chart/team/:id`).
@@ -124,6 +133,7 @@ export type OrgChartSearchHit = {
   id: string
   document: string
   name: string
+  nodeKind?: OrgNodeKind
   role_id: string | null
   role: OrgNodeRole | null
   hierarchy_id: string | null
@@ -143,9 +153,13 @@ export type OrgChartSearchHit = {
  */
 export type OrgPersonDetail = {
   id: string
+  /** `vacancy`: placeholder de plaza; `person` o ausente: colaborador real. */
+  nodeKind?: OrgNodeKind
   document: string
   type_document: string | null
   full_name: string
+  /** Null en vacantes; ausente en personas sin foto configurada. */
+  photoUrl?: string | null
   role_id: string | null
   role: OrgNodeRole | null
   hierarchy_id: string | null
@@ -162,6 +176,11 @@ export type OrgPersonDetail = {
   edu_email: string | null
   phone: string | null
   address: string | null
+  emergency_contact?: {
+    name: string | null
+    phone: string | null
+    relationship: string | null
+  }
   gender: string | null
   marital_status: string | null
   born_date: string | null
@@ -193,6 +212,12 @@ export function orgNodeHasDirectReports(node: OrgNode): boolean {
   return node.children.length > 0
 }
 
+export function isOrgNodeVacancy(
+  node: Pick<OrgNode, 'nodeKind'> | Pick<OrgChartSearchHit, 'nodeKind'> | Pick<OrgPersonDetail, 'nodeKind'> | undefined,
+): boolean {
+  return node?.nodeKind === 'vacancy'
+}
+
 /**
  * Cuenta todas las personas bajo un nodo (no incluye al nodo mismo).
  * Útil para métricas en vistas futuras.
@@ -218,4 +243,19 @@ export function countPeopleUnderWithinDepth(
     const below = countPeopleUnderWithinDepth(child, maxDepth, depthFromNode + 1)
     return total + 1 + below
   }, 0)
+}
+
+// ─── Resumen jerárquico por nodo ──────────────────────────────────────────────
+
+export interface OrgSummaryItem {
+  id: string
+  name: string
+  roleName?: string | null
+  totalPeople: number
+  vacancies: number
+}
+
+export interface OrgSummaryResponse {
+  general: OrgSummaryItem
+  areas: OrgSummaryItem[]
 }

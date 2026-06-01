@@ -2,17 +2,17 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { type OrgNode, countPeopleUnder } from "../features/org-chart/types";
 import { findNodeInTree } from "../features/org-chart/utils/findNodeInTree";
+import { patchNodePhotoUrl } from "../features/org-chart/utils/patchNodePhotoUrl";
 import {
-  fetchGeneralAreasSummary,
   fetchHealth,
   fetchOrgChartChildren,
 } from "../features/org-chart/services/orgChartService";
-import type { GeneralAreaSummary } from "../features/org-chart/types";
-import { GeneralAreasSummary } from "../features/org-chart/components/GeneralAreasSummary";
+import { NodeSummaryPanel } from "../features/org-chart/components/NodeSummaryPanel";
 import { getOrgChartRootOnce } from "../features/org-chart/services/orgChartRootCache";
 import { mergeChildrenIntoTree } from "../features/org-chart/utils/mergeChildrenIntoTree";
 import { OrgMapView } from "../features/org-chart/components/OrgMapView";
 import { PersonDetailPanel } from "../features/org-chart/components/PersonDetailPanel";
+import { OrgChartSearchPanel } from "../features/org-chart/components/OrgChartSearchPanel";
 import { LogoutButton } from "../features/org-chart/components/LogoutButton";
 
 type ConnState = "checking" | "online" | "offline";
@@ -32,9 +32,7 @@ export function OrgChartPage() {
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   /** Panel de ficha oculto pero selección conservada (mapa usable a pantalla completa). */
   const [detailPanelMinimized, setDetailPanelMinimized] = useState(false);
-  const [areasSummary, setAreasSummary] = useState<GeneralAreaSummary[]>([]);
-  const [summaryLoading, setSummaryLoading] = useState(true);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
 
   const treeDescendantCount =
     tree && selectedPersonId
@@ -65,38 +63,10 @@ export function OrgChartPage() {
     return loaded;
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    setSummaryLoading(true);
-    setSummaryError(null);
-
-    fetchGeneralAreasSummary()
-      .then((data) => {
-        if (!cancelled) {
-          setAreasSummary(data);
-          setSummaryError(null);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setAreasSummary([]);
-          setSummaryError(
-            err instanceof Error
-              ? err.message
-              : "No se pudo cargar el resumen por áreas generales.",
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setSummaryLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
+  const handleDetailPhotoUrl = useCallback((personId: string, photoUrl: string) => {
+    setTree((prev) =>
+      prev ? patchNodePhotoUrl(prev, personId, photoUrl) : prev,
+    );
   }, []);
 
   useEffect(() => {
@@ -235,9 +205,21 @@ export function OrgChartPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+            <OrgChartSearchPanel
+              inputId="org-chart-search-desktop"
+              className="hidden sm:block"
+              onSelectHit={handleSelectNodeFromMap}
+            />
             {statusPill}
             <LogoutButton />
           </div>
+        </div>
+        <div className="border-t border-cyan-300/10 px-3 py-2 sm:hidden">
+          <OrgChartSearchPanel
+            inputId="org-chart-search-mobile"
+            className="w-full max-w-none"
+            onSelectHit={handleSelectNodeFromMap}
+          />
         </div>
       </header>
 
@@ -259,11 +241,7 @@ export function OrgChartPage() {
         ) : tree && !isChartLoading ? (
           <>
             <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-start p-3 sm:p-4">
-              <GeneralAreasSummary
-                items={areasSummary}
-                loading={summaryLoading}
-                error={summaryError}
-              />
+              <NodeSummaryPanel personId={expandedNodeId ?? tree.id} />
             </div>
 
             {/* Capa mapa: ocupa todo el main; no empuja el overlay. */}
@@ -276,9 +254,9 @@ export function OrgChartPage() {
                 selectedPersonId={selectedPersonId}
                 onSelectNode={handleSelectNodeFromMap}
                 maxRenderLevels={MAP_MAX_LEVELS}
-                initialShowRootChildren
                 onExploreTeam={handleExploreTeam}
                 onLoadChildren={handleLoadChildren}
+                onExpandedNodeChange={setExpandedNodeId}
               />
             </div>
 
@@ -296,6 +274,7 @@ export function OrgChartPage() {
                     personId={selectedPersonId}
                     treeDescendantCount={treeDescendantCount}
                     layoutVariant="overlay"
+                    onDetailPhotoUrl={handleDetailPhotoUrl}
                     onMinimize={() => setDetailPanelMinimized(true)}
                     onClose={() => {
                       setSelectedPersonId(null);

@@ -1,12 +1,14 @@
 import type { MouseEvent } from "react";
-import { useLayoutEffect } from "react";
+import { memo, useLayoutEffect } from "react";
 import type { NodeProps } from "@xyflow/react";
 import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
 
-import { formatRoleLabel } from "../types";
+import { formatRoleLabel, orgNodeHasDirectReports } from "../types";
 import type { OrgMapNodeInteractiveData } from "../utils/orgMapLayout";
-import { orgMapLevelThemeToCssVars } from "../utils/orgMapLevelTheme";
+import { orgMapNodeThemeToCssVars } from "../utils/orgMapLevelTheme";
 import { OrgMapExpandedTeamPanel } from "./OrgMapExpandedTeamPanel";
+import { OrgMapNodePhoto } from "./OrgMapNodePhoto";
+import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
 
 /* ── Iconos lineales tácticos (stroke fino; sin rellenos “dashboard”) ───────── */
 
@@ -76,11 +78,21 @@ function IconScan({ className }: { className?: string }) {
  * Entidad holográfica en el lienzo OP.
  * Fila 2 expandida: la tarjeta crece y el nivel 3 se muestra como grid interno (hub).
  */
-export function OrgMapNode({ id, data, selected }: NodeProps) {
+function OrgMapNodeComponent({ id, data, selected }: NodeProps) {
   const typedData = data as OrgMapNodeInteractiveData;
   const updateNodeInternals = useUpdateNodeInternals();
 
   const node = typedData.orgNode;
+
+  if (import.meta.env.DEV) {
+    console.log("[OrgMapNode photo]", {
+      id: node.id,
+      name: node.name,
+      photoUrl: node.photoUrl ?? null,
+    });
+  }
+
+  const isVacancy = node.nodeKind === "vacancy";
   const isExpanded = typedData.isExpanded;
   const isCanvasRoot = typedData.isCanvasRoot ?? true;
   const internalTeamMembers = typedData.internalTeamMembers ?? [];
@@ -89,6 +101,12 @@ export function OrgMapNode({ id, data, selected }: NodeProps) {
     !isCanvasRoot &&
     isExpanded &&
     internalTeamMembers.length > 0;
+
+  const canExploreTeam =
+    !isVacancy &&
+    typedData.hasDeferredTeam &&
+    orgNodeHasDirectReports(node) &&
+    Boolean(typedData.onExploreTeam);
 
   useLayoutEffect(() => {
     updateNodeInternals(id);
@@ -100,7 +118,7 @@ export function OrgMapNode({ id, data, selected }: NodeProps) {
 
   const levelLabel = node.hierarchy?.name ?? "NIVEL ░ SIN ASIGNAR";
   const visualLevel = typedData.visualLevel;
-  const levelCss = orgMapLevelThemeToCssVars(visualLevel);
+  const levelCss = orgMapNodeThemeToCssVars(node, typedData.mapLayoutDepth);
   const memberLayoutDepth = typedData.mapLayoutDepth + 1;
 
   return (
@@ -108,6 +126,7 @@ export function OrgMapNode({ id, data, selected }: NodeProps) {
       className={[
         "org-map-holo relative",
         showTeamHub ? "org-map-holo--hub" : "min-w-[288px] max-w-[300px]",
+        isVacancy ? "org-map-holo--vacancy" : "",
         selected ? "org-map-holo--selected" : "",
         isExpanded ? "org-map-holo--expanded" : "",
       ]
@@ -115,8 +134,14 @@ export function OrgMapNode({ id, data, selected }: NodeProps) {
         .join(" ")}
       style={levelCss}
       data-visual-level={visualLevel}
+      data-node-kind={isVacancy ? "vacancy" : "person"}
       data-expanded={isExpanded ? "true" : "false"}
       data-selected={selected ? "true" : "false"}
+      aria-label={
+        isVacancy
+          ? `Plaza disponible: ${node.name}`
+          : `Colaborador: ${node.name}`
+      }
     >
       <Handle
         type="target"
@@ -128,9 +153,17 @@ export function OrgMapNode({ id, data, selected }: NodeProps) {
           {levelLabel}
         </p>
 
-        <span className="org-map-holo__status">
-          <span className="org-map-holo__status-dot" />
-          ACTIVO
+        <span
+          className={[
+            "org-map-holo__status",
+            isVacancy ? "org-map-holo__status--vacancy" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          aria-label={isVacancy ? "Estado: vacante" : "Estado: activo"}
+        >
+          <span className="org-map-holo__status-dot" aria-hidden />
+          {isVacancy ? "VACANTE" : "ACTIVO"}
         </span>
       </div>
 
@@ -155,14 +188,26 @@ export function OrgMapNode({ id, data, selected }: NodeProps) {
             <div className="org-map-holo__ring org-map-holo__ring--outer" />
             <div className="org-map-holo__ring org-map-holo__ring--orbit" />
             <div className="org-map-holo__ring org-map-holo__ring--inner" />
-            <div className="org-map-holo__core" />
+            {isVacancy ? (
+              <div
+                className="org-map-holo__core org-map-holo__core--vacancy flex items-center justify-center"
+                aria-hidden
+              >
+                <OrgMapVacancyGlyph
+                  className="org-map-holo__vacancy-glyph text-slate-400/90"
+                  decorative
+                />
+              </div>
+            ) : (
+              <OrgMapNodePhoto name={node.name} photoUrl={node.photoUrl} />
+            )}
             <div className="org-map-holo__crosshair" />
           </div>
         </div>
 
         <div className="min-w-0 flex flex-col items-center gap-1 text-center pt-1">
           <h3
-            className="org-map-holo__name mt-1.5 truncate text-[15px] font-semibold leading-tight tracking-tight text-slate-100"
+            className="org-map-holo__name org-map-person-name-2l org-map-person-name-2l--center mt-1.5 w-full text-[15px] font-semibold tracking-tight text-slate-100"
             title={node.name}
           >
             {node.name}
@@ -204,7 +249,7 @@ export function OrgMapNode({ id, data, selected }: NodeProps) {
               <span>{isExpanded ? "Colapsar" : "Expandir"}</span>
             </button>
           ) : null}
-        {typedData.hasDeferredTeam && typedData.onExploreTeam ? (
+        {canExploreTeam ? (
           <button
             type="button"
             className="org-map-holo__btn org-map-holo__btn--explore nodrag nopan"
@@ -222,7 +267,11 @@ export function OrgMapNode({ id, data, selected }: NodeProps) {
           <button
             type="button"
             className="org-map-holo__btn org-map-holo__btn--detail nodrag nopan"
-            aria-label="Abrir análisis de entidad"
+            aria-label={
+              isVacancy
+                ? "Abrir ficha de la plaza disponible"
+                : "Abrir análisis de entidad"
+            }
             onPointerDown={stopMouse}
             onClick={(e) => {
               e.stopPropagation();
@@ -271,3 +320,34 @@ export function OrgMapNode({ id, data, selected }: NodeProps) {
     </article>
   );
 }
+
+function orgMapNodePropsAreEqual(prev: NodeProps, next: NodeProps): boolean {
+  if (prev.id !== next.id || prev.selected !== next.selected) {
+    return false;
+  }
+
+  const prevData = prev.data as OrgMapNodeInteractiveData;
+  const nextData = next.data as OrgMapNodeInteractiveData;
+
+  if (prevData.isExpanded !== nextData.isExpanded) return false;
+  if (prevData.loadingChildren !== nextData.loadingChildren) return false;
+  if (prevData.directReportsTotal !== nextData.directReportsTotal) return false;
+  if (prevData.visualLevel !== nextData.visualLevel) return false;
+  if (prevData.showMapExpand !== nextData.showMapExpand) return false;
+  if (prevData.isCanvasRoot !== nextData.isCanvasRoot) return false;
+  if (prevData.orgNode.id !== nextData.orgNode.id) return false;
+  if (prevData.orgNode.name !== nextData.orgNode.name) return false;
+  if (prevData.orgNode.photoUrl !== nextData.orgNode.photoUrl) return false;
+  if (prevData.orgNode.nodeKind !== nextData.orgNode.nodeKind) return false;
+
+  const prevMembers = prevData.internalTeamMembers ?? [];
+  const nextMembers = nextData.internalTeamMembers ?? [];
+  if (prevMembers.length !== nextMembers.length) return false;
+  for (let i = 0; i < prevMembers.length; i += 1) {
+    if (prevMembers[i]?.id !== nextMembers[i]?.id) return false;
+  }
+
+  return true;
+}
+
+export const OrgMapNode = memo(OrgMapNodeComponent, orgMapNodePropsAreEqual);

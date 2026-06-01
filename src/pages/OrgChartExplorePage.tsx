@@ -8,9 +8,13 @@ import {
   fetchOrgChartNode,
 } from "../features/org-chart/services/orgChartService";
 import { mergeChildrenIntoTree } from "../features/org-chart/utils/mergeChildrenIntoTree";
+import { patchNodePhotoUrl } from "../features/org-chart/utils/patchNodePhotoUrl";
 import { OrgMapView } from "../features/org-chart/components/OrgMapView";
 import { PersonDetailPanel } from "../features/org-chart/components/PersonDetailPanel";
+import { OrgChartSearchPanel } from "../features/org-chart/components/OrgChartSearchPanel";
 import { LogoutButton } from "../features/org-chart/components/LogoutButton";
+import { NodeSummaryPanel } from "../features/org-chart/components/NodeSummaryPanel";
+import { DocTeamGridView } from "../features/org-chart/components/DocTeamGridView";
 
 
 type ConnState = "checking" | "online" | "offline";
@@ -32,6 +36,7 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
   const [chartError, setChartError] = useState<string | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [detailPanelMinimized, setDetailPanelMinimized] = useState(false);
+  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
 
   const treeDescendantCount =
     tree && selectedPersonId
@@ -59,6 +64,10 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
       prev ? mergeChildrenIntoTree(prev, parentId, loaded) : prev,
     );
     return loaded;
+  }, []);
+
+  const handleDetailPhotoUrl = useCallback((id: string, photoUrl: string) => {
+    setTree((prev) => (prev ? patchNodePhotoUrl(prev, id, photoUrl) : prev));
   }, []);
 
   useEffect(() => {
@@ -173,6 +182,10 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             {statusPill}
+            <OrgChartSearchPanel
+              inputId="org-chart-search-explore"
+              onSelectHit={handleSelectNodeFromMap}
+            />
             <LogoutButton />
           </div>
         </div>
@@ -201,66 +214,99 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
               </p>
             </div>
           </div>
-        ) : tree ? (
-          <>
-            <div className="absolute inset-0 z-0 flex min-h-0 flex-col">
-              <OrgMapView
-                key={tree.id}
-                variant="fullscreen"
-                detailDrawerOpen={detailOverlayOpen}
-                root={tree}
-                selectedPersonId={selectedPersonId}
-                onSelectNode={handleSelectNodeFromMap}
-                maxRenderLevels={MAP_MAX_LEVELS}
-                initialShowRootChildren
-                onExploreTeam={handleExploreTeam}
-                onLoadChildren={handleLoadChildren}
-                showBackButton
-                onBack={() => navigate("/org")}
-              />
-            </div>
+        ) : tree ? (() => {
+          const shouldRenderAsGrid = tree.children.length > 0 &&
+            tree.children.every((c) =>
+              c.role?.name?.toLowerCase().includes("docente"),
+            );
 
-            <div
-              className="pointer-events-none absolute inset-0 z-30 flex max-sm:items-end max-sm:justify-center sm:items-stretch sm:justify-end sm:p-4"
-              aria-hidden={!detailOverlayOpen}
-            >
-              {detailOverlayOpen ? (
-                <aside
-                  className="entity-detail-overlay pointer-events-auto flex h-full max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] min-h-0 w-full max-w-[420px] flex-col overflow-hidden shadow-[0_24px_64px_-12px_rgba(0,0,0,0.45)] max-sm:fixed max-sm:bottom-3 max-sm:left-3 max-sm:right-3 max-sm:top-auto max-sm:max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] sm:max-h-[calc(100vh-var(--app-header-h)-2rem)] sm:w-[min(420px,calc(100vw-2rem))]"
-                  aria-label="Ficha técnica de la persona"
-                >
-                  <PersonDetailPanel
-                    personId={selectedPersonId}
-                    treeDescendantCount={treeDescendantCount}
-                    layoutVariant="overlay"
-                    onMinimize={() => setDetailPanelMinimized(true)}
-                    onClose={() => {
-                      setSelectedPersonId(null);
-                      setDetailPanelMinimized(false);
-                    }}
+          return (
+            <>
+              {/* Resumen general — misma posición en ambos modos */}
+              <div className="pointer-events-none absolute inset-x-0 top-10 z-20 flex justify-start p-3 pt-16 sm:p-4 sm:pt-16">
+                <NodeSummaryPanel personId={expandedNodeId ?? personId} />
+              </div>
+
+              {/* Área central: grid de docentes o mapa árbol */}
+              <div className="absolute inset-0 z-0 flex min-h-0 flex-col">
+                {shouldRenderAsGrid ? (
+                  <DocTeamGridView
+                    leader={tree}
+                    onSelectPerson={handleSelectNodeFromMap}
+                    onExploreTeam={handleExploreTeam}
                   />
-                </aside>
-              ) : null}
-            </div>
+                ) : (
+                  <OrgMapView
+                    key={tree.id}
+                    variant="fullscreen"
+                    detailDrawerOpen={detailOverlayOpen}
+                    root={tree}
+                    selectedPersonId={selectedPersonId}
+                    onSelectNode={handleSelectNodeFromMap}
+                    maxRenderLevels={MAP_MAX_LEVELS}
+                    initialShowRootChildren
+                    onExploreTeam={handleExploreTeam}
+                    onLoadChildren={handleLoadChildren}
+                    showBackButton
+                    onBack={() => navigate("/org")}
+                    onExpandedNodeChange={setExpandedNodeId}
+                  />
+                )}
+              </div>
 
-            {selectedPersonId && detailPanelMinimized ? (
-              <button
-                type="button"
-                className="pointer-events-auto fixed bottom-5 right-4 z-40 inline-flex items-center gap-2 rounded-lg border border-slate-200/90 bg-white/95 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-800 shadow-lg backdrop-blur-sm transition hover:border-cyan-300/60 hover:text-cyan-900 sm:absolute sm:bottom-auto sm:right-5 sm:top-1/2 sm:-translate-y-1/2"
-                onClick={() => setDetailPanelMinimized(false)}
-                aria-label="Mostrar ficha técnica"
+              {/* Botón volver cuando es grid (OrgMapView ya tiene el suyo) */}
+              {shouldRenderAsGrid ? (
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-10 p-3 sm:p-4">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/org")}
+                    className="pointer-events-auto inline-flex items-center gap-1.5 rounded-lg border border-cyan-300/20 bg-cyan-300/5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-100/80 shadow-[0_0_18px_rgba(34,211,238,0.06)] backdrop-blur-sm transition hover:border-cyan-300/40 hover:text-cyan-50"
+                  >
+                    <span aria-hidden className="text-sm leading-none">←</span>
+                    Volver
+                  </button>
+                </div>
+              ) : null}
+
+              {/* Panel ficha lateral */}
+              <div
+                className="pointer-events-none absolute inset-0 z-30 flex max-sm:items-end max-sm:justify-center sm:items-stretch sm:justify-end sm:p-4"
+                aria-hidden={!detailOverlayOpen}
               >
-                <span
-                  className="font-mono text-[10px] text-cyan-700/90"
-                  aria-hidden
+                {detailOverlayOpen ? (
+                  <aside
+                    className="entity-detail-overlay pointer-events-auto flex h-full max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] min-h-0 w-full max-w-[420px] flex-col overflow-hidden shadow-[0_24px_64px_-12px_rgba(0,0,0,0.45)] max-sm:fixed max-sm:bottom-3 max-sm:left-3 max-sm:right-3 max-sm:top-auto max-sm:max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] sm:max-h-[calc(100vh-var(--app-header-h)-2rem)] sm:w-[min(420px,calc(100vw-2rem))]"
+                    aria-label="Ficha técnica de la persona"
+                  >
+                    <PersonDetailPanel
+                      personId={selectedPersonId}
+                      treeDescendantCount={treeDescendantCount}
+                      layoutVariant="overlay"
+                      onDetailPhotoUrl={handleDetailPhotoUrl}
+                      onMinimize={() => setDetailPanelMinimized(true)}
+                      onClose={() => {
+                        setSelectedPersonId(null);
+                        setDetailPanelMinimized(false);
+                      }}
+                    />
+                  </aside>
+                ) : null}
+              </div>
+
+              {selectedPersonId && detailPanelMinimized ? (
+                <button
+                  type="button"
+                  className="pointer-events-auto fixed bottom-5 right-4 z-40 inline-flex items-center gap-2 rounded-lg border border-slate-200/90 bg-white/95 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-800 shadow-lg backdrop-blur-sm transition hover:border-cyan-300/60 hover:text-cyan-900 sm:absolute sm:bottom-auto sm:right-5 sm:top-1/2 sm:-translate-y-1/2"
+                  onClick={() => setDetailPanelMinimized(false)}
+                  aria-label="Mostrar ficha técnica"
                 >
-                  ◈
-                </span>
-                Ficha
-              </button>
-            ) : null}
-          </>
-        ) : (
+                  <span className="font-mono text-[10px] text-cyan-700/90" aria-hidden>◈</span>
+                  Ficha
+                </button>
+              ) : null}
+            </>
+          );
+        })() : (
           <div className="flex h-full min-h-0 items-center justify-center overflow-auto p-6">
             <div className="rounded-xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-600">
               Cargando equipo…

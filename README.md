@@ -1,6 +1,6 @@
 # Organigrama Frontend
 
-Cliente web **Organigrama OP** para visualizar el organigrama de la Dirección de Operaciones. Consume el backend en `GET /api/org-chart`; la primera versión es solo lectura.
+Cliente web **Organigrama OP** para visualizar el organigrama de la Dirección de Operaciones. Consume el backend con **carga progresiva por niveles**; la primera versión es solo lectura.
 
 ## Requisitos
 
@@ -39,4 +39,13 @@ VITE_API_BASE_URL=http://localhost:3000
 El frontend espera:
 
 - `GET {BASE}/api/health` — indicador de conexión.
-- `GET {BASE}/api/org-chart` — JSON del árbol del organigrama.
+- `GET {BASE}/api/org-chart/root` — carga inicial (raíz + hijos directos).
+- `GET {BASE}/api/org-chart/node/:id` — exploración de un equipo (raíz + hijos directos).
+- `GET {BASE}/api/org-chart/children/:id` — expansión lazy al abrir nodos en el mapa.
+- `GET {BASE}/api/org-chart/person/:id` — ficha técnica de persona.
+- `GET {BASE}/api/org-chart/summary/:personId` — resumen jerárquico en panel.
+
+**Deprecated (no usar en la UI principal):**
+
+- `GET {BASE}/api/org-chart` — árbol completo (legacy).
+- `GET {BASE}/api/org-chart/team/:id` — subárbol completo (legacy); en la app activa se usa `/node/:id` + `/children/:id`.

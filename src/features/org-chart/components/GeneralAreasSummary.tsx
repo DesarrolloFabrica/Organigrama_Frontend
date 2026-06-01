@@ -59,9 +59,16 @@ export function GeneralAreasSummary({ items, loading, error }: Props) {
                 </div>
                 <span className="whitespace-nowrap text-right text-xs tabular-nums text-cyan-100/90">
                   {area.totalPeople}{' '}
-                  <span className="text-slate-500">personas</span>
+                  <span className="text-slate-500">pers. y plazas</span>
                 </span>
-                <span className="whitespace-nowrap text-right text-xs tabular-nums text-slate-400">
+                <span
+                  className={[
+                    'whitespace-nowrap text-right text-xs tabular-nums',
+                    area.vacancies > 0
+                      ? 'rounded border border-dashed border-slate-500/35 px-1 text-slate-200'
+                      : 'text-slate-400',
+                  ].join(' ')}
+                >
                   {area.vacancies}{' '}
                   <span className="text-slate-500">vacantes</span>
                 </span>

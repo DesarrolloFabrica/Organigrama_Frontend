@@ -15,20 +15,8 @@
   se logra con capas y sombras en el nodo (clase .org-map-holo), no rotando el canvas.
 */
 
-/* Gira la línea del radar desde el centro del SVG */
-.radar-sweep {
-  transform-origin: 450px 450px;
-  animation: radarSweepRotate 8s linear infinite;
-}
-
-/* Respeta usuarios con reducción de movimiento */
-@media (prefers-reduced-motion: reduce) {
-  .radar-sweep {
-    animation: none;
-  }
-}
-
-@keyframes radarSweepRotate {
+/* Gira la línea del radar desde el centro (solo transform — barato en GPU). */
+@keyframes radar-sweep-rotate {
   from {
     transform: rotate(0deg);
   }
@@ -36,6 +24,115 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+.radar-background__stage {
+  position: absolute;
+  inset: 0;
+  /* Independiente del radio de anillos; cubre el canvas visible del organigrama */
+  --radar-sweep-length: 10000px;
+}
+
+.radar-guide-lines {
+  position: absolute;
+  inset: -200vw;
+  left: 50%;
+  top: 50%;
+  width: 400vw;
+  height: 400vw;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.radar-guide-line {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: rgba(34, 211, 238, 0.8);
+  transform-origin: center center;
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.25);
+}
+
+.radar-guide-line--horizontal {
+  width: 400vw;
+  height: 2px;
+  transform: translate(-50%, -50%);
+}
+
+.radar-guide-line--vertical {
+  width: 2px;
+  height: 400vw;
+  transform: translate(-50%, -50%);
+}
+
+.radar-guide-line--diagonal-a {
+  width: 400vw;
+  height: 2px;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.radar-guide-line--diagonal-b {
+  width: 400vw;
+  height: 2px;
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.radar-background__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0.55;
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+
+.radar-sweep-arm {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  transform-origin: center center;
+  animation: radar-sweep-rotate 5s linear infinite;
+  will-change: transform;
+  pointer-events: none;
+}
+
+.radar-sweep-arm__beam {
+  position: absolute;
+  left: calc(50% - 1px);
+  top: calc(50% - var(--radar-sweep-length));
+  width: 9px;
+  height: var(--radar-sweep-length);
+  border-radius: 1px;
+  opacity: 0.8;
+  background: linear-gradient(
+    to bottom,
+    rgba(125, 249, 255, 1),
+    rgba(125, 249, 255, 1)
+  );
+}
+
+.radar-sweep-arm__dot {
+  position: absolute;
+  left: calc(50% - 3px);
+  top: calc(50% - var(--radar-sweep-length));
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  opacity: 0.2;
+  background: rgba(125, 249, 255, 0.92);
+  box-shadow: 0 0 8px rgba(125, 249, 255, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radar-sweep-arm {
+    animation: none;
+  }
+}
+
+.org-map-flow--lite .radar-sweep-arm {
+  animation: none;
 }
 
 /* Contenedor padre donde vive el organigrama */
@@ -50,12 +147,7 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  opacity: 0.38;
+  opacity: 0.4;
 }
 
 /* SVG del radar */
@@ -121,6 +213,59 @@ body,
   }
 }
 
+/* Plaza disponible: borde segmentado, núcleo sin silueta/foto, glow bajo. */
+.org-map-holo--vacancy {
+  border-style: dashed;
+  border-color: var(--org-lvl-edge-strong);
+  background:
+    radial-gradient(
+      circle at 50% 28%,
+      rgba(148, 163, 184, 0.1) 0%,
+      transparent 48%
+    ),
+    linear-gradient(
+      155deg,
+      rgba(15, 23, 42, 0.96) 0%,
+      rgba(2, 6, 23, 0.98) 55%,
+      rgba(8, 15, 28, 0.97) 100%
+    );
+  box-shadow: var(--org-lvl-shadow-card), 0 0 24px var(--org-lvl-glow);
+}
+
+.org-map-holo--vacancy .org-map-holo__core::before {
+  display: none;
+}
+
+.org-map-holo--vacancy .org-map-holo__core--vacancy {
+  animation: none;
+  background: radial-gradient(
+    circle,
+    rgba(148, 163, 184, 0.14) 0%,
+    rgba(51, 65, 85, 0.42) 42%,
+    rgba(15, 23, 42, 0.88) 100%
+  );
+}
+
+.org-map-holo--vacancy .org-map-holo__ring--orbit {
+  animation-duration: 140s;
+  opacity: 0.32;
+}
+
+.org-map-holo--vacancy .org-map-holo__body::after {
+  content: "OPEN • SLOT";
+  color: color-mix(in srgb, var(--org-lvl-primary) 42%, transparent);
+}
+
+.org-map-holo--vacancy .org-map-holo__status--vacancy .org-map-holo__status-dot {
+  background: transparent;
+  border: 1px dashed var(--org-lvl-status-dot);
+  box-shadow: none;
+}
+
+.org-map-holo__vacancy-glyph {
+  filter: drop-shadow(0 0 6px rgba(148, 163, 184, 0.22));
+}
+
 .org-map-holo {
   isolation: isolate;
   border-radius: 4px;
@@ -136,8 +281,7 @@ body,
     0 10px
   );
   padding: 1rem 1rem 1rem 0.95rem;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  /* Fondo opaco en lugar de backdrop-filter: evita recomposición GPU por nodo. */
   background:
     radial-gradient(
       circle at 50% 32%,
@@ -152,9 +296,9 @@ body,
     ),
     linear-gradient(
       145deg,
-      rgba(8, 15, 28, 0.92) 0%,
-      rgba(2, 6, 23, 0.96) 42%,
-      rgba(3, 10, 24, 0.94) 100%
+      rgba(8, 15, 28, 0.97) 0%,
+      rgba(2, 6, 23, 0.98) 42%,
+      rgba(3, 10, 24, 0.97) 100%
     );
   border: 1px solid var(--org-lvl-edge-strong);
   box-shadow: var(--org-lvl-shadow-card);
@@ -376,9 +520,46 @@ body,
   color: var(--org-lvl-team-heading);
 }
 
+/* Modo liviano opcional (no activo por defecto): desactiva animaciones pesadas si se añade la clase. */
+.org-map-flow--lite .org-map-holo__core::before {
+  filter: none;
+  opacity: 0.75;
+}
+
+.org-map-flow--lite .org-map-holo__core {
+  animation: none;
+  opacity: 0.78;
+}
+
+.org-map-flow--lite .org-map-holo__ring--orbit {
+  animation: none;
+  opacity: 0.4;
+}
+
+.org-map-flow--lite .org-map-holo--expanded::before {
+  animation: none;
+}
+
+.org-map-flow--lite .org-map-holo::after {
+  opacity: 0.55;
+}
+
+.org-map-flow--lite .org-map-holo__body::before,
+.org-map-flow--lite .org-map-holo__body::after {
+  opacity: 0.45;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .org-map-holo {
     transition-duration: 0.01ms;
+  }
+
+  .org-map-holo__core {
+    animation: none;
+  }
+
+  .org-map-holo__ring--orbit {
+    animation: none;
   }
 
   .org-map-holo__team-shell {
@@ -432,13 +613,33 @@ body,
 }
 
 .org-map-holo__name {
-  filter: drop-shadow(0 0 12px var(--org-lvl-name-glow));
+  text-shadow: 0 0 10px var(--org-lvl-name-glow);
+}
+
+/**
+ * Nombre en tarjetas del mapa: hasta 2 líneas, ellipsis si excede.
+ * Sin truncar en una sola línea ni modificar datos en Core.
+ */
+.org-map-person-name-2l {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.375;
+  min-height: calc(2 * 1.375em);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.org-map-person-name-2l--center {
+  text-align: center;
 }
 
 /* ── Núcleo ───────────────────────────────────────────────────────────────── */
 
 .org-map-holo__nucleus-wrap {
-  filter: var(--org-lvl-nucleus-filter);
+  filter: none;
 }
 
 .org-map-holo__nucleus {
@@ -526,6 +727,19 @@ body,
   box-shadow: var(--org-lvl-core-shadow);
   border: 1px solid var(--org-lvl-core-border);
   animation: org-map-holo-core-breathe 2s ease-in-out infinite;
+}
+
+.org-map-holo__core--has-photo::before {
+  opacity: 0;
+}
+
+.org-map-holo__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  object-fit: cover;
 }
 
 .org-map-holo__crosshair {
@@ -652,6 +866,26 @@ body,
 .org-map-mini-card {
   border: 1px solid var(--org-lvl-mini-border);
   box-shadow: inset 0 0 0 1px var(--org-lvl-mini-inset);
+}
+
+.org-map-mini-card--vacancy {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--org-lvl-primary) 38%, transparent);
+  background-color: rgba(15, 23, 42, 0.72);
+}
+
+.org-map-mini-card__avatar--vacancy {
+  background: linear-gradient(
+    to bottom,
+    rgba(30, 41, 59, 0.85),
+    rgba(15, 23, 42, 0.95)
+  );
+}
+
+.org-map-mini-card__active-row--vacancy .org-map-mini-card__pulse {
+  background: transparent;
+  border: 1px dashed var(--org-lvl-mini-pulse);
+  box-shadow: none;
 }
 
 .org-map-mini-card:hover {
@@ -854,6 +1088,35 @@ body,
 @media (prefers-reduced-motion: reduce) {
   .entity-detail-overlay {
     animation: none;
+  }
+}
+
+/* Panel resumen jerárquico: desplegable con transición suave */
+.node-summary-panel__expandable {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateY(-6px);
+  transition:
+    max-height 280ms ease,
+    opacity 280ms ease,
+    transform 280ms ease;
+}
+
+.node-summary-panel__expandable--open {
+  max-height: min(56vh, 420px);
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.node-summary-panel__expandable-inner {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node-summary-panel__expandable {
+    transition-duration: 0.01ms;
+    transform: none;
   }
 }
 

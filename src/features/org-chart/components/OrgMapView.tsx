@@ -16,10 +16,7 @@ import { OrgMapMiniMap } from "./OrgMapMiniMap";
 import { OrgMapNode } from "./OrgMapNode";
 import { buildVisibleSubtree } from "../utils/buildVisibleSubtree";
 import { buildOrgMap, type OrgMapNodeData } from "../utils/orgMapLayout";
-import {
-  getOrgMapLevelTheme,
-  resolveOrgMapVisualLevel,
-} from "../utils/orgMapLevelTheme";
+import { resolveOrgMapTheme } from "../utils/orgMapLevelTheme";
 import { truncateTreeToMaxLevels } from "../utils/truncateOrgTreeLevels";
 import { RadarBackground } from "./RadarBackground";
 
@@ -36,6 +33,8 @@ type Props = {
   onLoadChildren?: (parentId: string) => Promise<OrgNode[]>;
   showBackButton?: boolean;
   onBack?: () => void;
+  /** Se dispara cuando el nodo expandido cambia (null = ninguno expandido). */
+  onExpandedNodeChange?: (nodeId: string | null) => void;
 };
 
 type CameraIntent = {
@@ -274,6 +273,7 @@ export function OrgMapView({
   onLoadChildren,
   showBackButton = false,
   onBack,
+  onExpandedNodeChange,
 }: Props): ReactElement {
   const [showRootChildren, setShowRootChildren] = useState(
     initialShowRootChildren,
@@ -286,6 +286,10 @@ export function OrgMapView({
     string | null
   >(null);
   const [mapReady, setMapReady] = useState(false);
+
+  useEffect(() => {
+    onExpandedNodeChange?.(expandedHubNodeId);
+  }, [expandedHubNodeId, onExpandedNodeChange]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -464,6 +468,12 @@ export function OrgMapView({
       graph.nodes.map((node) => {
         const full = nodeById.get(node.id);
         const layoutOrg = node.data.orgNode;
+        const orgNodeForView = full
+          ? {
+              ...layoutOrg,
+              photoUrl: full.photoUrl ?? layoutOrg.photoUrl ?? null,
+            }
+          : layoutOrg;
         const reportNode = full ?? layoutOrg;
         const directReportsTotal =
           full?.direct_reports_count ??
@@ -476,11 +486,10 @@ export function OrgMapView({
           ? showRootChildren
           : expandedHubNodeId === node.id;
         const layoutDepth = node.data.mapLayoutDepth ?? 0;
-        const visualLevel = resolveOrgMapVisualLevel(
-          full ?? layoutOrg,
+        const { visualLevel, tokens: levelTheme } = resolveOrgMapTheme(
+          orgNodeForView,
           layoutDepth,
         );
-        const levelTheme = getOrgMapLevelTheme(visualLevel);
         const hasDeferredTeam = Boolean(layoutOrg.deferred_team);
         const hasChildren = orgNodeHasDirectReports(reportNode);
         const showMapExpand = hasChildren && !hasDeferredTeam;
@@ -499,11 +508,12 @@ export function OrgMapView({
           style: {
             ...node.style,
             pointerEvents: "all" as const,
-            filter: levelTheme.nodeDropShadow,
+            boxShadow: levelTheme.nodeBoxShadow,
           },
           selected: selectedPersonId != null && node.id === selectedPersonId,
           data: {
             ...node.data,
+            orgNode: orgNodeForView,
             directReportsTotal,
             isExpanded,
             hasChildren,
@@ -541,8 +551,7 @@ export function OrgMapView({
         const layoutDepth = targetData?.mapLayoutDepth ?? 0;
         const org = targetData?.orgNode;
         const full = org ? nodeById.get(edge.target) : undefined;
-        const level = resolveOrgMapVisualLevel(full ?? org, layoutDepth);
-        const t = getOrgMapLevelTheme(level);
+        const { tokens: t } = resolveOrgMapTheme(full ?? org, layoutDepth);
         return {
           ...edge,
           style: {
@@ -674,10 +683,8 @@ export function OrgMapView({
               <ReactFlow
                 className={[
                   "org-map-flow relative z-1 h-full w-full",
-                  "transition-all duration-700 ease-out",
-                  mapReady
-                    ? "opacity-100 blur-0 scale-100"
-                    : "opacity-0 blur-sm scale-[0.985]",
+                  "transition-opacity duration-700 ease-out",
+                  mapReady ? "opacity-100" : "opacity-0",
                 ].join(" ")}
                 proOptions={{ hideAttribution: true }}
                 nodes={nodesWithSelection}

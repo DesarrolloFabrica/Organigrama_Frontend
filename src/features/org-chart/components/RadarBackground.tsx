@@ -1,76 +1,97 @@
 /**
- * Fondo decorativo tipo radar para el canvas del organigrama.
- * Es una capa visual, por eso usa pointer-events-none desde el contenedor padre.
+ * Fondo radar detrás del canvas: líneas guía CSS a pantalla completa,
+ * anillos SVG en viewBox fijo 900×900 y barrido CSS.
  */
 export function RadarBackground() {
-    return (
-      <div className="absolute inset-0 z-0 flex items-center justify-center">
+  const CENTER = 450;
+
+  return (
+    <div
+      className="radar-background pointer-events-none absolute inset-0 overflow-hidden"
+      aria-hidden
+    >
+      <div className="radar-background__stage">
+        <div className="radar-guide-lines">
+          <span className="radar-guide-line radar-guide-line--horizontal" />
+          <span className="radar-guide-line radar-guide-line--vertical" />
+          <span className="radar-guide-line radar-guide-line--diagonal-a" />
+          <span className="radar-guide-line radar-guide-line--diagonal-b" />
+        </div>
+
         <svg
           viewBox="0 0 900 900"
-          className="h-[120vw] w-[120vw] min-h-[1500px] min-w-[1500px] max-w-none opacity-70"
+          className="radar-background__svg"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Halo suave central */}
-          <circle cx="450" cy="450" r="95" fill="rgba(34, 211, 238, 0.035)" />
-          <circle cx="450" cy="450" r="230" fill="rgba(34, 211, 238, 0.018)" />
-  
-          {/* Círculos principales del radar */}
-          <circle cx="450" cy="450" r="120" stroke="rgba(34, 211, 238, 0.28)" strokeWidth="1.4" />
-          <circle cx="450" cy="450" r="220" stroke="rgba(34, 211, 238, 0.22)" strokeWidth="1.2" />
-          <circle cx="450" cy="450" r="330" stroke="rgba(34, 211, 238, 0.16)" strokeWidth="1" />
-          <circle cx="450" cy="450" r="420" stroke="rgba(34, 211, 238, 0.12)" strokeWidth="1" />
-  
-          {/* Círculos segmentados para dar estética técnica */}
+          {/* Rellenos suaves internos */}
+          <circle cx={CENTER} cy={CENTER} r="95" fill="rgba(34, 211, 238, 0.035)" />
+          <circle cx={CENTER} cy={CENTER} r="230" fill="rgba(34, 211, 238, 0.018)" />
+
+          {/* Anillos principales */}
           <circle
-            cx="450"
-            cy="450"
+            cx={CENTER}
+            cy={CENTER}
+            r="500"
+            stroke="rgba(34, 211, 238, 2)"
+            strokeWidth="3"
+          />
+
+          <circle
+            cx={CENTER}
+            cy={CENTER}
+            r="800"
+            stroke="rgba(34, 211, 238, 1)"
+            strokeWidth="3"
+          />
+
+          <circle
+            cx={CENTER}
+            cy={CENTER}
+            r="1500"
+            stroke="rgba(34, 211, 238, 50)"
+            strokeWidth="1"
+          />
+
+          <circle
+            cx={CENTER}
+            cy={CENTER}
+            r="370"
+            stroke="rgba(34, 211, 238, 0.8)"
+            strokeWidth="1"
+          />
+
+          {/* Anillos punteados */}
+          <circle
+            cx={CENTER}
+            cy={CENTER}
             r="155"
-            stroke="rgba(125, 249, 255, 0.28)"
+            stroke="rgba(125, 249, 255, 0.8)"
             strokeWidth="1"
             strokeDasharray="10 14"
           />
+
           <circle
-            cx="450"
-            cy="450"
+            cx={CENTER}
+            cy={CENTER}
             r="275"
-            stroke="rgba(125, 249, 255, 0.18)"
-            strokeWidth="2"
+            stroke="rgba(125, 249, 255, 50)"
+            strokeWidth="5"
             strokeDasharray="4 18"
           />
-  
-          {/* Líneas guía del radar */}
-          <path d="M450 30V870" stroke="rgba(34, 211, 238, 0.3)" strokeWidth="1" />
-          <path d="M30 450H870" stroke="rgba(34, 211, 238, 0.3)" strokeWidth="1" />
-          <path d="M153 153L747 747" stroke="rgba(34, 211, 238, 0.3)" strokeWidth="1" />
-          <path d="M747 153L153 747" stroke="rgba(34, 211, 238, 0.3)" strokeWidth="1" />
 
-  
-            {/* Línea de escaneo animada */}
-            <g className="radar-sweep">
-              <path
-                d="M450 450 L450 35"
-                stroke="rgba(125, 249, 255, 0.55)"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-
-              {/* Estela suave de la línea */}
-              <path
-                d="M450 450 L450 35"
-                stroke="rgba(125, 249, 255, 0.18)"
-                strokeWidth="15"
-                strokeLinecap="round"
-              />
-            </g>
-          {/* Punto central */}
-          <circle cx="450" cy="450" r="5" fill="rgba(125, 249, 255, 0.7)" />
-  
-          {/* Pequeños puntos técnicos */}
-          <circle cx="450" cy="230" r="4" fill="rgba(125, 249, 255, 0.8)" />
-          <circle cx="670" cy="450" r="3" fill="rgba(125, 249, 255, 0.8)" />
-          <circle cx="292" cy="608" r="3" fill="rgba(125, 249, 255, 0.8)" />
+          {/* Puntos decorativos */}
+          <circle cx={CENTER} cy={CENTER} r="5" fill="rgba(125, 249, 255, 0.65)" />
+          <circle cx={CENTER} cy={CENTER - 220} r="4" fill="rgba(125, 249, 255, 0.75)" />
+          <circle cx={CENTER + 220} cy={CENTER} r="3" fill="rgba(125, 249, 255, 0.75)" />
+          <circle cx={CENTER - 158} cy={CENTER + 158} r="3" fill="rgba(125, 249, 255, 0.75)" />
         </svg>
+
+        <div className="radar-sweep-arm">
+          <span className="radar-sweep-arm__beam" />
+          <span className="radar-sweep-arm__dot" />
+        </div>
       </div>
-    );
-  }
+    </div>
+  );
+}

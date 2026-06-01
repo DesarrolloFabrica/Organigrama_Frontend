@@ -1,13 +1,13 @@
-// Importamos useNavigate para poder redirigir al login.
 import { useNavigate } from "react-router-dom";
+import { clearAuthSession } from "../../../auth/authStorage";
+import { clearProfileCompletedCache } from "../../../auth/profileGateStorage";
 
-// Botón reutilizable para cerrar sesión.
-// Por ahora no elimina tokens ni sesión real porque el login es simulado.
 export function LogoutButton() {
   const navigate = useNavigate();
 
-  // Simula el cierre de sesión y redirige al login.
   const handleLogout = () => {
+    clearAuthSession();
+    clearProfileCompletedCache();
     navigate("/");
   };
 

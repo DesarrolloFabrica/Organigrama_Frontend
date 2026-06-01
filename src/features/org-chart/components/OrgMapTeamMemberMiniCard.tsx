@@ -1,11 +1,17 @@
-import type { MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 
+import { withPhotoAccessToken } from "../../../auth/photoUrl";
 import { formatRoleLabel, orgNodeHasDirectReports, type OrgNode } from "../types";
-import { orgMapLevelThemeToCssVars } from "../utils/orgMapLevelTheme";
+import {
+  orgMapNodeThemeToCssVars,
+  resolveOrgMapTheme,
+} from "../utils/orgMapLevelTheme";
+import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
 
 type Props = {
   member: OrgNode;
-  visualLevel: 1 | 2 | 3 | 4 | 5;
+  /** Profundidad de layout del miembro en el mapa (p. ej. padre + 1). */
+  memberLayoutDepth: number;
   onOpenDetail: (id: string) => void;
   onExploreTeam?: (nodeId: string) => void;
   stopMouse: (e: MouseEvent) => void;
@@ -46,7 +52,7 @@ function IconTeamBranch({ className }: { className?: string }) {
   );
 }
 
-function initials(name: string): string {
+function memberInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "—";
   if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
@@ -56,32 +62,84 @@ function initials(name: string): string {
 /** Tarjeta compacta de una persona del equipo (colores alineados al nivel resuelto). */
 export function OrgMapTeamMemberMiniCard({
   member,
-  visualLevel,
+  memberLayoutDepth,
   onOpenDetail,
   onExploreTeam,
   stopMouse,
 }: Props) {
+  const isVacancy = member.nodeKind === "vacancy";
   const roleShort = formatRoleLabel(member);
   const showExploreTeam =
-    Boolean(onExploreTeam) && orgNodeHasDirectReports(member);
-  const levelCss = orgMapLevelThemeToCssVars(visualLevel);
+    !isVacancy &&
+    Boolean(onExploreTeam) &&
+    orgNodeHasDirectReports(member);
+  const { visualLevel } = resolveOrgMapTheme(member, memberLayoutDepth);
+  const levelCss = orgMapNodeThemeToCssVars(member, memberLayoutDepth);
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const resolvedPhotoUrl = withPhotoAccessToken(member.photoUrl);
+  const showPhoto = !isVacancy && Boolean(resolvedPhotoUrl) && !photoFailed;
+
+  useEffect(() => {
+    setPhotoFailed(false);
+  }, [member.id, member.photoUrl]);
+
+  if (import.meta.env.DEV) {
+    console.log("[MiniCard photo]", {
+      id: member.id,
+      name: member.name,
+      photoUrl: member.photoUrl ?? null,
+    });
+  }
 
   return (
     <article
-      className="org-map-mini-card group relative flex min-h-0 flex-col gap-2 rounded-sm bg-slate-950/60 p-2.5 transition-[border-color,box-shadow,background-color] duration-200 ease-out"
+      className={[
+        "org-map-mini-card group relative flex min-h-0 flex-col gap-2 rounded-sm bg-slate-950/60 p-2.5 transition-[border-color,box-shadow,background-color] duration-200 ease-out",
+        isVacancy ? "org-map-mini-card--vacancy" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       style={levelCss}
       data-visual-level={visualLevel}
+      data-node-kind={isVacancy ? "vacancy" : "person"}
     >
       <div className="flex min-w-0 items-start gap-2.5">
         <div
-          className="org-map-mini-card__avatar flex size-9 shrink-0 items-center justify-center rounded-sm font-mono text-[10px] font-bold tracking-tight"
+          className={[
+            "org-map-mini-card__avatar flex size-9 shrink-0 items-center justify-center rounded-sm",
+            showPhoto ? "overflow-hidden" : "",
+            isVacancy
+              ? "org-map-mini-card__avatar--vacancy"
+              : showPhoto
+                ? ""
+                : "font-mono text-[10px] font-bold tracking-tight",
+          ]
+            .filter(Boolean)
+            .join(" ")}
           aria-hidden
         >
-          {initials(member.name)}
+          {isVacancy ? (
+            <OrgMapVacancyGlyph
+              size="sm"
+              className="text-slate-400/85"
+              decorative
+            />
+          ) : showPhoto ? (
+            <img
+              src={resolvedPhotoUrl!}
+              alt=""
+              className="size-full object-cover"
+              referrerPolicy="no-referrer"
+              decoding="async"
+              onError={() => setPhotoFailed(true)}
+            />
+          ) : (
+            memberInitials(member.name)
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <h4
-            className="truncate text-[12px] font-semibold leading-snug tracking-tight text-slate-100"
+            className="org-map-person-name-2l w-full text-[12px] font-semibold tracking-tight text-slate-100"
             title={member.name}
           >
             {member.name}
@@ -92,9 +150,17 @@ export function OrgMapTeamMemberMiniCard({
           >
             {roleShort}
           </p>
-          <p className="org-map-mini-card__active-row mt-1.5 flex items-center gap-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.14em]">
-            <span className="org-map-mini-card__pulse size-1.5 rounded-full" />
-            Activo
+          <p
+            className={[
+              "org-map-mini-card__active-row mt-1.5 flex items-center gap-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.14em]",
+              isVacancy ? "org-map-mini-card__active-row--vacancy" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            aria-label={isVacancy ? "Estado: vacante" : "Estado: activo"}
+          >
+            <span className="org-map-mini-card__pulse size-1.5 rounded-full" aria-hidden />
+            {isVacancy ? "Vacante" : "Activo"}
           </p>
         </div>
       </div>

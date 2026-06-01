@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import type { OrgPersonDetail } from "../types";
+import { isOrgNodeVacancy } from "../types";
 import { fetchOrgPersonDetail } from "../services/orgChartService";
+import { withPhotoAccessToken } from "../../../auth/photoUrl";
+import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
 
 type Props = {
   /** Persona seleccionada en el árbol; `null` muestra estado vacío. */
@@ -17,6 +20,8 @@ type Props = {
   onMinimize?: () => void;
   /** `overlay`: altura acoplada al drawer flotante; `sidebar`: columna clásica. */
   layoutVariant?: "sidebar" | "overlay";
+  /** Sincroniza `photoUrl` del detalle con el árbol del mapa (p. ej. tras foto persistida). */
+  onDetailPhotoUrl?: (personId: string, photoUrl: string) => void;
 };
 
 function formatValue(value: string | null | undefined): string {
@@ -108,40 +113,155 @@ function EntityScanShell({
   );
 }
 
+type HudSectionIconKind = "contact" | "org" | "location" | "team" | "path";
+
+function HudSectionIcon({ kind }: { kind: HudSectionIconKind }) {
+  const className = "size-[18px] text-slate-600";
+  const stroke = "currentColor";
+  const sw = 1.5;
+
+  switch (kind) {
+    case "contact":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <circle cx="12" cy="8" r="3.5" stroke={stroke} strokeWidth={sw} />
+          <path
+            d="M6 19c0-3.3 2.7-6 6-6s6 2.7 6 6"
+            stroke={stroke}
+            strokeWidth={sw}
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    case "org":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <circle cx="6" cy="6" r="2.5" stroke={stroke} strokeWidth={sw} />
+          <circle cx="18" cy="6" r="2.5" stroke={stroke} strokeWidth={sw} />
+          <circle cx="12" cy="18" r="2.5" stroke={stroke} strokeWidth={sw} />
+          <path
+            d="M8 7.5 11 16M16 7.5 13 16M8.5 6h7M8.5 18h7"
+            stroke={stroke}
+            strokeWidth={sw}
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    case "location":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path
+            d="M12 21s6-5.1 6-10a6 6 0 1 0-12 0c0 4.9 6 10 6 10Z"
+            stroke={stroke}
+            strokeWidth={sw}
+            strokeLinejoin="round"
+          />
+          <circle cx="12" cy="11" r="2" stroke={stroke} strokeWidth={sw} />
+        </svg>
+      );
+    case "team":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <circle cx="9" cy="8" r="2.5" stroke={stroke} strokeWidth={sw} />
+          <circle cx="16" cy="9" r="2" stroke={stroke} strokeWidth={sw} />
+          <path
+            d="M4 19c0-2.8 2.2-5 5-5M13 19c0-2.2 1.6-4 3.5-4.2M19 19c0-1.5-.8-2.8-2-3.5"
+            stroke={stroke}
+            strokeWidth={sw}
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    case "path":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <circle cx="6" cy="6" r="2" stroke={stroke} strokeWidth={sw} />
+          <circle cx="18" cy="18" r="2" stroke={stroke} strokeWidth={sw} />
+          <path
+            d="M8 7.5 16 16.5M8 16.5 16 7.5"
+            stroke={stroke}
+            strokeWidth={sw}
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+/** Columna lateral: icono, línea vertical y puntos decorativos. */
+function HudSectionRail({ icon }: { icon: HudSectionIconKind }) {
+  return (
+    <div
+      className="flex w-10 shrink-0 flex-col items-center sm:w-11"
+      aria-hidden
+    >
+      <div className="flex size-9 items-center justify-center rounded-full border border-slate-200/80 bg-slate-50/90 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <HudSectionIcon kind={icon} />
+      </div>
+      <div className="mt-2 flex min-h-[28px] flex-1 flex-col items-center gap-1.5 py-0.5">
+        <div className="w-px flex-1 min-h-4 bg-linear-to-b from-slate-300/70 via-slate-200/40 to-transparent" />
+        <span className="size-1 rounded-full bg-slate-300/80" />
+        <span className="size-1 rounded-full bg-slate-300/55" />
+        <span className="size-1 rounded-full bg-slate-300/35" />
+      </div>
+    </div>
+  );
+}
+
 /**
- * Bloque de lectura técnica: título en canal mono + contenedor con relieve suave.
+ * Módulo de ficha: blanco, sobrio, columna lateral técnica + contenido.
  */
 function HudSection({
   id,
   title,
   subtitle,
+  icon,
   children,
 }: {
   id: string;
   title: string;
   subtitle?: string;
+  icon: HudSectionIconKind;
   children: ReactNode;
 }) {
   return (
     <section
       id={id}
-      className="rounded-xl border  border-slate-200/80 bg-white/55 px-3.5 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]"
+      className="overflow-hidden rounded-xl border border-slate-200/70 bg-white shadow-[0_4px_18px_-14px_rgba(15,23,42,0.12)]"
       aria-labelledby={`${id}-title`}
     >
-      <div className="flex items-end justify-between gap-2 border-b border-cyan-500/12 pb-2">
-        <div>
-          <h3
-            id={`${id}-title`}
-            className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500"
-          >
-            {title}
-          </h3>
-          {subtitle ? (
-            <p className="mt-0.5 text-[11px] text-slate-500">{subtitle}</p>
-          ) : null}
+      <div className="flex min-w-0 gap-2.5 px-2.5 py-3 sm:gap-3 sm:px-3 sm:py-3.5">
+        <HudSectionRail icon={icon} />
+
+        <div className="min-w-0 flex-1">
+          <header className="pb-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span
+                className="size-1.5 shrink-0 rounded-full bg-sky-600/75"
+                aria-hidden
+              />
+              <h3
+                id={`${id}-title`}
+                className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600"
+              >
+                {title}
+              </h3>
+            </div>
+            <div className="mt-1.5 flex items-center gap-0" aria-hidden>
+              <span className="h-px w-5 shrink-0 bg-sky-600/45" />
+              <span className="h-px min-w-0 flex-1 bg-slate-200/90" />
+            </div>
+            {subtitle ? (
+              <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
+                {subtitle}
+              </p>
+            ) : null}
+          </header>
+          <div className="min-w-0">{children}</div>
         </div>
       </div>
-      <div className="mt-3">{children}</div>
     </section>
   );
 }
@@ -150,17 +270,30 @@ function HudDetailRow({
   label,
   value,
   hint,
+  emphasized = false,
 }: {
   label: string;
   value: string;
   hint?: string;
+  emphasized?: boolean;
 }) {
+  const isEmpty = value === "—";
+
   return (
-    <div className="grid grid-cols-[minmax(0,7.5rem)_1fr] gap-x-3 gap-y-0.5 border-b border-slate-200/60 py-2 last:border-b-0 sm:grid-cols-[minmax(0,8.5rem)_1fr]">
-      <dt className="font-mono text-[10px] font-medium uppercase tracking-wide text-slate-500">
+    <div className="relative grid grid-cols-[minmax(0,6.75rem)_1fr] gap-x-2.5 gap-y-0.5 py-2 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-linear-to-r after:from-transparent after:via-slate-200/90 after:to-transparent last:py-1.5 last:after:hidden sm:grid-cols-[minmax(0,7.75rem)_1fr] sm:gap-x-3 sm:py-2.5">
+      <dt className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">
         {label}
       </dt>
-      <dd className="text-[13px] font-medium leading-snug text-slate-800">
+      <dd
+        className={[
+          "min-w-0 text-[13px] leading-snug text-slate-900",
+          isEmpty
+            ? "font-normal text-slate-400/60"
+            : emphasized
+              ? "font-bold tracking-tight"
+              : "font-semibold",
+        ].join(" ")}
+      >
         {value}
         {hint ? (
           <span className="ml-1.5 font-mono text-[10px] font-normal text-slate-500">
@@ -190,6 +323,7 @@ export function PersonDetailPanel(props: Props) {
       onClose={props.onClose}
       onMinimize={props.onMinimize}
       layoutVariant={props.layoutVariant ?? "sidebar"}
+      onDetailPhotoUrl={props.onDetailPhotoUrl}
     />
   );
 }
@@ -231,10 +365,16 @@ function PersonDetailLoaded({
   onClose,
   onMinimize,
   layoutVariant,
+  onDetailPhotoUrl,
 }: LoadedProps) {
   const [detail, setDetail] = useState<OrgPersonDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [photoFailed, setPhotoFailed] = useState(false);
+
+  useEffect(() => {
+    setPhotoFailed(false);
+  }, [personId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -244,6 +384,9 @@ function PersonDetailLoaded({
         if (!cancelled) {
           setDetail(data);
           setError(null);
+          if (data.photoUrl) {
+            onDetailPhotoUrl?.(data.id, data.photoUrl);
+          }
         }
       })
       .catch((err: unknown) => {
@@ -263,7 +406,7 @@ function PersonDetailLoaded({
     return () => {
       cancelled = true;
     };
-  }, [personId]);
+  }, [personId, onDetailPhotoUrl]);
 
   if (loading) {
     return (
@@ -333,10 +476,17 @@ function PersonDetailLoaded({
   const roleLabel = detail.role?.name?.trim()
     ? detail.role.name
     : "Sin cargo asignado";
+  const isVacancy = isOrgNodeVacancy(detail);
+  const resolvedPhotoUrl = withPhotoAccessToken(detail.photoUrl);
+  const showPhoto = !isVacancy && Boolean(resolvedPhotoUrl) && !photoFailed;
 
   return (
     <EntityScanShell
-      ariaLabel={`Escaneo de entidad: ${detail.full_name}`}
+      ariaLabel={
+        isVacancy
+          ? `Plaza disponible: ${detail.full_name}`
+          : `Escaneo de entidad: ${detail.full_name}`
+      }
       layoutVariant={layoutVariant}
     >
       {/*
@@ -345,11 +495,33 @@ function PersonDetailLoaded({
       <header className="shrink-0 border-b border-slate-200/70 bg-linear-to-br from-white/90 via-slate-50/70 to-slate-100/50 px-4 pb-4 pt-3">
         <div className="flex gap-3">
           <div
-            className="relative flex size-13 shrink-0 items-center justify-center rounded-full border border-cyan-500/22 bg-linear-to-br from-cyan-50/90 to-white text-sm font-bold tracking-tight text-cyan-900 shadow-[0_0_20px_rgba(34,211,238,0.12)]"
+            className={[
+              "relative flex size-13 shrink-0 items-center justify-center rounded-full border text-sm font-bold tracking-tight",
+              isVacancy
+                ? "border-dashed border-slate-400/45 bg-slate-100/90 shadow-[0_0_16px_rgba(148,163,184,0.12)]"
+                : "border-cyan-500/22 bg-linear-to-br from-cyan-50/90 to-white text-cyan-900 shadow-[0_0_20px_rgba(34,211,238,0.12)]",
+            ].join(" ")}
             aria-hidden
           >
-            {initialsFromName(detail.full_name)}
-            <span className="pointer-events-none absolute -inset-0.5 rounded-full border border-cyan-400/15" />
+            {isVacancy ? (
+              <OrgMapVacancyGlyph
+                className="text-slate-500/90"
+                ariaLabel="Plaza disponible"
+              />
+            ) : showPhoto ? (
+              <img
+                src={resolvedPhotoUrl!}
+                alt=""
+                className="size-full rounded-full object-cover"
+                referrerPolicy="no-referrer"
+                onError={() => setPhotoFailed(true)}
+              />
+            ) : (
+              initialsFromName(detail.full_name)
+            )}
+            {!isVacancy ? (
+              <span className="pointer-events-none absolute -inset-0.5 rounded-full border border-cyan-400/15" />
+            ) : null}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
@@ -360,6 +532,11 @@ function PersonDetailLoaded({
                 <p className="mt-0.5 text-sm font-medium leading-snug text-slate-600">
                   {roleLabel}
                 </p>
+                {isVacancy ? (
+                  <p className="mt-1.5 text-xs leading-snug text-slate-500">
+                    Plaza disponible dentro de la estructura operativa
+                  </p>
+                ) : null}
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 {onMinimize ? (
@@ -385,13 +562,23 @@ function PersonDetailLoaded({
               </div>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/80 bg-emerald-50/90 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-emerald-900">
-                <span
-                  className="size-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.45)]"
-                  aria-hidden
-                />
-                Entidad activa
-              </span>
+              {isVacancy ? (
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-slate-400/55 bg-slate-100/90 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                  <span
+                    className="size-1.5 rounded-sm border border-dashed border-slate-500/70"
+                    aria-hidden
+                  />
+                  Vacante
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/80 bg-emerald-50/90 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-emerald-900">
+                  <span
+                    className="size-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.45)]"
+                    aria-hidden
+                  />
+                  Entidad activa
+                </span>
+              )}
               <span className="font-mono text-[10px] text-slate-500">
                 ID {detail.document}
               </span>
@@ -400,9 +587,9 @@ function PersonDetailLoaded({
         </div>
       </header>
 
-      <div className="entity-scan-scroll flex-1 overflow-y-auto overscroll-contain px-3 py-3 sm:px-4">
-        <div className="flex flex-col gap-3 pb-4">
-          <HudSection id="sec-contact" title="Datos de contacto">
+      <div className="entity-scan-scroll flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-3 sm:px-4">
+        <div className="flex flex-col gap-3.5 pb-4">
+          <HudSection id="sec-contact" title="Datos de contacto" icon="contact">
             <dl>
               <HudDetailRow
                 label="Documento"
@@ -416,17 +603,40 @@ function PersonDetailLoaded({
               />
               <HudDetailRow label="Teléfono" value={formatValue(detail.phone)} />
             </dl>
+            <div className="mt-3 border-t border-slate-100/90 pt-2">
+              <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                Contacto de emergencia
+              </p>
+              <dl>
+                <HudDetailRow
+                  label="Nombre"
+                  value={formatValue(detail.emergency_contact?.name ?? null)}
+                />
+                <HudDetailRow
+                  label="Teléfono"
+                  value={formatValue(detail.emergency_contact?.phone ?? null)}
+                />
+                <HudDetailRow
+                  label="Parentesco"
+                  value={formatValue(
+                    detail.emergency_contact?.relationship ?? null,
+                  )}
+                />
+              </dl>
+            </div>
           </HudSection>
 
-          <HudSection id="sec-org" title="Organización">
+          <HudSection id="sec-org" title="Organización" icon="org">
             <dl>
               <HudDetailRow
                 label="Jerarquía"
                 value={formatValue(detail.hierarchy?.name ?? null)}
+                emphasized
               />
               <HudDetailRow
                 label="Área"
                 value={formatValue(detail.area?.name ?? null)}
+                emphasized
               />
               <HudDetailRow
                 label="Escuela"
@@ -439,7 +649,7 @@ function PersonDetailLoaded({
             </dl>
           </HudSection>
 
-          <HudSection id="sec-loc" title="Ubicación">
+          <HudSection id="sec-loc" title="Ubicación" icon="location">
             <dl>
               <HudDetailRow label="Región" value={formatValue(regionName)} />
               <HudDetailRow label="Ciudad" value={formatValue(cityName)} />
@@ -449,12 +659,21 @@ function PersonDetailLoaded({
 
           <HudSection
             id="sec-team"
-            title="Equipo"
-            subtitle="Métricas y reportes directos"
+            title={isVacancy ? "Estructura bajo la plaza" : "Equipo"}
+            icon="team"
+            subtitle={
+              isVacancy
+                ? "Personas y plazas en el subárbol"
+                : "Métricas y reportes directos"
+            }
           >
             <dl>
               <HudDetailRow
-                label="Subordinados (árbol)"
+                label={
+                  isVacancy
+                    ? "Personas y plazas (árbol)"
+                    : "Subordinados (árbol)"
+                }
                 value={
                   treeDescendantCount != null
                     ? String(treeDescendantCount)
@@ -462,22 +681,22 @@ function PersonDetailLoaded({
                 }
               />
               <HudDetailRow
-                label="Equipo directo"
+                label="Reportes directos"
                 value={String(detail.direct_reports_count)}
               />
             </dl>
             {detail.direct_reports.length > 0 ? (
               <ul
-                className="mt-2 space-y-1.5 rounded-lg border border-slate-200/70 bg-slate-50/60 px-3 py-2.5"
+                className="mt-2 space-y-1.5 rounded-lg border border-slate-200/70 bg-slate-50/80 px-3 py-2.5"
                 aria-label="Lista de reportes directos"
               >
                 {detail.direct_reports.map((r) => (
                   <li
                     key={r.id}
-                    className="flex items-center gap-2 text-[13px] text-slate-800"
+                    className="flex items-center gap-2 text-[13px] font-medium text-slate-800"
                   >
                     <span
-                      className="size-1 shrink-0 rounded-full bg-cyan-500/70"
+                      className="size-1 shrink-0 rounded-full bg-slate-400/70"
                       aria-hidden
                     />
                     <span className="font-medium">{r.full_name}</span>
@@ -485,13 +704,13 @@ function PersonDetailLoaded({
                 ))}
               </ul>
             ) : (
-              <p className="mt-2 rounded-md border border-dashed border-slate-200/90 bg-white/50 px-2 py-2 text-center text-xs text-slate-500">
+              <p className="mt-2 rounded-md border border-dashed border-slate-200/80 bg-slate-50/50 px-2 py-2 text-center text-xs text-slate-500">
                 Sin reportes directos en registro.
               </p>
             )}
           </HudSection>
 
-          <HudSection id="sec-path" title="Ruta jerárquica">
+          <HudSection id="sec-path" title="Ruta jerárquica" icon="path">
             {detail.hierarchy_path.length === 0 ? (
               <p className="text-center text-xs text-slate-500">
                 Sin ruta disponible en sistema.
@@ -501,9 +720,9 @@ function PersonDetailLoaded({
                 {detail.hierarchy_path.map((seg, i) => (
                   <li
                     key={seg.id}
-                    className="flex gap-2 rounded-lg border border-slate-200/60 bg-white/40 px-2.5 py-2"
+                    className="flex gap-2 rounded-lg border border-slate-200/70 bg-slate-50/60 px-2.5 py-2"
                   >
-                    <span className="font-mono text-[10px] font-semibold tabular-nums text-cyan-700/80">
+                    <span className="font-mono text-[10px] font-semibold tabular-nums text-sky-700/80">
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <div className="min-w-0 flex-1">

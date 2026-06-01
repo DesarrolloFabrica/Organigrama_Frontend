@@ -1,5 +1,11 @@
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { getGoogleClientId } from "./auth/authService";
+import { RequireAuth } from "./auth/RequireAuth";
+import { RequireProfileComplete } from "./auth/RequireProfileComplete";
+import { RequireProfileIncomplete } from "./auth/RequireProfileIncomplete";
 import { OrgChartPage } from "./pages/OrgChartPage";
+import { OnboardingPage } from "./pages/OnboardingPage";
 import { OrgChartExplorePage } from "./pages/OrgChartExplorePage";
 import { LoginPage } from "./pages/LoginPage";
 import { BootLoadingPage } from "./pages/BootLoadingPage";
@@ -7,6 +13,7 @@ import { BootLoadingPage } from "./pages/BootLoadingPage";
 /** Shell de la app: organigrama global y exploración por equipo. */
 function App() {
   return (
+    <GoogleOAuthProvider clientId={getGoogleClientId()}>
     <BrowserRouter>
       <div className="relative flex min-h-screen min-h-0 flex-col overflow-hidden bg-[#020617] text-slate-100">
         {/* Atmósfera global: da sensación de cabina de control sin tocar la lógica. */}
@@ -25,21 +32,62 @@ function App() {
             {/* Login temporal */}
             <Route path="/" element={<LoginPage />} />
 
-            <Route path="/loading" element={<BootLoadingPage />} />
+            <Route
+              path="/onboarding"
+              element={
+                <RequireAuth>
+                  <RequireProfileIncomplete>
+                    <OnboardingPage />
+                  </RequireProfileIncomplete>
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/loading"
+              element={
+                <RequireAuth>
+                  <RequireProfileComplete>
+                    <BootLoadingPage />
+                  </RequireProfileComplete>
+                </RequireAuth>
+              }
+            />
 
             {/* Organigrama principal */}
-            <Route path="/org" element={<OrgChartPage />} />
+            <Route
+              path="/org"
+              element={
+                <RequireAuth>
+                  <RequireProfileComplete>
+                    <OrgChartPage />
+                  </RequireProfileComplete>
+                </RequireAuth>
+              }
+            />
 
             {/* Flujo de exploración actual */}
             <Route
               path="/org/team/:personId"
-              element={<OrgChartExplorePage />}
+              element={
+                <RequireAuth>
+                  <RequireProfileComplete>
+                    <OrgChartExplorePage />
+                  </RequireProfileComplete>
+                </RequireAuth>
+              }
             />
 
             {/* Compatibilidad con la ruta anterior */}
             <Route
               path="/org-chart/team/:personId"
-              element={<OrgChartExplorePage />}
+              element={
+                <RequireAuth>
+                  <RequireProfileComplete>
+                    <OrgChartExplorePage />
+                  </RequireProfileComplete>
+                </RequireAuth>
+              }
             />
 
             {/* Redirección antigua al organigrama */}
@@ -51,6 +99,7 @@ function App() {
         </div>
       </div>
     </BrowserRouter>
+    </GoogleOAuthProvider>
   );
 }
 

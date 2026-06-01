@@ -1,8 +1,10 @@
+import { getAccessToken } from '../../../auth/authStorage'
 import type {
   GeneralAreaSummary,
   OrgChartSearchHit,
   OrgNode,
   OrgPersonDetail,
+  OrgSummaryResponse,
 } from '../types'
 
 /**
@@ -14,10 +16,12 @@ const BASE_URL = (
 ).replace(/\/$/, '')
 
 async function getJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getAccessToken()
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: {
       Accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
   })
@@ -30,7 +34,12 @@ async function getJson<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
-/** Árbol completo del organigrama (raíz + `children` recursivos). */
+/**
+ * @deprecated Carga el árbol completo del organigrama (raíz + `children` recursivos)
+ * y no debe usarse en la UI principal.
+ * Reemplazo: {@link fetchOrgChartRoot} para la carga inicial y
+ * {@link fetchOrgChartChildren} para expansión lazy por niveles.
+ */
 export async function fetchOrgChart(): Promise<OrgNode> {
   return getJson<OrgNode>('/api/org-chart')
 }
@@ -40,7 +49,12 @@ export async function fetchOrgChartRoot(): Promise<OrgNode> {
   return getJson<OrgNode>('/api/org-chart/root')
 }
 
-/** Subárbol con la persona como raíz (`GET /api/org-chart/team/:id`). */
+/**
+ * @deprecated Carga el subárbol completo con la persona como raíz
+ * (`GET /api/org-chart/team/:id`, recursión sin límite).
+ * Reemplazo: {@link fetchOrgChartNode} para el nodo raíz del lienzo y
+ * {@link fetchOrgChartChildren} para expansión lazy por niveles.
+ */
 export async function fetchOrgChartSubtree(rootPersonId: string): Promise<OrgNode> {
   const safeId = encodeURIComponent(rootPersonId)
   return getJson<OrgNode>(`/api/org-chart/team/${safeId}`)
@@ -88,4 +102,10 @@ export async function fetchOrgChartChildren(
 /** Resumen por áreas generales del organigrama principal. */
 export async function fetchGeneralAreasSummary(): Promise<GeneralAreaSummary[]> {
   return getJson<GeneralAreaSummary[]>('/api/org-chart/summary/general-areas')
+}
+
+/** Resumen jerárquico de un nodo: general + desglose por hijos directos. */
+export async function fetchOrgSummary(personId: string): Promise<OrgSummaryResponse> {
+  const safeId = encodeURIComponent(personId)
+  return getJson<OrgSummaryResponse>(`/api/org-chart/summary/${safeId}`)
 }

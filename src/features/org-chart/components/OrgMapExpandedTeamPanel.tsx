@@ -1,7 +1,6 @@
 import type { MouseEvent } from "react";
 
 import type { OrgNode } from "../types";
-import { resolveOrgMapVisualLevel } from "../utils/orgMapLevelTheme";
 import { OrgMapTeamMemberMiniCard } from "./OrgMapTeamMemberMiniCard";
 
 type Props = {
@@ -44,7 +43,7 @@ export function OrgMapExpandedTeamPanel({
           <OrgMapTeamMemberMiniCard
             key={m.id}
             member={m}
-            visualLevel={resolveOrgMapVisualLevel(m, memberLayoutDepth)}
+            memberLayoutDepth={memberLayoutDepth}
             onOpenDetail={onOpenDetail}
             onExploreTeam={onExploreTeam}
             stopMouse={stopMouse}
