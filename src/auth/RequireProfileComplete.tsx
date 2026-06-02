@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
-import { fetchProfileMe } from '../features/profile/services/profileService'
+import { useHoldRouteTransition } from '../contexts/RouteTransitionContext'
+import { useProfile } from '../lib/react-query/hooks'
 import { isAuthenticated } from './authStorage'
 import { setProfileCompleted } from './profileGateStorage'
 
@@ -9,46 +10,27 @@ type Props = {
 }
 
 export function RequireProfileComplete({ children }: Props) {
-  const [status, setStatus] = useState<'loading' | 'ready' | 'incomplete'>(
-    'loading',
-  )
+  const { data: profile, isLoading, isError } = useProfile({
+    enabled: isAuthenticated(),
+  })
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      return
+    if (profile) {
+      setProfileCompleted(profile.profileCompleted)
     }
+  }, [profile])
 
-    let cancelled = false
-
-    fetchProfileMe()
-      .then((profile) => {
-        if (cancelled) return
-        setProfileCompleted(profile.profileCompleted)
-        setStatus(profile.profileCompleted ? 'ready' : 'incomplete')
-      })
-      .catch(() => {
-        if (cancelled) return
-        setStatus('incomplete')
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  useHoldRouteTransition(isLoading && !profile)
 
   if (!isAuthenticated()) {
     return <Navigate to="/" replace />
   }
 
-  if (status === 'loading') {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#020617] text-sm text-cyan-200/90">
-        Verificando perfil…
-      </main>
-    )
+  if (isLoading && !profile) {
+    return null
   }
 
-  if (status === 'incomplete') {
+  if (isError || !profile?.profileCompleted) {
     return <Navigate to="/onboarding" replace />
   }
 

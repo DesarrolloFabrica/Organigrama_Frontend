@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-
-import { fetchOrgChartSearch } from "../services/orgChartService";
+import {
+  useDebouncedValue,
+  useOrgChartSearch,
+} from "../../../lib/react-query/hooks";
 import type { OrgChartSearchHit } from "../types";
 import { isOrgNodeVacancy } from "../types";
 import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
+
+const SEARCH_DEBOUNCE_MS = 280;
 
 type Props = {
   onSelectHit: (personId: string) => void;
@@ -25,51 +29,37 @@ export function OrgChartSearchPanel({
   inputId = "org-chart-search-input",
 }: Props) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<OrgChartSearchHit[]>([]);
-  const [loading, setLoading] = useState(false);
+  const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
   const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
+  const trimmed = debouncedQuery.trim();
+  const searchEnabled = trimmed.length >= 2;
+
+  const {
+    data: results,
+    isLoading,
+    isError,
+    error: searchError,
+  } = useOrgChartSearch(debouncedQuery);
+
+  const hits = searchEnabled ? (results ?? []) : [];
+  const showSearching = searchEnabled && isLoading && results === undefined;
+  const errorMessage = isError
+    ? searchError instanceof Error
+      ? searchError.message
+      : "Error al buscar en el organigrama"
+    : null;
+
   useEffect(() => {
-    const term = query.trim();
-    if (term.length < 2) {
-      setResults([]);
-      setError(null);
-      setLoading(false);
+    if (!searchEnabled) {
+      setOpen(false);
       return;
     }
-
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      setLoading(true);
-      setError(null);
-      void fetchOrgChartSearch(term)
-        .then((hits) => {
-          if (!cancelled) {
-            setResults(hits);
-            setOpen(true);
-          }
-        })
-        .catch((err: unknown) => {
-          if (!cancelled) {
-            setResults([]);
-            setError(
-              err instanceof Error ? err.message : "Error al buscar en el organigrama",
-            );
-            setOpen(true);
-          }
-        })
-        .finally(() => {
-          if (!cancelled) setLoading(false);
-        });
-    }, 280);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [query]);
+    if (results !== undefined || isError) {
+      setOpen(true);
+    }
+  }, [searchEnabled, results, isError]);
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
@@ -105,21 +95,21 @@ export function OrgChartSearchPanel({
           role="listbox"
           aria-label="Resultados de búsqueda"
         >
-          {loading ? (
+          {showSearching ? (
             <p className="px-3 py-4 text-center text-xs text-slate-400">
               Buscando…
             </p>
-          ) : error ? (
+          ) : errorMessage ? (
             <p className="px-3 py-4 text-center text-xs text-rose-300/90" role="alert">
-              {error}
+              {errorMessage}
             </p>
-          ) : results.length === 0 ? (
+          ) : hits.length === 0 ? (
             <p className="px-3 py-4 text-center text-xs text-slate-500">
               Sin coincidencias.
             </p>
           ) : (
             <ul className="max-h-[min(50vh,280px)] overflow-y-auto py-1">
-              {results.map((hit) => {
+              {hits.map((hit) => {
                 const vacancy = isOrgNodeVacancy(hit);
                 return (
                   <li key={hit.id} role="option">

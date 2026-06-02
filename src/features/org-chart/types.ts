@@ -218,6 +218,17 @@ export function isOrgNodeVacancy(
   return node?.nodeKind === 'vacancy'
 }
 
+/** Nombre de plaza placeholder en Core (p. ej. «VACANTE - COORDINADOR …»). */
+export function isVacancyDisplayName(fullName: string | null | undefined): boolean {
+  return (fullName ?? '').trim().toUpperCase().startsWith('VACANTE')
+}
+
+export function isOrgSummaryVacancy(item: OrgSummaryItem): boolean {
+  if (item.nodeKind === 'vacancy') return true
+  if (item.nodeKind === 'person') return false
+  return isVacancyDisplayName(item.name)
+}
+
 /**
  * Cuenta todas las personas bajo un nodo (no incluye al nodo mismo).
  * Útil para métricas en vistas futuras.
@@ -247,15 +258,20 @@ export function countPeopleUnderWithinDepth(
 
 // ─── Resumen jerárquico por nodo ──────────────────────────────────────────────
 
+export type OrgSummaryNodeKind = 'person' | 'vacancy'
+
 export interface OrgSummaryItem {
   id: string
   name: string
   roleName?: string | null
   totalPeople: number
   vacancies: number
+  nodeKind?: OrgSummaryNodeKind
 }
 
 export interface OrgSummaryResponse {
   general: OrgSummaryItem
   areas: OrgSummaryItem[]
+  /** Vacantes según nivel: nivel 1 = subárbol; nivel 2+ = flujo directo. */
+  vacancyItems?: OrgSummaryItem[]
 }

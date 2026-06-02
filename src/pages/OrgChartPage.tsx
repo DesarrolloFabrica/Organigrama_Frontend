@@ -1,38 +1,110 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { useHoldRouteTransition } from "../contexts/RouteTransitionContext";
 import { type OrgNode, countPeopleUnder } from "../features/org-chart/types";
 import { findNodeInTree } from "../features/org-chart/utils/findNodeInTree";
 import { patchNodePhotoUrl } from "../features/org-chart/utils/patchNodePhotoUrl";
-import {
-  fetchHealth,
-  fetchOrgChartChildren,
-} from "../features/org-chart/services/orgChartService";
+import { fetchHealth } from "../features/org-chart/services/orgChartService";
 import { NodeSummaryPanel } from "../features/org-chart/components/NodeSummaryPanel";
-import { getOrgChartRootOnce } from "../features/org-chart/services/orgChartRootCache";
 import { mergeChildrenIntoTree } from "../features/org-chart/utils/mergeChildrenIntoTree";
 import { OrgMapView } from "../features/org-chart/components/OrgMapView";
 import { PersonDetailPanel } from "../features/org-chart/components/PersonDetailPanel";
 import { OrgChartSearchPanel } from "../features/org-chart/components/OrgChartSearchPanel";
 import { LogoutButton } from "../features/org-chart/components/LogoutButton";
+import {
+  getOrgChartMainSession,
+  saveOrgChartMainSession,
+  type OrgMapExpansionPersisted,
+} from "../features/org-chart/state/orgChartMainSession";
+import {
+  orgChartChildrenQueryOptions,
+  useOrgChartRoot,
+} from "../lib/react-query/hooks";
+import {
+  logQueryCacheAccess,
+  logQueryNetworkTiming,
+} from "../lib/react-query/devTelemetry";
+import { orgQueryKeys } from "../lib/react-query/queryKeys";
+import { prefetchDirectChildrenHints } from "../lib/react-query/orgChartPrefetch";
+import { fetchOrgChartNode } from "../features/org-chart/services/orgChartService";
 
 type ConnState = "checking" | "online" | "offline";
 
 const MAP_MAX_LEVELS = 3;
 
-/**
- * Página principal: lienzo de mapa a pantalla completa bajo el header;
- * ficha técnica como panel superpuesto cuando hay persona seleccionada.
- */
+const defaultMapPersisted = (): OrgMapExpansionPersisted => ({
+  showRootChildren: false,
+  expandedHubNodeId: null,
+  viewport: null,
+});
+
 export function OrgChartPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const initialSession = useRef(getOrgChartMainSession());
+  const initial = initialSession.current;
+
+  const {
+    data: rootData,
+    isLoading: isRootLoading,
+    isError: isRootError,
+    error: rootError,
+  } = useOrgChartRoot();
+
   const [conn, setConn] = useState<ConnState>("checking");
-  const [tree, setTree] = useState<OrgNode | null>(null);
-  const [isChartLoading, setIsChartLoading] = useState(true);
-  const [chartError, setChartError] = useState<string | null>(null);
-  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
-  /** Panel de ficha oculto pero selección conservada (mapa usable a pantalla completa). */
-  const [detailPanelMinimized, setDetailPanelMinimized] = useState(false);
-  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
+  const [tree, setTree] = useState<OrgNode | null>(initial?.tree ?? null);
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(
+    initial?.selectedPersonId ?? null,
+  );
+  const [detailPanelMinimized, setDetailPanelMinimized] = useState(
+    initial?.detailPanelMinimized ?? false,
+  );
+  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(
+    initial?.expandedNodeId ?? null,
+  );
+  const [mapPersisted, setMapPersisted] = useState<OrgMapExpansionPersisted>(
+    initial?.map ?? defaultMapPersisted(),
+  );
+
+  useEffect(() => {
+    if (!rootData) return;
+    setTree((prev) => {
+      if (prev && prev.id === rootData.id) return prev;
+      if (initial?.tree?.id === rootData.id) return initial.tree;
+      return rootData;
+    });
+  }, [rootData, initial?.tree]);
+
+  const persistSnapshot = useCallback(() => {
+    if (!tree) return;
+    saveOrgChartMainSession({
+      tree,
+      selectedPersonId,
+      detailPanelMinimized,
+      expandedNodeId,
+      map: mapPersisted,
+    });
+  }, [
+    tree,
+    selectedPersonId,
+    detailPanelMinimized,
+    expandedNodeId,
+    mapPersisted,
+  ]);
+
+  useEffect(() => {
+    persistSnapshot();
+  }, [persistSnapshot]);
+
+  const chartError = isRootError
+    ? rootError instanceof Error
+      ? rootError.message
+      : "Error desconocido al cargar datos"
+    : null;
+
+  const showRouteLoader = isRootLoading && !tree;
+  useHoldRouteTransition(showRouteLoader);
 
   const treeDescendantCount =
     tree && selectedPersonId
@@ -42,26 +114,64 @@ export function OrgChartPage() {
         })()
       : null;
 
-  /** Selección desde el mapa: abre la ficha (sale de minimizado si aplica). */
   const handleSelectNodeFromMap = useCallback((id: string) => {
     setDetailPanelMinimized(false);
     setSelectedPersonId(id);
   }, []);
 
-  const handleExploreTeam = useCallback(
-    (id: string) => {
-      navigate(`/org-chart/team/${encodeURIComponent(id)}`);
+  const handleDirectChildrenVisible = useCallback(
+    (children: OrgNode[]) => {
+      prefetchDirectChildrenHints(queryClient, children);
     },
-    [navigate],
+    [queryClient],
   );
 
-  const handleLoadChildren = useCallback(async (parentId: string) => {
-    const loaded = await fetchOrgChartChildren(parentId);
-    setTree((prev) =>
-      prev ? mergeChildrenIntoTree(prev, parentId, loaded) : prev,
-    );
-    return loaded;
-  }, []);
+  const handleExploreTeam = useCallback(
+    (id: string) => {
+      persistSnapshot();
+      const nodeKey = orgQueryKeys.node(id);
+      logQueryCacheAccess(
+        "org-node-prefetch",
+        nodeKey,
+        queryClient.getQueryData(nodeKey) !== undefined,
+      );
+      void queryClient.prefetchQuery({
+        queryKey: nodeKey,
+        queryFn: () => fetchOrgChartNode(id),
+      });
+      navigate(`/org-chart/team/${encodeURIComponent(id)}`);
+    },
+    [navigate, persistSnapshot, queryClient],
+  );
+
+  const handleLoadChildren = useCallback(
+    async (parentId: string) => {
+      const key = orgQueryKeys.children(parentId);
+      const t0 = performance.now();
+      logQueryCacheAccess(
+        "org-children",
+        key,
+        queryClient.getQueryData(key) !== undefined,
+      );
+      const loaded = await queryClient.fetchQuery(
+        orgChartChildrenQueryOptions(parentId),
+      );
+      logQueryNetworkTiming("org-children", key, performance.now() - t0);
+      setTree((prev) =>
+        prev ? mergeChildrenIntoTree(prev, parentId, loaded) : prev,
+      );
+      prefetchDirectChildrenHints(queryClient, loaded);
+      return loaded;
+    },
+    [queryClient],
+  );
+
+  const handleMapPersistedChange = useCallback(
+    (map: OrgMapExpansionPersisted) => {
+      setMapPersisted(map);
+    },
+    [],
+  );
 
   const handleDetailPhotoUrl = useCallback((personId: string, photoUrl: string) => {
     setTree((prev) =>
@@ -85,41 +195,9 @@ export function OrgChartPage() {
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    void getOrgChartRootOnce()
-      .then((data) => {
-        if (!cancelled) {
-          setTree(data);
-          setChartError(null);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setTree(null);
-          setChartError(
-            err instanceof Error
-              ? err.message
-              : "Error desconocido al cargar datos",
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsChartLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const apiBaseDisplay =
     import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
 
-  /** Barra superior: una sola fila; estado API en `title` para no saturar la UI. */
   const statusPill =
     conn === "checking" ? (
       <div
@@ -131,7 +209,6 @@ export function OrgChartPage() {
           <span className="absolute inline-flex size-1.5 animate-ping rounded-full bg-amber-400/40" />
           <span className="relative size-1.5 rounded-full bg-amber-300" />
         </span>
-
         <span className="truncate text-[11px] font-medium tracking-wide text-amber-100/90">
           Verificando…
         </span>
@@ -146,7 +223,6 @@ export function OrgChartPage() {
           className="size-1.5 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.9)]"
           aria-hidden
         />
-
         <span className="truncate text-[11px] font-semibold tracking-wide text-emerald-50">
           Conectado
         </span>
@@ -161,7 +237,6 @@ export function OrgChartPage() {
           className="size-1.5 shrink-0 rounded-full bg-rose-300 shadow-[0_0_10px_rgba(253,164,175,0.8)]"
           aria-hidden
         />
-
         <span className="truncate text-[11px] font-medium tracking-wide text-rose-100">
           Sin conexión
         </span>
@@ -172,9 +247,6 @@ export function OrgChartPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col [--app-header-h:2.75rem] sm:[--app-header-h:3rem]">
-      {/*
-        Barra de aplicación: compacta, horizontal, espacio para acciones globales (estado + sesión).
-      */}
       <header className="sticky top-0 z-20 shrink-0 border-b border-cyan-300/15 bg-[#020617]/82 shadow-[0_12px_38px_-20px_rgba(34,211,238,0.45)] backdrop-blur-xl">
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-cyan-500/30 to-transparent"
@@ -238,29 +310,29 @@ export function OrgChartPage() {
               <p className="mt-1 text-rose-800/90">{chartError}</p>
             </div>
           </div>
-        ) : tree && !isChartLoading ? (
+        ) : tree ? (
           <>
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-start p-3 sm:p-4">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[var(--app-header-h)] z-20 flex items-start justify-start pb-3 pr-3 pt-3 pl-7 sm:pb-4 sm:pr-4 sm:pt-4 sm:pl-10">
               <NodeSummaryPanel personId={expandedNodeId ?? tree.id} />
             </div>
 
-            {/* Capa mapa: ocupa todo el main; no empuja el overlay. */}
             <div className="absolute inset-0 z-0 flex min-h-0 flex-col">
               <OrgMapView
-                key={tree.id}
+                key="org-main-map"
                 variant="fullscreen"
-                detailDrawerOpen={detailOverlayOpen}
                 root={tree}
                 selectedPersonId={selectedPersonId}
                 onSelectNode={handleSelectNodeFromMap}
                 maxRenderLevels={MAP_MAX_LEVELS}
                 onExploreTeam={handleExploreTeam}
                 onLoadChildren={handleLoadChildren}
+                onDirectChildrenVisible={handleDirectChildrenVisible}
+                persistedMapState={mapPersisted}
+                onPersistedMapStateChange={handleMapPersistedChange}
                 onExpandedNodeChange={setExpandedNodeId}
               />
             </div>
 
-            {/* Overlay: sólo el panel recibe puntero; el mapa sigue interactivo fuera de él. */}
             <div
               className="pointer-events-none absolute inset-0 z-30 flex max-sm:items-end max-sm:justify-center sm:items-stretch sm:justify-end sm:p-4"
               aria-hidden={!detailOverlayOpen}
@@ -302,23 +374,6 @@ export function OrgChartPage() {
               </button>
             ) : null}
           </>
-        ) : isChartLoading ? (
-          <div className="relative flex h-full min-h-0 items-center justify-center overflow-hidden p-6">
-            {/* Fondo de transición oscuro para evitar flashes blancos entre /loading y /org. */}
-            <div className="absolute inset-0 bg-[#020817]" />
-
-            {/* Glow técnico suave mientras React monta el mapa. */}
-            <div className="absolute h-[420px] w-[420px] rounded-full bg-cyan-400/10 blur-[90px]" />
-
-            {/* Indicador mínimo, coherente con la pantalla de carga principal. */}
-            <div className="relative z-10 flex items-center gap-3 rounded-full border border-cyan-300/15 bg-cyan-300/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-100/80 shadow-[0_0_32px_rgba(34,211,238,0.08)] backdrop-blur-xl">
-              <span className="relative flex size-2">
-                <span className="absolute inline-flex size-2 animate-ping rounded-full bg-cyan-300/40" />
-                <span className="relative size-2 rounded-full bg-cyan-200" />
-              </span>
-              Sincronizando mapa
-            </div>
-          </div>
         ) : null}
       </main>
     </div>

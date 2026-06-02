@@ -1,0 +1,128 @@
+{
+  "config": {
+    "configFile": "C:\\dev\\organigrama\\Organigrama_Frontend\\playwright.config.ts",
+    "rootDir": "C:/dev/organigrama/Organigrama_Frontend/e2e",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/dev/organigrama/Organigrama_Frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/dev/organigrama/Organigrama_Frontend/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 120000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "e2e/smoke-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.60.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "smoke-react-query.spec.ts",
+      "file": "smoke-react-query.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Smoke manual React Query (navegador)",
+          "file": "smoke-react-query.spec.ts",
+          "line": 58,
+          "column": 6,
+          "specs": [
+            {
+              "title": "1–8 checklist automatizado (dev JWT)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 30481,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-02T19:59:23.221Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "smoke-checklist.json",
+                          "contentType": "application/json",
+                          "body": "ewogICJyZXN1bHRzIjogewogICAgIjQiOiAiUEFTUyDigJQgU2VzacOzbiByZXN0YXVyYWRhOiBleHBhbmQ9dHJ1ZSwgc2VsZWN0ZWQ9MTE0NCwgbWluaW1pemVkPXRydWUsIG93bmVyPTEiLAogICAgIjYiOiAiUEFTUyDigJQgVHJhcyBpbnRlbnRvIGVkaWNpw7NuOiBub2RlPTAsIHBlcnNvbj0wLCBwYXRocz1zaW4gcGFuZWwgZWRpY2nDs24gdmlzaWJsZSIsCiAgICAiNyI6ICJQQVNTIOKAlCBTbmFwc2hvdCB1c3VhcmlvIEIgbGltcGlvIChvd25lcj0yKSIsCiAgICAiMWEiOiAiUEFTUyDigJQgU2VzacOzbiBhY3RpdmEgcGVyc29uSWQ9MTsgw6FyYm9sIGFqZW5vIG5vIHZpc2libGU9dHJ1ZSIsCiAgICAiMWIiOiAiUEFTUyDigJQgUmVkaXJlY2Npw7NuIGF1dGVudGljYWRhIE9LIHNpbiBVSSBHb29nbGUgZW4gZXN0YSBydXRhIiwKICAgICIxYyI6ICJQQVNTIOKAlCBSZWRpcmVjY2nDs24gcG9zdC1sb2dpbiDihpIgaHR0cDovL2xvY2FsaG9zdDo1MTczL29yZyIsCiAgICAiMmEiOiAiUEFTUyDigJQgRm9ybXVsYXJpbyBvbmJvYXJkaW5nIGNhcmdhZG8gKHBlcmZpbCBpbmNvbXBsZXRvIDExNDQpIiwKICAgICIyYiI6ICJQQVNTIOKAlCBUcmFzIGd1YXJkYXIg4oaSIGh0dHA6Ly9sb2NhbGhvc3Q6NTE3My9sb2FkaW5nIiwKICAgICIyYyI6ICJQQVNTIOKAlCBObyB2dWVsdmUgYSBvbmJvYXJkaW5nIHNpIHBlcmZpbCBxdWVkw7MgY29tcGxldG8iLAogICAgIjNhIjogIlBBU1Mg4oCUIExvYWRlcnMgdmlzaWJsZXMgZW4gL29yZzogMSAoZXNwZXJhZG8g4omkMSwgc2luIGRvYmxlIG92ZXJsYXkgcGVyc2lzdGVudGUpIiwKICAgICIzYiI6ICJQQVNTIOKAlCBSb290IGV4cGFuZGlkbyAoYm90w7NuIEV4cGFuZGlyIHJlcG9ydGVzKSIsCiAgICAiM2MiOiAiUEFTUyDigJQgRmljaGEgZXN0YWJsZSBlbiBwcmltZXIgYWNjZXNvIiwKICAgICIzZCI6ICJQQVNTIOKAlCBSZWFwZXJ0dXJhIGZpY2hhIHNpbiBjb2xhcHNvIHZpc2libGUiLAogICAgIjVhIjogIlBBU1Mg4oCUIFJlcXVlc3RzIGLDunNxdWVkYSB0cmFzIHRlY2xlYXIgXCJpblwiIHLDoXBpZG86IDEgKGVzcGVyYWRvIHBvY29zLCBubyAxIHBvciB0ZWNsYSkiLAogICAgIjViIjogIlBBU1Mg4oCUIFVuIHNvbG8gcmVxdWVzdCIsCiAgICAiNWMiOiAiUEFTUyDigJQgTGlzdGEgZGUgcmVzdWx0YWRvcyB2aXNpYmxlIiwKICAgICI4YSI6ICJQQVNTIOKAlCAxNCBsb2dzIFtSUSDigKZdIGVuIGRldiIsCiAgICAiOGIiOiAiUEFTUyDigJQgUHJlZmlqb3MgUlEgdsOhbGlkb3MiLAogICAgIjhjIjogIlBBU1Mg4oCUIFNpbiBlcnJvcmVzIGRlIGNvbnNvbGEvcGFnZWVycm9yIGVuIGZsdWpvIC9vcmciCiAgfSwKICAiZmFpbHVyZXMiOiBbXSwKICAicnFTYW1wbGUiOiBbCiAgICAiW1JRIGNhY2hlXSBNSVNTIG9yZy1yb290IHtrZXk6IFtcIm9yZy1yb290XCJdfSIsCiAgICAiW1JRIGNhY2hlXSBISVQgcHJvZmlsZSB7a2V5OiBbXCJwcm9maWxlXCJdfSIsCiAgICAiW1JRIGNhY2hlXSBNSVNTIG9yZy1yb290IHtrZXk6IFtcIm9yZy1yb290XCJdfSIsCiAgICAiW1JRIGNhY2hlXSBISVQgcHJvZmlsZSB7a2V5OiBbXCJwcm9maWxlXCJdfSIsCiAgICAiW1JRIG5ldHdvcmtdIHByb2ZpbGUgMW1zIHtrZXk6IFtcInByb2ZpbGVcIl19IgogIF0KfQ=="
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "de998b527cb1c2d95910-78561e3a4ca598746b54",
+              "file": "smoke-react-query.spec.ts",
+              "line": 59,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-06-02T19:59:22.436Z",
+    "duration": 31759.401,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import type { OrgPersonDetail } from "../types";
 import { isOrgNodeVacancy } from "../types";
-import { fetchOrgPersonDetail } from "../services/orgChartService";
+import { useOrgPersonDetail } from "../../../lib/react-query/hooks";
 import { withPhotoAccessToken } from "../../../auth/photoUrl";
 import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
 
@@ -367,9 +366,12 @@ function PersonDetailLoaded({
   layoutVariant,
   onDetailPhotoUrl,
 }: LoadedProps) {
-  const [detail, setDetail] = useState<OrgPersonDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: detail,
+    isLoading,
+    isError,
+    error: queryError,
+  } = useOrgPersonDetail(personId);
   const [photoFailed, setPhotoFailed] = useState(false);
 
   useEffect(() => {
@@ -377,38 +379,19 @@ function PersonDetailLoaded({
   }, [personId]);
 
   useEffect(() => {
-    let cancelled = false;
+    if (detail?.photoUrl) {
+      onDetailPhotoUrl?.(detail.id, detail.photoUrl);
+    }
+  }, [detail, onDetailPhotoUrl]);
 
-    fetchOrgPersonDetail(personId)
-      .then((data) => {
-        if (!cancelled) {
-          setDetail(data);
-          setError(null);
-          if (data.photoUrl) {
-            onDetailPhotoUrl?.(data.id, data.photoUrl);
-          }
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setDetail(null);
-          setError(
-            err instanceof Error
-              ? err.message
-              : "No se pudo cargar el detalle de la persona.",
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+  const showSkeleton = isLoading && !detail;
+  const error = isError
+    ? queryError instanceof Error
+      ? queryError.message
+      : "No se pudo cargar el detalle de la persona."
+    : null;
 
-    return () => {
-      cancelled = true;
-    };
-  }, [personId, onDetailPhotoUrl]);
-
-  if (loading) {
+  if (showSkeleton) {
     return (
       <EntityScanShell
         ariaLabel="Cargando detalle"

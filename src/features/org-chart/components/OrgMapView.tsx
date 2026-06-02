@@ -7,12 +7,17 @@ import {
   useRef,
   useState,
 } from "react";
-import { Controls, ReactFlow, MarkerType, useReactFlow } from "@xyflow/react";
+import {
+  ReactFlow,
+  MarkerType,
+  useOnViewportChange,
+  useReactFlow,
+} from "@xyflow/react";
+import type { OrgMapExpansionPersisted } from "../state/orgChartMainSession";
 import "@xyflow/react/dist/style.css";
 
 import type { OrgNode } from "../types";
 import { orgNodeHasDirectReports } from "../types";
-import { OrgMapMiniMap } from "./OrgMapMiniMap";
 import { OrgMapNode } from "./OrgMapNode";
 import { buildVisibleSubtree } from "../utils/buildVisibleSubtree";
 import { buildOrgMap, type OrgMapNodeData } from "../utils/orgMapLayout";
@@ -25,12 +30,16 @@ type Props = {
   selectedPersonId: string | null;
   onSelectNode: (id: string) => void;
   variant?: "default" | "fullscreen";
-  detailDrawerOpen?: boolean;
   maxRenderLevels?: number;
   initialShowRootChildren?: boolean;
   onExploreTeam?: (nodeId: string) => void;
   /** Carga hijos directos bajo demanda y actualiza el árbol en la página. */
   onLoadChildren?: (parentId: string) => Promise<OrgNode[]>;
+  /** Tras materializar hijos directos (carga o ya en árbol): prefetch / hints. */
+  onDirectChildrenVisible?: (children: OrgNode[]) => void;
+  /** Estado de mapa persistido (expansión + viewport) para restaurar al volver a /org. */
+  persistedMapState?: OrgMapExpansionPersisted | null;
+  onPersistedMapStateChange?: (state: OrgMapExpansionPersisted) => void;
   showBackButton?: boolean;
   onBack?: () => void;
   /** Se dispara cuando el nodo expandido cambia (null = ninguno expandido). */
@@ -173,10 +182,155 @@ const INITIAL_CENTER_VISUAL_OFFSET_Y = -20;
 const INITIAL_CENTER_ZOOM = 0.82;
 const INITIAL_CENTER_NODE_W = 360;
 const INITIAL_CENTER_NODE_H = 260;
+const VIEWPORT_APPLY_MAX_ATTEMPTS = 32;
+
+type ViewportXYZoom = { x: number; y: number; zoom: number };
+
+/** Centra el lienzo sobre el bounding box de los nodos; devuelve null si aún no hay nodos. */
+function centerViewportOnNodes(
+  getNodes: ReturnType<typeof useReactFlow>["getNodes"],
+  setViewport: ReturnType<typeof useReactFlow>["setViewport"],
+  zoom = INITIAL_CENTER_ZOOM,
+): ViewportXYZoom | null {
+  const nodes = getNodes();
+  if (nodes.length === 0) return null;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const node of nodes) {
+    const w = node.width ?? INITIAL_CENTER_NODE_W;
+    const h = node.height ?? INITIAL_CENTER_NODE_H;
+    const ox = node.origin?.[0] ?? 0;
+    const oy = node.origin?.[1] ?? 0;
+    const left = node.position.x - ox * w;
+    const top = node.position.y - oy * h;
+    minX = Math.min(minX, left);
+    minY = Math.min(minY, top);
+    maxX = Math.max(maxX, left + w);
+    maxY = Math.max(maxY, top + h);
+  }
+
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+
+  const container = document.querySelector(".org-map-flow");
+  if (!(container instanceof HTMLElement)) return null;
+
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+  if (width <= 0 || height <= 0) return null;
+
+  const x = width / 2 - centerX * zoom + INITIAL_CENTER_VISUAL_OFFSET_X;
+  const y = height / 2 - centerY * zoom + INITIAL_CENTER_VISUAL_OFFSET_Y;
+  const viewport = { x, y, zoom };
+
+  setViewport(viewport, { duration: 0 });
+  return viewport;
+}
+
+/** Espera a que React Flow tenga nodos medidos antes de aplicar viewport. */
+function scheduleViewportApply(apply: () => boolean | void): () => void {
+  let cancelled = false;
+  let attempt = 0;
+  let rafOuter = 0;
+  let rafInner = 0;
+
+  const tick = () => {
+    if (cancelled) return;
+    attempt += 1;
+    if (apply() || attempt >= VIEWPORT_APPLY_MAX_ATTEMPTS) return;
+    rafInner = requestAnimationFrame(tick);
+  };
+
+  rafOuter = requestAnimationFrame(() => {
+    rafInner = requestAnimationFrame(tick);
+  });
+
+  return () => {
+    cancelled = true;
+    cancelAnimationFrame(rafOuter);
+    cancelAnimationFrame(rafInner);
+  };
+}
+
+function OrgMapViewportPersistence({
+  persistedViewport,
+  layoutKey,
+  expansionPatch,
+  onPersistedMapStateChange,
+  lastViewportRef,
+}: {
+  persistedViewport: OrgMapExpansionPersisted["viewport"];
+  layoutKey: string;
+  expansionPatch: Pick<
+    OrgMapExpansionPersisted,
+    "showRootChildren" | "expandedHubNodeId"
+  >;
+  onPersistedMapStateChange?: (state: OrgMapExpansionPersisted) => void;
+  lastViewportRef: MutableRefObject<OrgMapExpansionPersisted["viewport"]>;
+}) {
+  const { getNodes, setViewport } = useReactFlow();
+  const appliedLayoutKeyRef = useRef<string | null>(null);
+  const prevLayoutKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!persistedViewport) return;
+    if (appliedLayoutKeyRef.current === layoutKey) return;
+
+    const prevKey = prevLayoutKeyRef.current;
+    prevLayoutKeyRef.current = layoutKey;
+
+    const [show, hub] = layoutKey.split("|");
+    const [prevShow, prevHub] = (prevKey ?? "").split("|");
+    const expansionUnchanged =
+      prevKey != null && show === prevShow && hub === prevHub;
+
+    return scheduleViewportApply(() => {
+      if (getNodes().length === 0) return false;
+
+      if (expansionUnchanged) {
+        const centered = centerViewportOnNodes(
+          getNodes,
+          setViewport,
+          persistedViewport.zoom,
+        );
+        if (!centered) return false;
+        lastViewportRef.current = centered;
+        appliedLayoutKeyRef.current = layoutKey;
+        return true;
+      }
+
+      setViewport(persistedViewport, { duration: 0 });
+      lastViewportRef.current = persistedViewport;
+      appliedLayoutKeyRef.current = layoutKey;
+      return true;
+    });
+  }, [layoutKey, persistedViewport, getNodes, setViewport, lastViewportRef]);
+
+  useOnViewportChange({
+    onEnd: (viewport) => {
+      const next = {
+        x: viewport.x,
+        y: viewport.y,
+        zoom: viewport.zoom,
+      };
+      lastViewportRef.current = next;
+      onPersistedMapStateChange?.({
+        ...expansionPatch,
+        viewport: next,
+      });
+    },
+  });
+
+  return null;
+}
 
 /**
  * Centrado inicial del viewport según el bounding box de los nodos (sin `fitView`).
- * Debe vivir dentro de `<ReactFlow>` para `useReactFlow`. No afecta al radar ni capas externas.
+ * Reintenta hasta que React Flow registra nodos (vuelta a /org con árbol restaurado).
  */
 function OrgMapInitialCenter({
   nodesKey,
@@ -186,62 +340,18 @@ function OrgMapInitialCenter({
   enabled: boolean;
 }) {
   const { getNodes, setViewport } = useReactFlow();
+  const centeredKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
+    if (centeredKeyRef.current === nodesKey) return;
 
-    let raf1 = 0;
-    let raf2 = 0;
-
-    raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
-        const nodes = getNodes();
-        if (nodes.length === 0) return;
-
-        let minX = Infinity;
-        let minY = Infinity;
-        let maxX = -Infinity;
-        let maxY = -Infinity;
-
-        for (const node of nodes) {
-          const w = node.width ?? INITIAL_CENTER_NODE_W;
-          const h = node.height ?? INITIAL_CENTER_NODE_H;
-          const ox = node.origin?.[0] ?? 0;
-          const oy = node.origin?.[1] ?? 0;
-          const left = node.position.x - ox * w;
-          const top = node.position.y - oy * h;
-          const x1 = left;
-          const y1 = top;
-          const x2 = left + w;
-          const y2 = top + h;
-          minX = Math.min(minX, x1);
-          minY = Math.min(minY, y1);
-          maxX = Math.max(maxX, x2);
-          maxY = Math.max(maxY, y2);
-        }
-
-        const centerX = (minX + maxX) / 2;
-        const centerY = (minY + maxY) / 2;
-
-        const container = document.querySelector(".org-map-flow");
-        if (!(container instanceof HTMLElement)) return;
-
-        const width = container.clientWidth;
-        const height = container.clientHeight;
-        if (width <= 0 || height <= 0) return;
-
-        const zoom = INITIAL_CENTER_ZOOM;
-        const x = width / 2 - centerX * zoom + INITIAL_CENTER_VISUAL_OFFSET_X;
-        const y = height / 2 - centerY * zoom + INITIAL_CENTER_VISUAL_OFFSET_Y;
-
-        setViewport({ x, y, zoom }, { duration: 0 });
-      });
+    return scheduleViewportApply(() => {
+      const centered = centerViewportOnNodes(getNodes, setViewport);
+      if (!centered) return false;
+      centeredKeyRef.current = nodesKey;
+      return true;
     });
-
-    return () => {
-      cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
-    };
   }, [nodesKey, enabled, getNodes, setViewport]);
 
   return null;
@@ -257,7 +367,7 @@ const nodeTypes = {
 /**
  * Vista tipo mapa para el organigrama.
  * El lienzo oscuro va dentro de `.org-map-shell` (marco claro + halo) para integrarse con la página.
- * Canvas = subárbol explorado; el resumen completo del minimapa custom vive en `OrgMapMiniMap`.
+ * Canvas = subárbol explorado del organigrama.
  *
  * Expansión del **hub interno** (fila 2): un único `expandedHubNodeId`; al expandir otro, el anterior se cierra.
  */
@@ -266,21 +376,27 @@ export function OrgMapView({
   selectedPersonId,
   onSelectNode,
   variant = "default",
-  detailDrawerOpen = false,
   maxRenderLevels,
   initialShowRootChildren = false,
   onExploreTeam,
   onLoadChildren,
+  onDirectChildrenVisible,
+  persistedMapState = null,
+  onPersistedMapStateChange,
   showBackButton = false,
   onBack,
   onExpandedNodeChange,
 }: Props): ReactElement {
+  const hasPersistedViewport = Boolean(persistedMapState?.viewport);
+  const lastViewportRef = useRef<OrgMapExpansionPersisted["viewport"]>(
+    persistedMapState?.viewport ?? null,
+  );
   const [showRootChildren, setShowRootChildren] = useState(
-    initialShowRootChildren,
+    persistedMapState?.showRootChildren ?? initialShowRootChildren,
   );
   /** A lo sumo un nodo de fila 2 con panel de equipo interno abierto. */
   const [expandedHubNodeId, setExpandedHubNodeId] = useState<string | null>(
-    null,
+    persistedMapState?.expandedHubNodeId ?? null,
   );
   const [loadingChildrenNodeId, setLoadingChildrenNodeId] = useState<
     string | null
@@ -290,6 +406,15 @@ export function OrgMapView({
   useEffect(() => {
     onExpandedNodeChange?.(expandedHubNodeId);
   }, [expandedHubNodeId, onExpandedNodeChange]);
+
+  useEffect(() => {
+    if (!onPersistedMapStateChange) return;
+    onPersistedMapStateChange({
+      showRootChildren,
+      expandedHubNodeId,
+      viewport: lastViewportRef.current ?? persistedMapState?.viewport ?? null,
+    });
+  }, [showRootChildren, expandedHubNodeId, onPersistedMapStateChange, persistedMapState?.viewport]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -362,13 +487,6 @@ export function OrgMapView({
       : null;
   }, [expandedHubNodeId, layoutRoot]);
 
-  const expandedHubForFullRoot = useMemo(() => {
-    if (!expandedHubNodeId) return null;
-    return root.children.some((c) => c.id === expandedHubNodeId)
-      ? expandedHubNodeId
-      : null;
-  }, [expandedHubNodeId, root]);
-
   const graph = useMemo(
     () =>
       buildOrgMap(layoutRoot, {
@@ -378,43 +496,28 @@ export function OrgMapView({
     [expandedHubForLayout, layoutRoot, mapViewportWidth],
   );
 
-  /**
-   * Minimapa: con límite de profundidad refleja el mismo grafo que el lienzo (rendimiento).
-   * Sin límite, conserva el resumen del organigrama completo.
-   */
-  const fullGraph = useMemo(() => {
-    if (maxRenderLevels != null) {
-      return graph;
-    }
-    return buildOrgMap(root, {
-      expandedHubNodeId: expandedHubForFullRoot,
-      viewportWidth: mapViewportWidth,
-    });
-  }, [graph, maxRenderLevels, root, expandedHubForFullRoot, mapViewportWidth]);
-
-  const visibleNodeIds = useMemo(
-    () => new Set(graph.nodes.map((n) => n.id)),
-    [graph.nodes],
-  );
-
   const ensureChildrenLoaded = useCallback(
     async (node: OrgNode) => {
-      if (
-        !onLoadChildren ||
-        node.children.length > 0 ||
-        !orgNodeHasDirectReports(node)
-      ) {
+      if (!onLoadChildren || !orgNodeHasDirectReports(node)) {
+        return;
+      }
+
+      if (node.children.length > 0) {
+        onDirectChildrenVisible?.(node.children);
         return;
       }
 
       setLoadingChildrenNodeId(node.id);
       try {
-        await onLoadChildren(node.id);
+        const loaded = await onLoadChildren(node.id);
+        if (loaded.length > 0) {
+          onDirectChildrenVisible?.(loaded);
+        }
       } finally {
         setLoadingChildrenNodeId(null);
       }
     },
-    [onLoadChildren],
+    [onDirectChildrenVisible, onLoadChildren],
   );
 
   const handleToggleExpand = useCallback(
@@ -687,6 +790,9 @@ export function OrgMapView({
                   mapReady ? "opacity-100" : "opacity-0",
                 ].join(" ")}
                 proOptions={{ hideAttribution: true }}
+                {...(persistedMapState?.viewport
+                  ? { defaultViewport: persistedMapState.viewport }
+                  : {})}
                 nodes={nodesWithSelection}
                 edges={edgesWithStyle}
                 nodeTypes={nodeTypes}
@@ -696,11 +802,19 @@ export function OrgMapView({
                 nodesConnectable={false}
                 elementsSelectable={false}
               >
-                <Controls />
                 <OrgMapInitialCenter
                   nodesKey={expansionStateKey}
-                  enabled={cameraNonce === 0}
+                  enabled={cameraNonce === 0 && !hasPersistedViewport}
                 />
+                {onPersistedMapStateChange ? (
+                  <OrgMapViewportPersistence
+                    persistedViewport={persistedMapState?.viewport ?? null}
+                    layoutKey={expansionStateKey}
+                    expansionPatch={{ showRootChildren, expandedHubNodeId }}
+                    onPersistedMapStateChange={onPersistedMapStateChange}
+                    lastViewportRef={lastViewportRef}
+                  />
+                ) : null}
                 <OrgMapViewCamera
                   cameraNonce={cameraNonce}
                   expansionStateKey={expansionStateKey}
@@ -709,22 +823,6 @@ export function OrgMapView({
                   layoutRootId={layoutRoot.id}
                 />
               </ReactFlow>
-
-              <div
-                className={[
-                  "transition-all duration-700 ease-out delay-200",
-                  mapReady
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-3 opacity-0",
-                ].join(" ")}
-              >
-                <OrgMapMiniMap
-                  fullGraph={fullGraph}
-                  visibleNodeIds={visibleNodeIds}
-                  selectedPersonId={selectedPersonId}
-                  detailDrawerOpen={detailDrawerOpen}
-                />
-              </div>
             </div>
           </section>
         </div>

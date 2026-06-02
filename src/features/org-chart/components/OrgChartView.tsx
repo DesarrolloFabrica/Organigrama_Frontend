@@ -1,5 +1,11 @@
+/**
+ * @legacy Vista árbol en tarjetas (`OrgNodeCard` + `RadarBackground`).
+ * No está montada en rutas activas: `/org` y `/org/team/:id` usan `OrgMapView`.
+ * Se conserva como referencia; la expansión de hijos usa React Query vía `fetchQuery`.
+ */
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { fetchOrgChartChildren } from "../services/orgChartService";
+import { orgChartChildrenQueryOptions } from "../../../lib/react-query/hooks";
 import type { OrgNode } from "../types";
 import { OrgNodeCard } from "./OrgNodeCard";
 import { RadarBackground } from "./RadarBackground";
@@ -17,16 +23,13 @@ type BranchProps = {
   onSelectNode: (id: string) => void;
 };
 
-/**
- * Rama recursiva: cada nodo con hijos mantiene su propio estado de expansión.
- * La selección para el panel lateral sube por `onSelectNode`.
- */
 function OrgBranch({
   node,
   depth,
   selectedPersonId,
   onSelectNode,
 }: BranchProps) {
+  const queryClient = useQueryClient();
   const [children, setChildren] = useState<OrgNode[]>(node.children ?? []);
   const [loadingChildren, setLoadingChildren] = useState(false);
   const [childrenLoaded, setChildrenLoaded] = useState(
@@ -54,7 +57,9 @@ function OrgBranch({
           if (!childrenLoaded) {
             try {
               setLoadingChildren(true);
-              const loadedChildren = await fetchOrgChartChildren(node.id);
+              const loadedChildren = await queryClient.fetchQuery(
+                orgChartChildrenQueryOptions(node.id),
+              );
               setChildren(loadedChildren);
               setChildrenLoaded(true);
             } finally {

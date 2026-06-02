@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { useHoldRouteTransition } from "../contexts/RouteTransitionContext";
 import { type OrgNode, countPeopleUnder } from "../features/org-chart/types";
 import { findNodeInTree } from "../features/org-chart/utils/findNodeInTree";
-import {
-  fetchHealth,
-  fetchOrgChartChildren,
-  fetchOrgChartNode,
-} from "../features/org-chart/services/orgChartService";
+import { fetchHealth } from "../features/org-chart/services/orgChartService";
 import { mergeChildrenIntoTree } from "../features/org-chart/utils/mergeChildrenIntoTree";
 import { patchNodePhotoUrl } from "../features/org-chart/utils/patchNodePhotoUrl";
 import { OrgMapView } from "../features/org-chart/components/OrgMapView";
@@ -15,7 +13,12 @@ import { OrgChartSearchPanel } from "../features/org-chart/components/OrgChartSe
 import { LogoutButton } from "../features/org-chart/components/LogoutButton";
 import { NodeSummaryPanel } from "../features/org-chart/components/NodeSummaryPanel";
 import { DocTeamGridView } from "../features/org-chart/components/DocTeamGridView";
-
+import {
+  orgChartChildrenQueryOptions,
+  useOrgChartNode,
+} from "../lib/react-query/hooks";
+import { orgQueryKeys } from "../lib/react-query/queryKeys";
+import { prefetchDirectChildrenHints } from "../lib/react-query/orgChartPrefetch";
 
 type ConnState = "checking" | "online" | "offline";
 
@@ -26,17 +29,27 @@ type ExploreBodyProps = {
   conn: ConnState;
 };
 
-/**
- * Contenido acoplado a una persona: al cambiar `personId` en la ruta, el padre remonta
- * este bloque con `key` para evitar resets síncronos dentro del efecto de carga.
- */
 function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
   const navigate = useNavigate();
-  const [tree, setTree] = useState<OrgNode | null>(null);
-  const [chartError, setChartError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const {
+    data: tree,
+    isLoading,
+    isError,
+    error,
+  } = useOrgChartNode(personId);
+
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [detailPanelMinimized, setDetailPanelMinimized] = useState(false);
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
+
+  const chartError = isError
+    ? error instanceof Error
+      ? error.message
+      : "Error desconocido al cargar el equipo"
+    : null;
+
+  useHoldRouteTransition(isLoading && !tree);
 
   const treeDescendantCount =
     tree && selectedPersonId
@@ -58,46 +71,38 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
     [navigate],
   );
 
-  const handleLoadChildren = useCallback(async (parentId: string) => {
-    const loaded = await fetchOrgChartChildren(parentId);
-    setTree((prev) =>
-      prev ? mergeChildrenIntoTree(prev, parentId, loaded) : prev,
-    );
-    return loaded;
-  }, []);
+  const handleLoadChildren = useCallback(
+    async (parentId: string) => {
+      const loaded = await queryClient.fetchQuery(
+        orgChartChildrenQueryOptions(parentId),
+      );
+      const current = queryClient.getQueryData<OrgNode>(
+        orgQueryKeys.node(personId),
+      );
+      if (current) {
+        const merged = mergeChildrenIntoTree(current, parentId, loaded);
+        queryClient.setQueryData(orgQueryKeys.node(personId), merged);
+      }
+      prefetchDirectChildrenHints(queryClient, loaded);
+      return loaded;
+    },
+    [queryClient, personId],
+  );
 
-  const handleDetailPhotoUrl = useCallback((id: string, photoUrl: string) => {
-    setTree((prev) => (prev ? patchNodePhotoUrl(prev, id, photoUrl) : prev));
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    setTree(null);
-    setChartError(null);
-
-    fetchOrgChartNode(personId)
-      .then((data) => {
-        if (!cancelled) {
-          setTree(data);
-          setChartError(null);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setTree(null);
-          setChartError(
-            err instanceof Error
-              ? err.message
-              : "Error desconocido al cargar el equipo",
-          );
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [personId]);
+  const handleDetailPhotoUrl = useCallback(
+    (id: string, photoUrl: string) => {
+      const current = queryClient.getQueryData<OrgNode>(
+        orgQueryKeys.node(personId),
+      );
+      if (current) {
+        queryClient.setQueryData(
+          orgQueryKeys.node(personId),
+          patchNodePhotoUrl(current, id, photoUrl),
+        );
+      }
+    },
+    [queryClient, personId],
+  );
 
   const apiBaseDisplay =
     import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
@@ -206,7 +211,7 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
               <p className="mt-1 text-rose-800/90">{chartError}</p>
               <p className="mt-3">
                 <Link
-                  to="/"
+                  to="/org"
                   className="font-semibold text-cyan-800 underline decoration-cyan-400/60 underline-offset-2 hover:text-cyan-950"
                 >
                   Volver al organigrama completo
@@ -215,19 +220,18 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
             </div>
           </div>
         ) : tree ? (() => {
-          const shouldRenderAsGrid = tree.children.length > 0 &&
+          const shouldRenderAsGrid =
+            tree.children.length > 0 &&
             tree.children.every((c) =>
               c.role?.name?.toLowerCase().includes("docente"),
             );
 
           return (
             <>
-              {/* Resumen general — misma posición en ambos modos */}
-              <div className="pointer-events-none absolute inset-x-0 top-10 z-20 flex justify-start p-3 pt-16 sm:p-4 sm:pt-16">
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[var(--app-header-h)] z-20 flex items-start justify-start pb-3 pr-3 pt-3 pl-7 sm:pb-4 sm:pr-4 sm:pt-4 sm:pl-10">
                 <NodeSummaryPanel personId={expandedNodeId ?? personId} />
               </div>
 
-              {/* Área central: grid de docentes o mapa árbol */}
               <div className="absolute inset-0 z-0 flex min-h-0 flex-col">
                 {shouldRenderAsGrid ? (
                   <DocTeamGridView
@@ -239,7 +243,6 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
                   <OrgMapView
                     key={tree.id}
                     variant="fullscreen"
-                    detailDrawerOpen={detailOverlayOpen}
                     root={tree}
                     selectedPersonId={selectedPersonId}
                     onSelectNode={handleSelectNodeFromMap}
@@ -247,6 +250,9 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
                     initialShowRootChildren
                     onExploreTeam={handleExploreTeam}
                     onLoadChildren={handleLoadChildren}
+                    onDirectChildrenVisible={(children) =>
+                      prefetchDirectChildrenHints(queryClient, children)
+                    }
                     showBackButton
                     onBack={() => navigate("/org")}
                     onExpandedNodeChange={setExpandedNodeId}
@@ -254,7 +260,6 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
                 )}
               </div>
 
-              {/* Botón volver cuando es grid (OrgMapView ya tiene el suyo) */}
               {shouldRenderAsGrid ? (
                 <div className="pointer-events-none absolute inset-x-0 top-0 z-10 p-3 sm:p-4">
                   <button
@@ -268,7 +273,6 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
                 </div>
               ) : null}
 
-              {/* Panel ficha lateral */}
               <div
                 className="pointer-events-none absolute inset-0 z-30 flex max-sm:items-end max-sm:justify-center sm:items-stretch sm:justify-end sm:p-4"
                 aria-hidden={!detailOverlayOpen}
@@ -306,22 +310,12 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
               ) : null}
             </>
           );
-        })() : (
-          <div className="flex h-full min-h-0 items-center justify-center overflow-auto p-6">
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-600">
-              Cargando equipo…
-            </div>
-          </div>
-        )}
+        })() : null}
       </main>
     </div>
   );
 }
 
-/**
- * Vista de exploración profunda: el árbol se recarga con la persona de la URL como raíz
- * y se aplica el mismo tope de niveles que en el organigrama principal.
- */
 export function OrgChartExplorePage() {
   const { personId } = useParams<{ personId: string }>();
   const [conn, setConn] = useState<ConnState>("checking");

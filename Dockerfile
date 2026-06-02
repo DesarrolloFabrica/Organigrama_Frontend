@@ -15,8 +15,12 @@ RUN npm ci
 
 COPY . .
 
-ARG VITE_API_BASE_URL=""
+# Valores por defecto para Cloud Build / docker build sin --build-arg.
+# Vite no sobrescribe variables ya presentes en el entorno (prioridad sobre .env.*).
+ARG VITE_API_BASE_URL=https://organigrama-backend-550902908078.us-central1.run.app
+ARG VITE_GOOGLE_CLIENT_ID=550902908078-fvabjtle954fqr6alhofdv7fvvr4bcbv.apps.googleusercontent.com
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 
 RUN npm run build
 

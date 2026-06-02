@@ -79,16 +79,23 @@ export function ProfileHudSection({
   title,
   icon,
   children,
+  className = "",
 }: {
   id: string;
   title: string;
   icon: HudSectionIconKind;
   children: ReactNode;
+  className?: string;
 }) {
   return (
     <section
       id={id}
-      className="overflow-hidden rounded-xl border border-slate-200/70 bg-white shadow-[0_4px_18px_-14px_rgba(15,23,42,0.12)]"
+      className={[
+        "overflow-hidden rounded-xl border border-slate-200/70 bg-white shadow-[0_4px_18px_-14px_rgba(15,23,42,0.12)]",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-labelledby={`${id}-title`}
     >
       <div className="flex gap-3 px-3 py-3.5 sm:px-4">

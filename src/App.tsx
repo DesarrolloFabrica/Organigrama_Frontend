@@ -1,5 +1,6 @@
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { RouteTransitionProvider } from "./contexts/RouteTransitionContext";
 import { getGoogleClientId } from "./auth/authService";
 import { RequireAuth } from "./auth/RequireAuth";
 import { RequireProfileComplete } from "./auth/RequireProfileComplete";
@@ -28,6 +29,7 @@ function App() {
           className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_center,transparent_0%,transparent_52%,rgba(0,0,0,0.48)_100%)]"
         />
         <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+          <RouteTransitionProvider>
           <Routes>
             {/* Login temporal */}
             <Route path="/" element={<LoginPage />} />
@@ -96,6 +98,7 @@ function App() {
             {/* Cualquier ruta inválida vuelve al login */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </RouteTransitionProvider>
         </div>
       </div>
     </BrowserRouter>

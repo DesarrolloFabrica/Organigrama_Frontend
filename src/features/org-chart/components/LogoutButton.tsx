@@ -1,13 +1,13 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { clearAuthSession } from "../../../auth/authStorage";
-import { clearProfileCompletedCache } from "../../../auth/profileGateStorage";
+import { performAppLogout } from "../../../auth/appLogout";
 
 export function LogoutButton() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleLogout = () => {
-    clearAuthSession();
-    clearProfileCompletedCache();
+    performAppLogout(queryClient);
     navigate("/");
   };
 
