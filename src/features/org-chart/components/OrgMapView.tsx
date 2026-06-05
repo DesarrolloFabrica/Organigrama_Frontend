@@ -20,8 +20,16 @@ import type { OrgNode } from "../types";
 import { orgNodeHasDirectReports } from "../types";
 import { OrgMapNode } from "./OrgMapNode";
 import { buildVisibleSubtree } from "../utils/buildVisibleSubtree";
+import {
+  deriveOrgMapRenderMode,
+  resolveTeamDisplayTier,
+  resolveTeamNavigation,
+  shouldRenderHorizontalRow,
+  shouldRenderTeamBox,
+  shouldNavigateToTeamListPage,
+} from "../utils/orgMapDisplayPolicy";
 import { buildOrgMap, type OrgMapNodeData } from "../utils/orgMapLayout";
-import { resolveOrgMapTheme } from "../utils/orgMapLevelTheme";
+import { resolveOrgMapTheme, resolveOrgMapVisualLevel } from "../utils/orgMapLevelTheme";
 import { truncateTreeToMaxLevels } from "../utils/truncateOrgTreeLevels";
 import { RadarBackground } from "./RadarBackground";
 
@@ -111,8 +119,8 @@ function OrgMapViewCamera({
       let fitMaxZoom = CAMERA_MAX_ZOOM;
 
       if (expanded) {
-        const expandRow2OnCanvas = parentId === layoutRootId;
-        if (expandRow2OnCanvas) {
+        const isRoot = parentId === layoutRootId;
+        if (isRoot && shouldRenderHorizontalRow(full)) {
           targetIds = [parentId, ...full.children.map((c) => c.id)];
         } else {
           targetIds = [parentId];
@@ -124,7 +132,7 @@ function OrgMapViewCamera({
       } else {
         const rootFull = nodeByIdRef.current.get(layoutRootId);
         targetIds =
-          rootFull && rootFull.children.length > 0
+          rootFull && shouldRenderHorizontalRow(rootFull)
             ? [layoutRootId, ...rootFull.children.map((c) => c.id)]
             : [layoutRootId];
       }
@@ -404,10 +412,6 @@ export function OrgMapView({
   const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
-    onExpandedNodeChange?.(expandedHubNodeId);
-  }, [expandedHubNodeId, onExpandedNodeChange]);
-
-  useEffect(() => {
     if (!onPersistedMapStateChange) return;
     onPersistedMapStateChange({
       showRootChildren,
@@ -472,6 +476,24 @@ export function OrgMapView({
     nodeByIdRef.current = nodeById;
   }, [nodeById]);
 
+  useEffect(() => {
+    const rootNode = nodeById.get(root.id) ?? root;
+    const expandedId =
+      expandedHubNodeId ??
+      (showRootChildren && shouldRenderTeamBox(rootNode) ? root.id : null);
+    onExpandedNodeChange?.(expandedId);
+  }, [expandedHubNodeId, nodeById, onExpandedNodeChange, root, showRootChildren]);
+
+  const currentRenderMode = useMemo(
+    () =>
+      deriveOrgMapRenderMode({
+        rootExpanded: showRootChildren,
+        rootNode: nodeById.get(root.id) ?? root,
+        expandedHubNodeId,
+      }),
+    [expandedHubNodeId, nodeById, root, showRootChildren],
+  );
+
   const layoutRoot = useMemo(() => {
     const visible = buildVisibleSubtree(root, showRootChildren);
     if (maxRenderLevels == null) {
@@ -520,22 +542,43 @@ export function OrgMapView({
     [onDirectChildrenVisible, onLoadChildren],
   );
 
+  useEffect(() => {
+    if (!initialShowRootChildren && !showRootChildren) return;
+    const rootNode = nodeById.get(root.id) ?? root;
+    if (!orgNodeHasDirectReports(rootNode) || rootNode.children.length > 0) {
+      return;
+    }
+    void ensureChildrenLoaded(rootNode);
+  }, [
+    ensureChildrenLoaded,
+    initialShowRootChildren,
+    nodeById,
+    root,
+    showRootChildren,
+  ]);
+
   const handleToggleExpand = useCallback(
     async (nodeId: string) => {
       const fullNode = nodeById.get(nodeId);
       if (!fullNode) return;
 
+      const navigation = resolveTeamNavigation(fullNode, currentRenderMode);
+      if (navigation === "navigateToTeamPage") {
+        onExploreTeam?.(nodeId);
+        return;
+      }
+
       const isCanvasRoot = nodeId === root.id;
 
       if (isCanvasRoot) {
-        const willShowRow2 = !showRootChildren;
-        if (willShowRow2) {
+        const willExpand = !showRootChildren;
+        if (willExpand) {
           await ensureChildrenLoaded(fullNode);
         }
-        cameraIntentRef.current = { parentId: nodeId, expanded: willShowRow2 };
+        cameraIntentRef.current = { parentId: nodeId, expanded: willExpand };
         setCameraNonce((n) => n + 1);
-        setShowRootChildren(willShowRow2);
-        if (!willShowRow2) {
+        setShowRootChildren(willExpand);
+        if (!willExpand) {
           setExpandedHubNodeId(null);
         }
         return;
@@ -550,9 +593,11 @@ export function OrgMapView({
       setExpandedHubNodeId(openingHub ? nodeId : null);
     },
     [
+      currentRenderMode,
       ensureChildrenLoaded,
       expandedHubNodeId,
       nodeById,
+      onExploreTeam,
       root.id,
       showRootChildren,
     ],
@@ -595,12 +640,27 @@ export function OrgMapView({
         );
         const hasDeferredTeam = Boolean(layoutOrg.deferred_team);
         const hasChildren = orgNodeHasDirectReports(reportNode);
-        const showMapExpand = hasChildren && !hasDeferredTeam;
+        const nodeTier = resolveTeamDisplayTier(reportNode);
+        const showTeamPageNavigate =
+          hasChildren &&
+          !hasDeferredTeam &&
+          shouldNavigateToTeamListPage(reportNode) &&
+          Boolean(onExploreTeam);
+        const showMapExpand =
+          hasChildren && !hasDeferredTeam && nodeTier !== "teamListPage";
         const loadingChildren = loadingChildrenNodeId === node.id;
         const internalTeamMembers =
-          expandedHubNodeId === node.id && !isCanvasRoot && full
+          isCanvasRoot && showRootChildren && full && shouldRenderTeamBox(full)
             ? full.children
-            : [];
+            : expandedHubNodeId === node.id &&
+                !isCanvasRoot &&
+                full &&
+                shouldRenderTeamBox(full)
+              ? full.children
+              : [];
+
+        const nodeRenderMode =
+          internalTeamMembers.length > 0 ? "teamBox" : "treeMap";
 
         return {
           ...node,
@@ -622,10 +682,12 @@ export function OrgMapView({
             hasChildren,
             hasDeferredTeam,
             showMapExpand,
+            showTeamPageNavigate,
             loadingChildren,
             isCanvasRoot,
             internalTeamMembers,
             visualLevel,
+            renderMode: nodeRenderMode,
             onToggleExpand: handleToggleExpand,
             onOpenDetail: handleOpenDetail,
             onExploreTeam,
@@ -675,6 +737,11 @@ export function OrgMapView({
     variant === "fullscreen"
       ? "org-map-shell org-map-shell--fullscreen flex h-full min-h-0 flex-1 flex-col"
       : "org-map-shell";
+
+  const radarLevel = useMemo(
+    () => resolveOrgMapVisualLevel(root, 0),
+    [root],
+  );
 
   return (
     <div className={shellClass}>
@@ -747,7 +814,7 @@ export function OrgMapView({
                     blur-3xl
                   "
                 />
-                <RadarBackground />
+                <RadarBackground level={radarLevel} />
 
                 {/* Grid ortogonal (plano lógico alineado con el pan/zoom de React Flow). */}
                 <div

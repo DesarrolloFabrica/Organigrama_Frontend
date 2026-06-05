@@ -1,13 +1,35 @@
+import type { CSSProperties } from "react";
+
+import {
+  getRadarPalette,
+  type RadarThemeLevel,
+} from "../utils/radarTheme";
+
+type Props = {
+  /** Nivel jerárquico visual (1 = más alto en el lienzo). Default L1 cyan. */
+  level?: RadarThemeLevel;
+  className?: string;
+  style?: CSSProperties;
+};
+
 /**
  * Fondo radar detrás del canvas: líneas guía CSS a pantalla completa,
  * anillos SVG en viewBox fijo 900×900 y barrido CSS.
+ * Solo cambia el matiz cromático según el nivel; layout y opacidades intactos.
  */
-export function RadarBackground() {
+export function RadarBackground({
+  level = 1,
+  className = "",
+  style,
+}: Props) {
   const CENTER = 450;
+  const { svg, cssVars } = getRadarPalette(level);
 
   return (
     <div
-      className="radar-background pointer-events-none absolute inset-0 overflow-hidden"
+      className={`radar-background pointer-events-none absolute inset-0 overflow-hidden ${className}`.trim()}
+      style={{ ...cssVars, ...style }}
+      data-radar-level={level}
       aria-hidden
     >
       <div className="radar-background__stage">
@@ -24,16 +46,14 @@ export function RadarBackground() {
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Rellenos suaves internos */}
-          <circle cx={CENTER} cy={CENTER} r="95" fill="rgba(34, 211, 238, 0.035)" />
-          <circle cx={CENTER} cy={CENTER} r="230" fill="rgba(34, 211, 238, 0.018)" />
+          <circle cx={CENTER} cy={CENTER} r="95" fill={svg.fill95} />
+          <circle cx={CENTER} cy={CENTER} r="230" fill={svg.fill230} />
 
-          {/* Anillos principales */}
           <circle
             cx={CENTER}
             cy={CENTER}
             r="500"
-            stroke="rgba(34, 211, 238, 2)"
+            stroke={svg.stroke500}
             strokeWidth="3"
           />
 
@@ -41,7 +61,7 @@ export function RadarBackground() {
             cx={CENTER}
             cy={CENTER}
             r="800"
-            stroke="rgba(34, 211, 238, 1)"
+            stroke={svg.stroke800}
             strokeWidth="3"
           />
 
@@ -49,7 +69,7 @@ export function RadarBackground() {
             cx={CENTER}
             cy={CENTER}
             r="1500"
-            stroke="rgba(34, 211, 238, 50)"
+            stroke={svg.stroke1500}
             strokeWidth="1"
           />
 
@@ -57,16 +77,15 @@ export function RadarBackground() {
             cx={CENTER}
             cy={CENTER}
             r="370"
-            stroke="rgba(34, 211, 238, 0.8)"
+            stroke={svg.stroke370}
             strokeWidth="1"
           />
 
-          {/* Anillos punteados */}
           <circle
             cx={CENTER}
             cy={CENTER}
             r="155"
-            stroke="rgba(125, 249, 255, 0.8)"
+            stroke={svg.stroke155}
             strokeWidth="1"
             strokeDasharray="10 14"
           />
@@ -75,16 +94,30 @@ export function RadarBackground() {
             cx={CENTER}
             cy={CENTER}
             r="275"
-            stroke="rgba(125, 249, 255, 50)"
+            stroke={svg.stroke275}
             strokeWidth="5"
             strokeDasharray="4 18"
           />
 
-          {/* Puntos decorativos */}
-          <circle cx={CENTER} cy={CENTER} r="5" fill="rgba(125, 249, 255, 0.65)" />
-          <circle cx={CENTER} cy={CENTER - 220} r="4" fill="rgba(125, 249, 255, 0.75)" />
-          <circle cx={CENTER + 220} cy={CENTER} r="3" fill="rgba(125, 249, 255, 0.75)" />
-          <circle cx={CENTER - 158} cy={CENTER + 158} r="3" fill="rgba(125, 249, 255, 0.75)" />
+          <circle cx={CENTER} cy={CENTER} r="5" fill={svg.dotCenter} />
+          <circle
+            cx={CENTER}
+            cy={CENTER - 220}
+            r="4"
+            fill={svg.dotAccent}
+          />
+          <circle
+            cx={CENTER + 220}
+            cy={CENTER}
+            r="3"
+            fill={svg.dotAccent}
+          />
+          <circle
+            cx={CENTER - 158}
+            cy={CENTER + 158}
+            r="3"
+            fill={svg.dotAccent}
+          />
         </svg>
 
         <div className="radar-sweep-arm">

@@ -147,19 +147,11 @@ export type OrgChartSearchHit = {
   path: OrgHierarchyPathSegment[]
 }
 
-/**
- * Respuesta de GET /api/org-chart/person/:id.
- * Pensada para el panel lateral / ficha; aquí solo tipamos lo estable del contrato.
- */
-export type OrgPersonDetail = {
-  id: string
-  /** `vacancy`: placeholder de plaza; `person` o ausente: colaborador real. */
-  nodeKind?: OrgNodeKind
+/** Bloque extendido cuando `canViewFullProfile === true`. */
+export type OrgPersonFullProfile = {
   document: string
   type_document: string | null
   full_name: string
-  /** Null en vacantes; ausente en personas sin foto configurada. */
-  photoUrl?: string | null
   role_id: string | null
   role: OrgNodeRole | null
   hierarchy_id: string | null
@@ -196,6 +188,29 @@ export type OrgPersonDetail = {
   }>
 }
 
+/**
+ * Respuesta de GET /api/org-chart/person/:id con visibilidad jerárquica.
+ */
+export type OrgPersonDetail = {
+  id: string
+  name: string
+  institutionalEmail: string | null
+  canViewFullProfile: boolean
+  photoUrl?: string | null
+  nodeKind?: OrgNodeKind
+  profile: OrgPersonFullProfile | null
+}
+
+export function orgPersonDisplayName(detail: OrgPersonDetail): string {
+  return detail.profile?.full_name?.trim() || detail.name?.trim() || '—'
+}
+
+export function orgPersonHasFullProfile(
+  detail: OrgPersonDetail,
+): detail is OrgPersonDetail & { profile: OrgPersonFullProfile } {
+  return detail.canViewFullProfile === true && detail.profile != null
+}
+
 /** Texto de cargo para UI cuando `role` viene nulo. */
 export function formatRoleLabel(node: OrgNode): string {
   return node.role?.name?.trim() ? node.role.name : 'Sin cargo asignado'
@@ -216,6 +231,15 @@ export function isOrgNodeVacancy(
   node: Pick<OrgNode, 'nodeKind'> | Pick<OrgChartSearchHit, 'nodeKind'> | Pick<OrgPersonDetail, 'nodeKind'> | undefined,
 ): boolean {
   return node?.nodeKind === 'vacancy'
+}
+
+/** Rol docente en Core (p. ej. DOCENTE, DOCENTES, DOCENTE FACILITADOR). */
+export function isOrgNodeDocenteRole(
+  node: Pick<OrgNode, 'role'> | undefined,
+): boolean {
+  const name = node?.role?.name?.trim().toLowerCase()
+  if (!name) return false
+  return name.includes('docente')
 }
 
 /** Nombre de plaza placeholder en Core (p. ej. «VACANTE - COORDINADOR …»). */

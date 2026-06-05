@@ -49,9 +49,9 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  background: rgba(34, 211, 238, 0.8);
+  background: var(--radar-guide-line, rgba(34, 211, 238, 0.8));
   transform-origin: center center;
-  box-shadow: 0 0 18px rgba(34, 211, 238, 0.25);
+  box-shadow: 0 0 18px var(--radar-guide-shadow, rgba(34, 211, 238, 0.25));
 }
 
 .radar-guide-line--horizontal {
@@ -108,8 +108,8 @@
   opacity: 0.8;
   background: linear-gradient(
     to bottom,
-    rgba(125, 249, 255, 1),
-    rgba(125, 249, 255, 1)
+    var(--radar-sweep-beam, rgba(125, 249, 255, 1)),
+    var(--radar-sweep-beam, rgba(125, 249, 255, 1))
   );
 }
 
@@ -121,8 +121,8 @@
   height: 6px;
   border-radius: 50%;
   opacity: 0.2;
-  background: rgba(125, 249, 255, 0.92);
-  box-shadow: 0 0 8px rgba(125, 249, 255, 0.4);
+  background: var(--radar-sweep-dot, rgba(125, 249, 255, 0.92));
+  box-shadow: 0 0 8px var(--radar-sweep-dot-shadow, rgba(125, 249, 255, 0.4));
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1252,13 +1252,13 @@ body,
 @keyframes login-sub-beam-breath {
   0%,
   100% {
-    opacity: 0.86;
+    opacity: 0.84;
     transform: translateX(-50%) scaleX(1);
   }
 
   50% {
     opacity: 1;
-    transform: translateX(-50%) scaleX(1.035);
+    transform: translateX(-50%) scaleX(1.06);
   }
 }
 
@@ -1275,22 +1275,22 @@ body,
 @keyframes login-sub-submarine-float {
   0%,
   100% {
-    transform: translateX(-50%) translateY(0) rotate(-0.2deg);
+    transform: translateX(-50%) translateY(0) rotate(-0.55deg);
   }
 
   50% {
-    transform: translateX(-50%) translateY(6px) rotate(0.2deg);
+    transform: translateX(-50%) translateY(12px) rotate(0.55deg);
   }
 }
 
 @keyframes login-sub-lamp-rays-float {
   0%,
   100% {
-    transform: translateX(-50%) translateY(0) rotate(-0.2deg);
+    transform: translateX(-50%) translateY(0) rotate(-0.55deg);
   }
 
   50% {
-    transform: translateX(-50%) translateY(6px) rotate(0.2deg);
+    transform: translateX(-50%) translateY(12px) rotate(0.55deg);
   }
 }
 
@@ -1382,7 +1382,7 @@ body,
 }
 
 .login-sub__beam-breath {
-  animation: login-sub-beam-breath 7s ease-in-out infinite;
+  animation: login-sub-beam-breath 4s ease-in-out infinite;
 }
 
 /* Zona luminosa central detrás del contenido (título / botón) */
@@ -1436,7 +1436,7 @@ body,
   transform: translateX(-50%);
   pointer-events: none;
   z-index: 6;
-  animation: login-sub-lamp-rays-float 6s ease-in-out infinite;
+  animation: login-sub-lamp-rays-float 3.2s ease-in-out infinite;
 }
 
 .login-sub__lamp-ray {
@@ -1512,6 +1512,7 @@ body,
   transform: translateX(-50%);
   pointer-events: none;
   z-index: 2;
+  animation: login-sub-submarine-float 3.2s ease-in-out infinite;
 }
 
 .login-sub__lamp-glow-spot {
@@ -1665,7 +1666,7 @@ body,
   left: 50%;
   top: clamp(2%, 5vh, 12%);
   z-index: 5;
-  animation: login-sub-submarine-float 6s ease-in-out infinite;
+  animation: login-sub-submarine-float 3.2s ease-in-out infinite;
 }
 
 .login-sub__submarine {
@@ -1836,7 +1837,8 @@ body,
   .login-sub__submarine-wrap,
   .login-sub__beam-breath,
   .login-sub__particles,
-  .login-sub__lamp-rays {
+  .login-sub__lamp-rays,
+  .login-sub__lamp-glows {
     animation: none !important;
   }
 }

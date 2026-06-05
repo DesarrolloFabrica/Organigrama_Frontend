@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { isOrgNodeVacancy } from "../types";
+import {
+  isOrgNodeVacancy,
+  orgPersonDisplayName,
+  orgPersonHasFullProfile,
+} from "../types";
 import { useOrgPersonDetail } from "../../../lib/react-query/hooks";
 import { withPhotoAccessToken } from "../../../auth/photoUrl";
 import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
@@ -453,11 +457,14 @@ function PersonDetailLoaded({
     return null;
   }
 
-  const regionName = detail.location?.region?.name ?? null;
-  const cityName = detail.location?.city?.name ?? null;
-  const campusName = detail.location?.campus?.name ?? null;
-  const roleLabel = detail.role?.name?.trim()
-    ? detail.role.name
+  const displayName = orgPersonDisplayName(detail);
+  const hasFull = orgPersonHasFullProfile(detail);
+  const profile = hasFull ? detail.profile : null;
+  const regionName = profile?.location?.region?.name ?? null;
+  const cityName = profile?.location?.city?.name ?? null;
+  const campusName = profile?.location?.campus?.name ?? null;
+  const roleLabel = profile?.role?.name?.trim()
+    ? profile.role.name
     : "Sin cargo asignado";
   const isVacancy = isOrgNodeVacancy(detail);
   const resolvedPhotoUrl = withPhotoAccessToken(detail.photoUrl);
@@ -467,8 +474,8 @@ function PersonDetailLoaded({
     <EntityScanShell
       ariaLabel={
         isVacancy
-          ? `Plaza disponible: ${detail.full_name}`
-          : `Escaneo de entidad: ${detail.full_name}`
+          ? `Plaza disponible: ${displayName}`
+          : `Escaneo de entidad: ${displayName}`
       }
       layoutVariant={layoutVariant}
     >
@@ -500,7 +507,7 @@ function PersonDetailLoaded({
                 onError={() => setPhotoFailed(true)}
               />
             ) : (
-              initialsFromName(detail.full_name)
+              initialsFromName(displayName)
             )}
             {!isVacancy ? (
               <span className="pointer-events-none absolute -inset-0.5 rounded-full border border-cyan-400/15" />
@@ -510,11 +517,17 @@ function PersonDetailLoaded({
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <h2 className="truncate text-lg font-semibold tracking-tight text-slate-900">
-                  {detail.full_name}
+                  {displayName}
                 </h2>
-                <p className="mt-0.5 text-sm font-medium leading-snug text-slate-600">
-                  {roleLabel}
-                </p>
+                {hasFull ? (
+                  <p className="mt-0.5 text-sm font-medium leading-snug text-slate-600">
+                    {roleLabel}
+                  </p>
+                ) : (
+                  <p className="mt-0.5 text-xs leading-snug text-slate-500">
+                    Vista limitada — sin permiso de ficha completa
+                  </p>
+                )}
                 {isVacancy ? (
                   <p className="mt-1.5 text-xs leading-snug text-slate-500">
                     Plaza disponible dentro de la estructura operativa
@@ -562,9 +575,11 @@ function PersonDetailLoaded({
                   Entidad activa
                 </span>
               )}
-              <span className="font-mono text-[10px] text-slate-500">
-                ID {detail.document}
-              </span>
+              {hasFull && profile ? (
+                <span className="font-mono text-[10px] text-slate-500">
+                  ID {profile.document}
+                </span>
+              ) : null}
             </div>
           </div>
         </div>
@@ -572,19 +587,32 @@ function PersonDetailLoaded({
 
       <div className="entity-scan-scroll flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-3 sm:px-4">
         <div className="flex flex-col gap-3.5 pb-4">
+          {!hasFull ? (
+            <HudSection id="sec-public" title="Contacto institucional" icon="contact">
+              <dl>
+                <HudDetailRow
+                  label="Correo institucional"
+                  value={formatValue(detail.institutionalEmail)}
+                />
+              </dl>
+            </HudSection>
+          ) : null}
+
+          {hasFull && profile ? (
+          <>
           <HudSection id="sec-contact" title="Datos de contacto" icon="contact">
             <dl>
               <HudDetailRow
                 label="Documento"
-                value={formatValue(detail.document)}
-                hint={detail.type_document ?? undefined}
+                value={formatValue(profile.document)}
+                hint={profile.type_document ?? undefined}
               />
-              <HudDetailRow label="Correo" value={formatValue(detail.email)} />
+              <HudDetailRow label="Correo" value={formatValue(profile.email)} />
               <HudDetailRow
                 label="Correo educativo"
-                value={formatValue(detail.edu_email)}
+                value={formatValue(profile.edu_email)}
               />
-              <HudDetailRow label="Teléfono" value={formatValue(detail.phone)} />
+              <HudDetailRow label="Teléfono" value={formatValue(profile.phone)} />
             </dl>
             <div className="mt-3 border-t border-slate-100/90 pt-2">
               <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
@@ -593,16 +621,16 @@ function PersonDetailLoaded({
               <dl>
                 <HudDetailRow
                   label="Nombre"
-                  value={formatValue(detail.emergency_contact?.name ?? null)}
+                  value={formatValue(profile.emergency_contact?.name ?? null)}
                 />
                 <HudDetailRow
                   label="Teléfono"
-                  value={formatValue(detail.emergency_contact?.phone ?? null)}
+                  value={formatValue(profile.emergency_contact?.phone ?? null)}
                 />
                 <HudDetailRow
                   label="Parentesco"
                   value={formatValue(
-                    detail.emergency_contact?.relationship ?? null,
+                    profile.emergency_contact?.relationship ?? null,
                   )}
                 />
               </dl>
@@ -613,21 +641,21 @@ function PersonDetailLoaded({
             <dl>
               <HudDetailRow
                 label="Jerarquía"
-                value={formatValue(detail.hierarchy?.name ?? null)}
+                value={formatValue(profile.hierarchy?.name ?? null)}
                 emphasized
               />
               <HudDetailRow
                 label="Área"
-                value={formatValue(detail.area?.name ?? null)}
+                value={formatValue(profile.area?.name ?? null)}
                 emphasized
               />
               <HudDetailRow
                 label="Escuela"
-                value={formatValue(detail.school?.name ?? null)}
+                value={formatValue(profile.school?.name ?? null)}
               />
               <HudDetailRow
                 label="Programa"
-                value={formatValue(detail.program?.name ?? null)}
+                value={formatValue(profile.program?.name ?? null)}
               />
             </dl>
           </HudSection>
@@ -665,15 +693,15 @@ function PersonDetailLoaded({
               />
               <HudDetailRow
                 label="Reportes directos"
-                value={String(detail.direct_reports_count)}
+                value={String(profile.direct_reports_count)}
               />
             </dl>
-            {detail.direct_reports.length > 0 ? (
+            {profile.direct_reports.length > 0 ? (
               <ul
                 className="mt-2 space-y-1.5 rounded-lg border border-slate-200/70 bg-slate-50/80 px-3 py-2.5"
                 aria-label="Lista de reportes directos"
               >
-                {detail.direct_reports.map((r) => (
+                {profile.direct_reports.map((r) => (
                   <li
                     key={r.id}
                     className="flex items-center gap-2 text-[13px] font-medium text-slate-800"
@@ -694,13 +722,13 @@ function PersonDetailLoaded({
           </HudSection>
 
           <HudSection id="sec-path" title="Ruta jerárquica" icon="path">
-            {detail.hierarchy_path.length === 0 ? (
+            {profile.hierarchy_path.length === 0 ? (
               <p className="text-center text-xs text-slate-500">
                 Sin ruta disponible en sistema.
               </p>
             ) : (
               <ol className="space-y-2">
-                {detail.hierarchy_path.map((seg, i) => (
+                {profile.hierarchy_path.map((seg, i) => (
                   <li
                     key={seg.id}
                     className="flex gap-2 rounded-lg border border-slate-200/70 bg-slate-50/60 px-2.5 py-2"
@@ -723,6 +751,8 @@ function PersonDetailLoaded({
               </ol>
             )}
           </HudSection>
+          </>
+          ) : null}
         </div>
       </div>
     </EntityScanShell>

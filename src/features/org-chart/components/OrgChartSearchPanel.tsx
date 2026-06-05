@@ -17,7 +17,13 @@ type Props = {
 };
 
 function roleLabel(hit: OrgChartSearchHit): string {
-  return hit.role?.name?.trim() ? hit.role.name : "Sin cargo asignado";
+  if (hit.role?.name?.trim()) {
+    return hit.role.name;
+  }
+  if (hit.edu_email?.trim()) {
+    return hit.edu_email;
+  }
+  return "Vista limitada";
 }
 
 /**

@@ -3,11 +3,14 @@ import type { MouseEvent } from "react";
 import type { OrgNode } from "../types";
 import { OrgMapTeamMemberMiniCard } from "./OrgMapTeamMemberMiniCard";
 
+import type { OrgMapRenderMode } from "../utils/orgMapDisplayPolicy";
+
 type Props = {
   leaderName: string;
   members: OrgNode[];
   /** Profundidad de layout del miembro en el mapa (p. ej. padre depth + 1). */
   memberLayoutDepth: number;
+  renderMode: OrgMapRenderMode;
   onOpenDetail: (id: string) => void;
   onExploreTeam?: (nodeId: string) => void;
   stopMouse: (e: MouseEvent) => void;
@@ -20,6 +23,7 @@ export function OrgMapExpandedTeamPanel({
   leaderName,
   members,
   memberLayoutDepth,
+  renderMode,
   onOpenDetail,
   onExploreTeam,
   stopMouse,
@@ -44,6 +48,7 @@ export function OrgMapExpandedTeamPanel({
             key={m.id}
             member={m}
             memberLayoutDepth={memberLayoutDepth}
+            renderMode={renderMode}
             onOpenDetail={onOpenDetail}
             onExploreTeam={onExploreTeam}
             stopMouse={stopMouse}

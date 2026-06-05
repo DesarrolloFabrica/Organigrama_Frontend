@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
 import type { OrgNode } from "../types";
+import { isOrgNodeDocenteRole } from "../types";
 
 /**
  * Tema cromático por capa jerárquica (holográfico corporativo).
@@ -536,13 +537,18 @@ export function clampOrgMapThemeLevel(raw: number): 1 | 2 | 3 | 4 | 5 {
 }
 
 /**
- * Resuelve el nivel visual: nombre de jerarquía (“Nivel 2”) si existe; si no, profundidad en el mapa.
+ * Resuelve el nivel visual: docentes siempre L5; luego nombre de jerarquía (“Nivel 2”);
+ * si no, profundidad en el mapa.
  * `mapLayoutDepth`: 0 = raíz del lienzo, 1 = reportes directos en fila 2, etc.
  */
 export function resolveOrgMapVisualLevel(
   orgNode: OrgNode | undefined,
   mapLayoutDepth: number,
 ): 1 | 2 | 3 | 4 | 5 {
+  if (isOrgNodeDocenteRole(orgNode)) {
+    return 5;
+  }
+
   const name = orgNode?.hierarchy?.name?.trim();
   if (name) {
     const m = name.match(HIERARCHY_LEVEL_RE);

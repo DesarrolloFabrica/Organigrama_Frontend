@@ -1,5 +1,6 @@
 import type { Edge, Node } from '@xyflow/react'
 import type { OrgNode } from '../types'
+import type { OrgMapRenderMode } from './orgMapDisplayPolicy'
 
 export type OrgMapNodeData = {
   orgNode: OrgNode
@@ -17,11 +18,13 @@ export type OrgMapNodeInteractiveData = OrgMapNodeData & {
   hasChildren: boolean
   /** Hay equipo oculto por límite de profundidad de vista (CTA “Explorar estructura”). */
   hasDeferredTeam: boolean
-  /** Mostrar expandir/colapsar en mapa (no aplica en frontera con equipo diferido). */
+  /** Mostrar expandir/colapsar en mapa (no aplica en frontera con equipo diferido ni equipos >15). */
   showMapExpand: boolean
-  /** Raíz del subárbol actual en el lienzo: sus hijos son fila 2 externa; no usa panel interno. */
+  /** Navegar a vista de lista (/org/team/:id) para equipos >15 reportes directos. */
+  showTeamPageNavigate: boolean
+  /** Raíz del subárbol actual en el lienzo. */
   isCanvasRoot: boolean
-  /** Miembros del equipo interno (solo fila 2 expandida; datos del árbol completo). */
+  /** Miembros del equipo interno (raíz o fila 2 expandida; datos del árbol completo). */
   internalTeamMembers: OrgNode[]
   onToggleExpand: (nodeId: string) => void
   onOpenDetail: (nodeId: string) => void
@@ -31,6 +34,8 @@ export type OrgMapNodeInteractiveData = OrgMapNodeData & {
   loadingChildren?: boolean
   /** Tema cromático 1..5 (resuelto en la vista). */
   visualLevel: 1 | 2 | 3 | 4 | 5
+  /** Contexto de visualización: caja/equipo vs árbol horizontal. */
+  renderMode: OrgMapRenderMode
 }
 
 export type OrgMapGraph = {

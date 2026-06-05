@@ -1,4 +1,5 @@
 import type { OrgNode } from "../types";
+import { shouldRenderHorizontalRow } from "./orgMapDisplayPolicy";
 
 /**
  * Todos los ids de descendientes de `node`, sin incluir a `node.id`.
@@ -13,10 +14,12 @@ export function collectDescendantIdsOnly(node: OrgNode): string[] {
 }
 
 /**
- * Clon para el mapa React Flow: como máximo **raíz + reportes directos**.
- * El equipo de nivel 3+ se muestra sólo en el panel interno del hub (`expandedHubNodeId`).
- *
- * @param showRootDirectReports `false` → sólo la raíz en el lienzo; `true` → fila 2 visible (colapsada en hub).
+ * Clon para el mapa React Flow.
+ * - Raíz colapsada → sólo raíz.
+ * - Raíz expandida con tier `treeMap` (≤5) → raíz + fila 2 en canvas.
+ * - Raíz expandida con tier `teamBox` (6–15) → sólo raíz (hijos en hub interno).
+ * - Raíz expandida con tier `teamListPage` (>15) → sólo raíz (navegar a lista dedicada).
+ * El equipo de fila 2 se muestra en el hub (`expandedHubNodeId`) sólo si tier `teamBox`.
  */
 export function buildVisibleSubtree(
   root: OrgNode,
@@ -25,6 +28,11 @@ export function buildVisibleSubtree(
   if (!showRootDirectReports) {
     return { ...root, children: [] };
   }
+
+  if (!shouldRenderHorizontalRow(root)) {
+    return { ...root, children: [] };
+  }
+
   return {
     ...root,
     children: root.children.map((child) => ({

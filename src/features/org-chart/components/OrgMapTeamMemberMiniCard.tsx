@@ -3,6 +3,10 @@ import { useEffect, useState, type MouseEvent } from "react";
 import { withPhotoAccessToken } from "../../../auth/photoUrl";
 import { formatRoleLabel, orgNodeHasDirectReports, type OrgNode } from "../types";
 import {
+  resolveTeamNavigation,
+  type OrgMapRenderMode,
+} from "../utils/orgMapDisplayPolicy";
+import {
   orgMapNodeThemeToCssVars,
   resolveOrgMapTheme,
 } from "../utils/orgMapLevelTheme";
@@ -12,6 +16,7 @@ type Props = {
   member: OrgNode;
   /** Profundidad de layout del miembro en el mapa (p. ej. padre + 1). */
   memberLayoutDepth: number;
+  renderMode: OrgMapRenderMode;
   onOpenDetail: (id: string) => void;
   onExploreTeam?: (nodeId: string) => void;
   stopMouse: (e: MouseEvent) => void;
@@ -63,16 +68,19 @@ function memberInitials(name: string): string {
 export function OrgMapTeamMemberMiniCard({
   member,
   memberLayoutDepth,
+  renderMode,
   onOpenDetail,
   onExploreTeam,
   stopMouse,
 }: Props) {
   const isVacancy = member.nodeKind === "vacancy";
   const roleShort = formatRoleLabel(member);
+  const teamAction = resolveTeamNavigation(member, renderMode);
   const showExploreTeam =
     !isVacancy &&
     Boolean(onExploreTeam) &&
-    orgNodeHasDirectReports(member);
+    orgNodeHasDirectReports(member) &&
+    teamAction === "navigateToTeamPage";
   const { visualLevel } = resolveOrgMapTheme(member, memberLayoutDepth);
   const levelCss = orgMapNodeThemeToCssVars(member, memberLayoutDepth);
   const [photoFailed, setPhotoFailed] = useState(false);

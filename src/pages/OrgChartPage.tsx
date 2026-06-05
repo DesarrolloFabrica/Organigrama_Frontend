@@ -139,7 +139,7 @@ export function OrgChartPage() {
         queryKey: nodeKey,
         queryFn: () => fetchOrgChartNode(id),
       });
-      navigate(`/org-chart/team/${encodeURIComponent(id)}`);
+      navigate(`/org/team/${encodeURIComponent(id)}`);
     },
     [navigate, persistSnapshot, queryClient],
   );

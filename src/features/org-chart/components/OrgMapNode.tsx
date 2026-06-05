@@ -94,18 +94,19 @@ function OrgMapNodeComponent({ id, data, selected }: NodeProps) {
 
   const isVacancy = node.nodeKind === "vacancy";
   const isExpanded = typedData.isExpanded;
-  const isCanvasRoot = typedData.isCanvasRoot ?? true;
   const internalTeamMembers = typedData.internalTeamMembers ?? [];
 
-  const showTeamHub =
-    !isCanvasRoot &&
-    isExpanded &&
-    internalTeamMembers.length > 0;
+  const showTeamHub = isExpanded && internalTeamMembers.length > 0;
 
   const canExploreTeam =
     !isVacancy &&
     typedData.hasDeferredTeam &&
     orgNodeHasDirectReports(node) &&
+    Boolean(typedData.onExploreTeam);
+
+  const showTeamPageNavigate =
+    !isVacancy &&
+    typedData.showTeamPageNavigate &&
     Boolean(typedData.onExploreTeam);
 
   useLayoutEffect(() => {
@@ -232,12 +233,8 @@ function OrgMapNodeComponent({ id, data, selected }: NodeProps) {
                 typedData.loadingChildren
                   ? "Cargando equipo directo"
                   : isExpanded
-                    ? isCanvasRoot
-                      ? "Colapsar reportes en mapa"
-                      : "Colapsar equipo en panel"
-                    : isCanvasRoot
-                      ? "Expandir reportes en mapa"
-                      : "Expandir equipo en panel"
+                    ? "Colapsar equipo en panel"
+                    : "Expandir equipo en panel"
               }
               onPointerDown={stopMouse}
               onClick={(e) => {
@@ -249,6 +246,21 @@ function OrgMapNodeComponent({ id, data, selected }: NodeProps) {
               <span>{isExpanded ? "Colapsar" : "Expandir"}</span>
             </button>
           ) : null}
+        {showTeamPageNavigate ? (
+          <button
+            type="button"
+            className="org-map-holo__btn org-map-holo__btn--explore nodrag nopan"
+            aria-label={`Ver equipo de ${node.name} en vista de lista`}
+            onPointerDown={stopMouse}
+            onClick={(e) => {
+              e.stopPropagation();
+              typedData.onExploreTeam?.(id);
+            }}
+          >
+            <IconBranch className="org-map-holo__btn-icon-svg org-map-holo__btn-icon-svg--explore size-4 shrink-0" />
+            <span>Ver equipo</span>
+          </button>
+        ) : null}
         {canExploreTeam ? (
           <button
             type="button"
@@ -303,6 +315,7 @@ function OrgMapNodeComponent({ id, data, selected }: NodeProps) {
             leaderName={node.name}
             members={internalTeamMembers}
             memberLayoutDepth={memberLayoutDepth}
+            renderMode={typedData.renderMode}
             onOpenDetail={typedData.onOpenDetail}
             onExploreTeam={typedData.onExploreTeam}
             stopMouse={stopMouse}
@@ -334,7 +347,9 @@ function orgMapNodePropsAreEqual(prev: NodeProps, next: NodeProps): boolean {
   if (prevData.directReportsTotal !== nextData.directReportsTotal) return false;
   if (prevData.visualLevel !== nextData.visualLevel) return false;
   if (prevData.showMapExpand !== nextData.showMapExpand) return false;
+  if (prevData.showTeamPageNavigate !== nextData.showTeamPageNavigate) return false;
   if (prevData.isCanvasRoot !== nextData.isCanvasRoot) return false;
+  if (prevData.renderMode !== nextData.renderMode) return false;
   if (prevData.orgNode.id !== nextData.orgNode.id) return false;
   if (prevData.orgNode.name !== nextData.orgNode.name) return false;
   if (prevData.orgNode.photoUrl !== nextData.orgNode.photoUrl) return false;

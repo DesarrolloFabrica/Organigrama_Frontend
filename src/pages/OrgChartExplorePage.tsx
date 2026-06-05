@@ -8,11 +8,13 @@ import { fetchHealth } from "../features/org-chart/services/orgChartService";
 import { mergeChildrenIntoTree } from "../features/org-chart/utils/mergeChildrenIntoTree";
 import { patchNodePhotoUrl } from "../features/org-chart/utils/patchNodePhotoUrl";
 import { OrgMapView } from "../features/org-chart/components/OrgMapView";
+import { TeamScrollListView } from "../features/org-chart/components/TeamScrollListView";
 import { PersonDetailPanel } from "../features/org-chart/components/PersonDetailPanel";
 import { OrgChartSearchPanel } from "../features/org-chart/components/OrgChartSearchPanel";
 import { LogoutButton } from "../features/org-chart/components/LogoutButton";
 import { NodeSummaryPanel } from "../features/org-chart/components/NodeSummaryPanel";
-import { DocTeamGridView } from "../features/org-chart/components/DocTeamGridView";
+import { orgNodeHasDirectReports } from "../features/org-chart/types";
+import { resolveTeamDisplayTier } from "../features/org-chart/utils/orgMapDisplayPolicy";
 import {
   orgChartChildrenQueryOptions,
   useOrgChartNode,
@@ -88,6 +90,18 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
     },
     [queryClient, personId],
   );
+
+  const displayTier = tree ? resolveTeamDisplayTier(tree) : null;
+  const needsChildrenLoad =
+    tree != null &&
+    displayTier === "teamListPage" &&
+    orgNodeHasDirectReports(tree) &&
+    tree.children.length === 0;
+
+  useEffect(() => {
+    if (!needsChildrenLoad) return;
+    void handleLoadChildren(tree!.id);
+  }, [handleLoadChildren, needsChildrenLoad, tree]);
 
   const handleDetailPhotoUrl = useCallback(
     (id: string, photoUrl: string) => {
@@ -219,25 +233,21 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
               </p>
             </div>
           </div>
-        ) : tree ? (() => {
-          const shouldRenderAsGrid =
-            tree.children.length > 0 &&
-            tree.children.every((c) =>
-              c.role?.name?.toLowerCase().includes("docente"),
-            );
-
-          return (
+        ) : tree ? (
             <>
               <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[var(--app-header-h)] z-20 flex items-start justify-start pb-3 pr-3 pt-3 pl-7 sm:pb-4 sm:pr-4 sm:pt-4 sm:pl-10">
                 <NodeSummaryPanel personId={expandedNodeId ?? personId} />
               </div>
 
               <div className="absolute inset-0 z-0 flex min-h-0 flex-col">
-                {shouldRenderAsGrid ? (
-                  <DocTeamGridView
+                {displayTier === "teamListPage" ? (
+                  <TeamScrollListView
+                    key={tree.id}
                     leader={tree}
                     onSelectPerson={handleSelectNodeFromMap}
                     onExploreTeam={handleExploreTeam}
+                    showBackButton
+                    onBack={() => navigate("/org")}
                   />
                 ) : (
                   <OrgMapView
@@ -259,19 +269,6 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
                   />
                 )}
               </div>
-
-              {shouldRenderAsGrid ? (
-                <div className="pointer-events-none absolute inset-x-0 top-0 z-10 p-3 sm:p-4">
-                  <button
-                    type="button"
-                    onClick={() => navigate("/org")}
-                    className="pointer-events-auto inline-flex items-center gap-1.5 rounded-lg border border-cyan-300/20 bg-cyan-300/5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-100/80 shadow-[0_0_18px_rgba(34,211,238,0.06)] backdrop-blur-sm transition hover:border-cyan-300/40 hover:text-cyan-50"
-                  >
-                    <span aria-hidden className="text-sm leading-none">←</span>
-                    Volver
-                  </button>
-                </div>
-              ) : null}
 
               <div
                 className="pointer-events-none absolute inset-0 z-30 flex max-sm:items-end max-sm:justify-center sm:items-stretch sm:justify-end sm:p-4"
@@ -309,8 +306,7 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
                 </button>
               ) : null}
             </>
-          );
-        })() : null}
+        ) : null}
       </main>
     </div>
   );
