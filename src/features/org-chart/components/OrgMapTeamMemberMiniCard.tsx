@@ -1,9 +1,9 @@
 import { useEffect, useState, type MouseEvent } from "react";
 
 import { withPhotoAccessToken } from "../../../auth/photoUrl";
-import { formatRoleLabel, orgNodeHasDirectReports, type OrgNode } from "../types";
+import { formatRoleLabel, type OrgNode } from "../types";
 import {
-  resolveTeamNavigation,
+  shouldOfferTeamExplorationLink,
   type OrgMapRenderMode,
 } from "../utils/orgMapDisplayPolicy";
 import {
@@ -75,12 +75,10 @@ export function OrgMapTeamMemberMiniCard({
 }: Props) {
   const isVacancy = member.nodeKind === "vacancy";
   const roleShort = formatRoleLabel(member);
-  const teamAction = resolveTeamNavigation(member, renderMode);
   const showExploreTeam =
     !isVacancy &&
     Boolean(onExploreTeam) &&
-    orgNodeHasDirectReports(member) &&
-    teamAction === "navigateToTeamPage";
+    shouldOfferTeamExplorationLink(member);
   const { visualLevel } = resolveOrgMapTheme(member, memberLayoutDepth);
   const levelCss = orgMapNodeThemeToCssVars(member, memberLayoutDepth);
   const [photoFailed, setPhotoFailed] = useState(false);

@@ -4,6 +4,7 @@ import type { NodeProps } from "@xyflow/react";
 import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
 
 import { formatRoleLabel, orgNodeHasDirectReports } from "../types";
+import { shouldNavigateToTeamListPage } from "../utils/orgMapDisplayPolicy";
 import type { OrgMapNodeInteractiveData } from "../utils/orgMapLayout";
 import { orgMapNodeThemeToCssVars } from "../utils/orgMapLevelTheme";
 import { OrgMapExpandedTeamPanel } from "./OrgMapExpandedTeamPanel";
@@ -98,14 +99,15 @@ function OrgMapNodeComponent({ id, data, selected }: NodeProps) {
 
   const showTeamHub = isExpanded && internalTeamMembers.length > 0;
 
+  // Una vacante con reportes directos puede expandirse/navegar igual que una
+  // persona; solo se diferencia por badge y estilo, no por capacidad de explorar.
   const canExploreTeam =
-    !isVacancy &&
     typedData.hasDeferredTeam &&
     orgNodeHasDirectReports(node) &&
+    shouldNavigateToTeamListPage(node) &&
     Boolean(typedData.onExploreTeam);
 
   const showTeamPageNavigate =
-    !isVacancy &&
     typedData.showTeamPageNavigate &&
     Boolean(typedData.onExploreTeam);
 

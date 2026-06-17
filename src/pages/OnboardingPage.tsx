@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useHoldRouteTransition } from "../contexts/RouteTransitionContext";
 import { performAppLogout } from "../auth/appLogout";
@@ -61,6 +61,7 @@ export function OnboardingPage() {
   const [emergencyRelationship, setEmergencyRelationship] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const hydratedPersonIdRef = useRef<string | null>(null);
 
   const step = status?.currentStep === 1 ? "emergency" : "contact";
   const activeProgressStep = step === "contact" ? 1 : 2;
@@ -71,6 +72,20 @@ export function OnboardingPage() {
       navigate("/loading", { replace: true });
       return;
     }
+
+    if (hydratedPersonIdRef.current !== profile.personId) {
+      hydratedPersonIdRef.current = profile.personId;
+      setDocument(profile.editable.document ?? "");
+      setPhone(profile.editable.phone ?? "");
+      setEmail(profile.editable.email ?? "");
+      setAddress(profile.editable.address ?? "");
+      setEmergencyName(profile.editable.emergencyContact.name ?? "");
+      setEmergencyPhone(profile.editable.emergencyContact.phone ?? "");
+      setEmergencyRelationship(
+        profile.editable.emergencyContact.relationship ?? "",
+      );
+    }
+
     if (profile.photo.photoUrl || !authUser?.pictureUrl) return;
     void postPhotoFromGoogle.mutateAsync().catch((err) => {
       console.warn("No se pudo guardar la foto de Google automáticamente", err);
@@ -189,7 +204,7 @@ export function OnboardingPage() {
   }
 
   return (
-    <main className="onboarding-sub relative min-h-dvh overflow-y-auto pb-8 text-white">
+    <main className="onboarding-sub relative h-dvh overflow-y-auto overflow-x-hidden pb-8 text-white">
       <div
         className="onboarding-sub__bg pointer-events-none fixed inset-0 z-0"
         aria-hidden

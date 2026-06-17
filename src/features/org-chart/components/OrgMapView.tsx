@@ -24,9 +24,10 @@ import {
   deriveOrgMapRenderMode,
   resolveTeamDisplayTier,
   resolveTeamNavigation,
-  shouldRenderHorizontalRow,
-  shouldRenderTeamBox,
   shouldNavigateToTeamListPage,
+  shouldRenderHorizontalRow,
+  shouldRenderInternalTeamHub,
+  shouldRenderTeamBox,
 } from "../utils/orgMapDisplayPolicy";
 import { buildOrgMap, type OrgMapNodeData } from "../utils/orgMapLayout";
 import { resolveOrgMapTheme, resolveOrgMapVisualLevel } from "../utils/orgMapLevelTheme";
@@ -519,14 +520,14 @@ export function OrgMapView({
   );
 
   const ensureChildrenLoaded = useCallback(
-    async (node: OrgNode) => {
+    async (node: OrgNode): Promise<OrgNode> => {
       if (!onLoadChildren || !orgNodeHasDirectReports(node)) {
-        return;
+        return node;
       }
 
       if (node.children.length > 0) {
         onDirectChildrenVisible?.(node.children);
-        return;
+        return node;
       }
 
       setLoadingChildrenNodeId(node.id);
@@ -535,6 +536,11 @@ export function OrgMapView({
         if (loaded.length > 0) {
           onDirectChildrenVisible?.(loaded);
         }
+        return {
+          ...node,
+          children: loaded,
+          direct_reports_count: loaded.length,
+        };
       } finally {
         setLoadingChildrenNodeId(null);
       }
@@ -562,38 +568,45 @@ export function OrgMapView({
       const fullNode = nodeById.get(nodeId);
       if (!fullNode) return;
 
-      const navigation = resolveTeamNavigation(fullNode, currentRenderMode);
-      if (navigation === "navigateToTeamPage") {
-        onExploreTeam?.(nodeId);
-        return;
-      }
-
       const isCanvasRoot = nodeId === root.id;
+      const isExpanded = isCanvasRoot
+        ? showRootChildren
+        : expandedHubNodeId === nodeId;
+      const willExpand = !isExpanded;
 
-      if (isCanvasRoot) {
-        const willExpand = !showRootChildren;
-        if (willExpand) {
-          await ensureChildrenLoaded(fullNode);
-        }
-        cameraIntentRef.current = { parentId: nodeId, expanded: willExpand };
+      if (!willExpand) {
+        cameraIntentRef.current = { parentId: nodeId, expanded: false };
         setCameraNonce((n) => n + 1);
-        setShowRootChildren(willExpand);
-        if (!willExpand) {
+        if (isCanvasRoot) {
+          setShowRootChildren(false);
+          setExpandedHubNodeId(null);
+        } else {
           setExpandedHubNodeId(null);
         }
         return;
       }
 
-      const openingHub = expandedHubNodeId !== nodeId;
-      if (openingHub) {
-        await ensureChildrenLoaded(fullNode);
+      const nodeWithChildren = await ensureChildrenLoaded(fullNode);
+      const navigation = resolveTeamNavigation(nodeWithChildren, {
+        isCanvasRoot,
+      });
+
+      if (navigation === "navigateToTeamPage") {
+        onExploreTeam?.(nodeId);
+        return;
       }
-      cameraIntentRef.current = { parentId: nodeId, expanded: openingHub };
+
+      cameraIntentRef.current = { parentId: nodeId, expanded: true };
       setCameraNonce((n) => n + 1);
-      setExpandedHubNodeId(openingHub ? nodeId : null);
+
+      if (isCanvasRoot) {
+        setShowRootChildren(true);
+        return;
+      }
+
+      setExpandedHubNodeId(nodeId);
     },
     [
-      currentRenderMode,
       ensureChildrenLoaded,
       expandedHubNodeId,
       nodeById,
@@ -643,11 +656,10 @@ export function OrgMapView({
         const nodeTier = resolveTeamDisplayTier(reportNode);
         const showTeamPageNavigate =
           hasChildren &&
-          !hasDeferredTeam &&
           shouldNavigateToTeamListPage(reportNode) &&
           Boolean(onExploreTeam);
         const showMapExpand =
-          hasChildren && !hasDeferredTeam && nodeTier !== "teamListPage";
+          hasChildren && nodeTier !== "teamListPage";
         const loadingChildren = loadingChildrenNodeId === node.id;
         const internalTeamMembers =
           isCanvasRoot && showRootChildren && full && shouldRenderTeamBox(full)
@@ -655,7 +667,7 @@ export function OrgMapView({
             : expandedHubNodeId === node.id &&
                 !isCanvasRoot &&
                 full &&
-                shouldRenderTeamBox(full)
+                shouldRenderInternalTeamHub(full)
               ? full.children
               : [];
 

@@ -41,6 +41,36 @@ export async function loginWithGoogleIdToken(
   return JSON.parse(bodyText) as GoogleLoginResult
 }
 
+export async function loginWithDevEmail(
+  email: string,
+): Promise<GoogleLoginResult> {
+  const res = await fetch(`${BASE_URL}/api/auth/dev-login`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  })
+
+  const bodyText = await res.text().catch(() => '')
+  if (!res.ok) {
+    let message = 'No se pudo iniciar sesión'
+    try {
+      const parsed = JSON.parse(bodyText) as { message?: string | string[] }
+      const raw = parsed.message
+      message = Array.isArray(raw) ? raw.join('. ') : raw || message
+    } catch {
+      if (bodyText) {
+        message = bodyText.slice(0, 240)
+      }
+    }
+    throw new Error(message)
+  }
+
+  return JSON.parse(bodyText) as GoogleLoginResult
+}
+
 export async function fetchCurrentUser(
   accessToken: string,
 ): Promise<AuthUser> {

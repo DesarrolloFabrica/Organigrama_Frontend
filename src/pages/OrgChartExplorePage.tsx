@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useHoldRouteTransition } from "../contexts/RouteTransitionContext";
 import { type OrgNode, countPeopleUnder } from "../features/org-chart/types";
 import { findNodeInTree } from "../features/org-chart/utils/findNodeInTree";
@@ -11,10 +11,18 @@ import { OrgMapView } from "../features/org-chart/components/OrgMapView";
 import { TeamScrollListView } from "../features/org-chart/components/TeamScrollListView";
 import { PersonDetailPanel } from "../features/org-chart/components/PersonDetailPanel";
 import { OrgChartSearchPanel } from "../features/org-chart/components/OrgChartSearchPanel";
+import { OrgChartVersionBar } from "../features/org-chart/components/OrgChartVersionBar";
+import { useOrgChartVersionQueryId } from "../features/org-chart/context/OrgChartVersionContext";
 import { LogoutButton } from "../features/org-chart/components/LogoutButton";
 import { NodeSummaryPanel } from "../features/org-chart/components/NodeSummaryPanel";
 import { orgNodeHasDirectReports } from "../features/org-chart/types";
 import { resolveTeamDisplayTier } from "../features/org-chart/utils/orgMapDisplayPolicy";
+import {
+  buildTeamExploreNavState,
+  buildTeamExplorePath,
+  readOrgTeamNavState,
+  resolveTeamBackNavigation,
+} from "../features/org-chart/utils/orgChartTeamNavigation";
 import {
   orgChartChildrenQueryOptions,
   useOrgChartNode,
@@ -33,7 +41,10 @@ type ExploreBodyProps = {
 
 function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const teamNavState = readOrgTeamNavState(location.state);
   const queryClient = useQueryClient();
+  const versionId = useOrgChartVersionQueryId();
   const {
     data: tree,
     isLoading,
@@ -68,27 +79,37 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
 
   const handleExploreTeam = useCallback(
     (id: string) => {
-      navigate(`/org/team/${encodeURIComponent(id)}`);
+      navigate(buildTeamExplorePath(id), {
+        state: buildTeamExploreNavState({
+          currentPersonId: personId,
+          navState: teamNavState,
+        }),
+      });
     },
-    [navigate],
+    [navigate, personId, teamNavState],
   );
+
+  const handleBack = useCallback(() => {
+    const { path, state } = resolveTeamBackNavigation({ navState: teamNavState });
+    navigate(path, state ? { state } : undefined);
+  }, [navigate, teamNavState]);
 
   const handleLoadChildren = useCallback(
     async (parentId: string) => {
       const loaded = await queryClient.fetchQuery(
-        orgChartChildrenQueryOptions(parentId),
+        orgChartChildrenQueryOptions(parentId, versionId),
       );
       const current = queryClient.getQueryData<OrgNode>(
-        orgQueryKeys.node(personId),
+        orgQueryKeys.node(personId, versionId),
       );
       if (current) {
         const merged = mergeChildrenIntoTree(current, parentId, loaded);
-        queryClient.setQueryData(orgQueryKeys.node(personId), merged);
+        queryClient.setQueryData(orgQueryKeys.node(personId, versionId), merged);
       }
-      prefetchDirectChildrenHints(queryClient, loaded);
+      prefetchDirectChildrenHints(queryClient, loaded, versionId);
       return loaded;
     },
-    [queryClient, personId],
+    [queryClient, personId, versionId],
   );
 
   const displayTier = tree ? resolveTeamDisplayTier(tree) : null;
@@ -106,16 +127,16 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
   const handleDetailPhotoUrl = useCallback(
     (id: string, photoUrl: string) => {
       const current = queryClient.getQueryData<OrgNode>(
-        orgQueryKeys.node(personId),
+        orgQueryKeys.node(personId, versionId),
       );
       if (current) {
         queryClient.setQueryData(
-          orgQueryKeys.node(personId),
+          orgQueryKeys.node(personId, versionId),
           patchNodePhotoUrl(current, id, photoUrl),
         );
       }
     },
-    [queryClient, personId],
+    [queryClient, personId, versionId],
   );
 
   const apiBaseDisplay =
@@ -210,6 +231,8 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
         </div>
       </header>
 
+      <OrgChartVersionBar />
+
       <main className="relative min-h-0 flex-1 overflow-hidden bg-transparent">
         <div
           aria-hidden="true"
@@ -235,7 +258,7 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
           </div>
         ) : tree ? (
             <>
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[var(--app-header-h)] z-20 flex items-start justify-start pb-3 pr-3 pt-3 pl-7 sm:pb-4 sm:pr-4 sm:pt-4 sm:pl-10">
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[var(--app-header-h)] z-20 flex items-start justify-start pb-3 pr-3 pt-14 pl-7 sm:pb-4 sm:pr-4 sm:pt-10 sm:pl-10">
                 <NodeSummaryPanel personId={expandedNodeId ?? personId} />
               </div>
 
@@ -247,7 +270,7 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
                     onSelectPerson={handleSelectNodeFromMap}
                     onExploreTeam={handleExploreTeam}
                     showBackButton
-                    onBack={() => navigate("/org")}
+                    onBack={handleBack}
                   />
                 ) : (
                   <OrgMapView
@@ -261,10 +284,14 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
                     onExploreTeam={handleExploreTeam}
                     onLoadChildren={handleLoadChildren}
                     onDirectChildrenVisible={(children) =>
-                      prefetchDirectChildrenHints(queryClient, children)
+                      prefetchDirectChildrenHints(
+                        queryClient,
+                        children,
+                        versionId,
+                      )
                     }
                     showBackButton
-                    onBack={() => navigate("/org")}
+                    onBack={handleBack}
                     onExpandedNodeChange={setExpandedNodeId}
                   />
                 )}

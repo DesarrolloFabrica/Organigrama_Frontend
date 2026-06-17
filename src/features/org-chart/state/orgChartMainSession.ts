@@ -18,6 +18,8 @@ export type OrgMapExpansionPersisted = {
 export type OrgChartMainSession = {
   /** `AuthUser.personId` del dueño del snapshot; evita mezclar sesiones entre usuarios. */
   ownerKey: string;
+  /** Versión del organigrama asociada al snapshot (solo usuario técnico). */
+  versionId?: number;
   tree: OrgNode | null;
   selectedPersonId: string | null;
   detailPanelMinimized: boolean;
@@ -66,21 +68,28 @@ function writeToStorage(session: OrgChartMainSession | null): void {
 
 function isSessionOwnedByCurrentUser(
   session: OrgChartMainSession | null,
+  expectedVersionId?: number,
 ): session is OrgChartMainSession {
   const ownerKey = getOrgChartSessionOwnerKey();
   if (!ownerKey || !session?.ownerKey) return false;
-  return session.ownerKey === ownerKey;
+  if (session.ownerKey !== ownerKey) return false;
+  if (expectedVersionId !== undefined && session.versionId !== expectedVersionId) {
+    return false;
+  }
+  return true;
 }
 
 /** Devuelve el snapshot solo si pertenece al usuario autenticado actual. */
-export function getOrgChartMainSession(): OrgChartMainSession | null {
+export function getOrgChartMainSession(
+  expectedVersionId?: number,
+): OrgChartMainSession | null {
   const ownerKey = getOrgChartSessionOwnerKey();
   if (!ownerKey) {
     return null;
   }
 
   const candidate = memorySession ?? readFromStorage();
-  if (!isSessionOwnedByCurrentUser(candidate)) {
+  if (!isSessionOwnedByCurrentUser(candidate, expectedVersionId)) {
     if (candidate) {
       clearOrgChartMainSession();
     }

@@ -16,7 +16,7 @@ export function invalidateOnboardingStatus(client: QueryClient = queryClient) {
 }
 
 export function invalidateOrgChartRoot(client: QueryClient = queryClient) {
-  return client.invalidateQueries({ queryKey: orgQueryKeys.root });
+  return client.invalidateQueries({ queryKey: orgQueryKeys.root() });
 }
 
 /**

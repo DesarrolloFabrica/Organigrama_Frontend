@@ -6,6 +6,12 @@ import type {
   OrgPersonDetail,
   OrgSummaryResponse,
 } from '../types'
+import type {
+  CreateOrgChartSnapshotPayload,
+  OrgChartRequestOptions,
+  OrgChartVersion,
+} from '../types/orgChartVersion'
+import { buildVersionQuery } from '../utils/orgChartVersionQuery'
 
 /**
  * Origen del API. En desarrollo suele ser el Nest en :3000.
@@ -14,6 +20,10 @@ import type {
 const BASE_URL = (
   import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
 ).replace(/\/$/, '')
+
+function withVersionQuery(path: string, options?: OrgChartRequestOptions): string {
+  return buildVersionQuery(path, options)
+}
 
 async function getJson<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAccessToken()
@@ -34,19 +44,37 @@ async function getJson<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+export async function fetchOrgChartVersions(): Promise<OrgChartVersion[]> {
+  return getJson<OrgChartVersion[]>('/api/org-chart/versions')
+}
+
+export async function createOrgChartSnapshot(
+  payload: CreateOrgChartSnapshotPayload,
+): Promise<OrgChartVersion> {
+  return getJson<OrgChartVersion>('/api/org-chart/versions/snapshot', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
 /**
  * @deprecated Carga el árbol completo del organigrama (raíz + `children` recursivos)
  * y no debe usarse en la UI principal.
  * Reemplazo: {@link fetchOrgChartRoot} para la carga inicial y
  * {@link fetchOrgChartChildren} para expansión lazy por niveles.
  */
-export async function fetchOrgChart(): Promise<OrgNode> {
-  return getJson<OrgNode>('/api/org-chart')
+export async function fetchOrgChart(
+  options?: OrgChartRequestOptions,
+): Promise<OrgNode> {
+  return getJson<OrgNode>(withVersionQuery('/api/org-chart', options))
 }
 
 /** Raíz del organigrama con solo hijos directos (`GET /api/org-chart/root`). */
-export async function fetchOrgChartRoot(): Promise<OrgNode> {
-  return getJson<OrgNode>('/api/org-chart/root')
+export async function fetchOrgChartRoot(
+  options?: OrgChartRequestOptions,
+): Promise<OrgNode> {
+  return getJson<OrgNode>(withVersionQuery('/api/org-chart/root', options))
 }
 
 /**
@@ -55,33 +83,47 @@ export async function fetchOrgChartRoot(): Promise<OrgNode> {
  * Reemplazo: {@link fetchOrgChartNode} para el nodo raíz del lienzo y
  * {@link fetchOrgChartChildren} para expansión lazy por niveles.
  */
-export async function fetchOrgChartSubtree(rootPersonId: string): Promise<OrgNode> {
+export async function fetchOrgChartSubtree(
+  rootPersonId: string,
+  options?: OrgChartRequestOptions,
+): Promise<OrgNode> {
   const safeId = encodeURIComponent(rootPersonId)
-  return getJson<OrgNode>(`/api/org-chart/team/${safeId}`)
+  return getJson<OrgNode>(
+    withVersionQuery(`/api/org-chart/team/${safeId}`, options),
+  )
 }
 
 /** Persona como raíz del mapa + hijos directos (`GET /api/org-chart/node/:id`). */
-export async function fetchOrgChartNode(personId: string): Promise<OrgNode> {
+export async function fetchOrgChartNode(
+  personId: string,
+  options?: OrgChartRequestOptions,
+): Promise<OrgNode> {
   const safeId = encodeURIComponent(personId)
-  return getJson<OrgNode>(`/api/org-chart/node/${safeId}`)
+  return getJson<OrgNode>(
+    withVersionQuery(`/api/org-chart/node/${safeId}`, options),
+  )
 }
 
-/**
- * Búsqueda de personas con ruta jerárquica.
- * (Reservado para siguientes iteraciones de la UI.)
- */
-export async function fetchOrgChartSearch(q: string): Promise<OrgChartSearchHit[]> {
+/** Búsqueda de personas con ruta jerárquica. */
+export async function fetchOrgChartSearch(
+  q: string,
+  options?: OrgChartRequestOptions,
+): Promise<OrgChartSearchHit[]> {
   const query = new URLSearchParams({ q: q.trim() })
-  return getJson<OrgChartSearchHit[]>(`/api/org-chart/search?${query.toString()}`)
+  return getJson<OrgChartSearchHit[]>(
+    withVersionQuery(`/api/org-chart/search?${query.toString()}`, options),
+  )
 }
 
-/**
- * Detalle ampliado de una persona.
- * (Reservado para panel lateral / ficha.)
- */
-export async function fetchOrgPersonDetail(id: string): Promise<OrgPersonDetail> {
+/** Detalle ampliado de una persona. */
+export async function fetchOrgPersonDetail(
+  id: string,
+  options?: OrgChartRequestOptions,
+): Promise<OrgPersonDetail> {
   const safeId = encodeURIComponent(id)
-  return getJson<OrgPersonDetail>(`/api/org-chart/person/${safeId}`)
+  return getJson<OrgPersonDetail>(
+    withVersionQuery(`/api/org-chart/person/${safeId}`, options),
+  )
 }
 
 /** Comprueba que el backend responde; útil para indicadores en cabecera. */
@@ -89,23 +131,32 @@ export async function fetchHealth(): Promise<{ ok: boolean }> {
   return getJson<{ ok: boolean }>('/api/health')
 }
 
-// Carga únicamente los hijos directos de una persona.
-// No trae nietos ni subárbol completo, por eso mejora el rendimiento.
 export async function fetchOrgChartChildren(
   personId: string,
+  options?: OrgChartRequestOptions,
 ): Promise<OrgNode[]> {
   const safeId = encodeURIComponent(personId)
-
-  return getJson<OrgNode[]>(`/api/org-chart/children/${safeId}`)
+  return getJson<OrgNode[]>(
+    withVersionQuery(`/api/org-chart/children/${safeId}`, options),
+  )
 }
 
 /** Resumen por áreas generales del organigrama principal. */
-export async function fetchGeneralAreasSummary(): Promise<GeneralAreaSummary[]> {
-  return getJson<GeneralAreaSummary[]>('/api/org-chart/summary/general-areas')
+export async function fetchGeneralAreasSummary(
+  options?: OrgChartRequestOptions,
+): Promise<GeneralAreaSummary[]> {
+  return getJson<GeneralAreaSummary[]>(
+    withVersionQuery('/api/org-chart/summary/general-areas', options),
+  )
 }
 
 /** Resumen jerárquico de un nodo: general + desglose por hijos directos. */
-export async function fetchOrgSummary(personId: string): Promise<OrgSummaryResponse> {
+export async function fetchOrgSummary(
+  personId: string,
+  options?: OrgChartRequestOptions,
+): Promise<OrgSummaryResponse> {
   const safeId = encodeURIComponent(personId)
-  return getJson<OrgSummaryResponse>(`/api/org-chart/summary/${safeId}`)
+  return getJson<OrgSummaryResponse>(
+    withVersionQuery(`/api/org-chart/summary/${safeId}`, options),
+  )
 }

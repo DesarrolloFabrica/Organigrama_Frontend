@@ -254,30 +254,41 @@ export function isOrgSummaryVacancy(item: OrgSummaryItem): boolean {
 }
 
 /**
- * Cuenta todas las personas bajo un nodo (no incluye al nodo mismo).
- * Útil para métricas en vistas futuras.
+ * Recorre el subárbol y acumula ids de persona sin duplicar (multi-padre en UI).
  */
-export function countPeopleUnder(node: OrgNode): number {
-  return node.children.reduce(
-    (total, child) => total + 1 + countPeopleUnder(child),
-    0,
-  )
+function collectUniquePeopleUnder(
+  node: OrgNode,
+  ids: Set<string>,
+  maxDepth?: number,
+  depthFromNode = 0,
+): void {
+  if (maxDepth !== undefined && depthFromNode >= maxDepth) return;
+  for (const child of node.children) {
+    ids.add(child.id);
+    collectUniquePeopleUnder(child, ids, maxDepth, depthFromNode + 1);
+  }
 }
 
 /**
- * Cuenta descendientes respetando un tope de profundidad relativo al nodo dado
- * (`node` = profundidad 0; no cuenta al propio nodo).
+ * Cuenta personas únicas bajo un nodo (no incluye al nodo mismo).
+ */
+export function countPeopleUnder(node: OrgNode): number {
+  const ids = new Set<string>();
+  collectUniquePeopleUnder(node, ids);
+  return ids.size;
+}
+
+/**
+ * Cuenta personas únicas bajo un nodo respetando un tope de profundidad.
  */
 export function countPeopleUnderWithinDepth(
   node: OrgNode,
   maxDepth: number,
   depthFromNode = 0,
 ): number {
-  if (depthFromNode >= maxDepth) return 0
-  return node.children.reduce((total, child) => {
-    const below = countPeopleUnderWithinDepth(child, maxDepth, depthFromNode + 1)
-    return total + 1 + below
-  }, 0)
+  const ids = new Set<string>();
+  collectUniquePeopleUnder(node, ids, maxDepth, depthFromNode);
+  return ids.size;
 }
 
 // ─── Resumen jerárquico por nodo ──────────────────────────────────────────────

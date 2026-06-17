@@ -10,6 +10,7 @@ import { OnboardingPage } from "./pages/OnboardingPage";
 import { OrgChartExplorePage } from "./pages/OrgChartExplorePage";
 import { LoginPage } from "./pages/LoginPage";
 import { BootLoadingPage } from "./pages/BootLoadingPage";
+import { OrgChartVersionProvider } from "./features/org-chart/context/OrgChartVersionContext";
 
 /** Shell de la app: organigrama global y exploración por equipo. */
 function App() {
@@ -62,7 +63,9 @@ function App() {
               element={
                 <RequireAuth>
                   <RequireProfileComplete>
-                    <OrgChartPage />
+                    <OrgChartVersionProvider>
+                      <OrgChartPage />
+                    </OrgChartVersionProvider>
                   </RequireProfileComplete>
                 </RequireAuth>
               }
@@ -74,7 +77,9 @@ function App() {
               element={
                 <RequireAuth>
                   <RequireProfileComplete>
-                    <OrgChartExplorePage />
+                    <OrgChartVersionProvider>
+                      <OrgChartExplorePage />
+                    </OrgChartVersionProvider>
                   </RequireProfileComplete>
                 </RequireAuth>
               }

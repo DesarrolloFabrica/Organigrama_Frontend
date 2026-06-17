@@ -11,6 +11,8 @@ import { mergeChildrenIntoTree } from "../features/org-chart/utils/mergeChildren
 import { OrgMapView } from "../features/org-chart/components/OrgMapView";
 import { PersonDetailPanel } from "../features/org-chart/components/PersonDetailPanel";
 import { OrgChartSearchPanel } from "../features/org-chart/components/OrgChartSearchPanel";
+import { OrgChartVersionBar } from "../features/org-chart/components/OrgChartVersionBar";
+import { useOrgChartVersionQueryId } from "../features/org-chart/context/OrgChartVersionContext";
 import { LogoutButton } from "../features/org-chart/components/LogoutButton";
 import {
   getOrgChartMainSession,
@@ -28,6 +30,10 @@ import {
 import { orgQueryKeys } from "../lib/react-query/queryKeys";
 import { prefetchDirectChildrenHints } from "../lib/react-query/orgChartPrefetch";
 import { fetchOrgChartNode } from "../features/org-chart/services/orgChartService";
+import {
+  buildTeamExploreNavState,
+  buildTeamExplorePath,
+} from "../features/org-chart/utils/orgChartTeamNavigation";
 
 type ConnState = "checking" | "online" | "offline";
 
@@ -42,7 +48,8 @@ const defaultMapPersisted = (): OrgMapExpansionPersisted => ({
 export function OrgChartPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const initialSession = useRef(getOrgChartMainSession());
+  const versionId = useOrgChartVersionQueryId();
+  const initialSession = useRef(getOrgChartMainSession(versionId));
   const initial = initialSession.current;
 
   const {
@@ -79,6 +86,7 @@ export function OrgChartPage() {
   const persistSnapshot = useCallback(() => {
     if (!tree) return;
     saveOrgChartMainSession({
+      versionId,
       tree,
       selectedPersonId,
       detailPanelMinimized,
@@ -86,6 +94,7 @@ export function OrgChartPage() {
       map: mapPersisted,
     });
   }, [
+    versionId,
     tree,
     selectedPersonId,
     detailPanelMinimized,
@@ -121,15 +130,15 @@ export function OrgChartPage() {
 
   const handleDirectChildrenVisible = useCallback(
     (children: OrgNode[]) => {
-      prefetchDirectChildrenHints(queryClient, children);
+      prefetchDirectChildrenHints(queryClient, children, versionId);
     },
-    [queryClient],
+    [queryClient, versionId],
   );
 
   const handleExploreTeam = useCallback(
     (id: string) => {
       persistSnapshot();
-      const nodeKey = orgQueryKeys.node(id);
+      const nodeKey = orgQueryKeys.node(id, versionId);
       logQueryCacheAccess(
         "org-node-prefetch",
         nodeKey,
@@ -137,16 +146,19 @@ export function OrgChartPage() {
       );
       void queryClient.prefetchQuery({
         queryKey: nodeKey,
-        queryFn: () => fetchOrgChartNode(id),
+        queryFn: () =>
+          fetchOrgChartNode(id, versionId ? { versionId } : undefined),
       });
-      navigate(`/org/team/${encodeURIComponent(id)}`);
+      navigate(buildTeamExplorePath(id), {
+        state: buildTeamExploreNavState({ currentPersonId: null }),
+      });
     },
-    [navigate, persistSnapshot, queryClient],
+    [navigate, persistSnapshot, queryClient, versionId],
   );
 
   const handleLoadChildren = useCallback(
     async (parentId: string) => {
-      const key = orgQueryKeys.children(parentId);
+      const key = orgQueryKeys.children(parentId, versionId);
       const t0 = performance.now();
       logQueryCacheAccess(
         "org-children",
@@ -154,16 +166,16 @@ export function OrgChartPage() {
         queryClient.getQueryData(key) !== undefined,
       );
       const loaded = await queryClient.fetchQuery(
-        orgChartChildrenQueryOptions(parentId),
+        orgChartChildrenQueryOptions(parentId, versionId),
       );
       logQueryNetworkTiming("org-children", key, performance.now() - t0);
       setTree((prev) =>
         prev ? mergeChildrenIntoTree(prev, parentId, loaded) : prev,
       );
-      prefetchDirectChildrenHints(queryClient, loaded);
+      prefetchDirectChildrenHints(queryClient, loaded, versionId);
       return loaded;
     },
-    [queryClient],
+    [queryClient, versionId],
   );
 
   const handleMapPersistedChange = useCallback(
@@ -294,6 +306,8 @@ export function OrgChartPage() {
           />
         </div>
       </header>
+
+      <OrgChartVersionBar />
 
       <main className="relative min-h-0 flex-1 overflow-hidden bg-transparent">
         <div

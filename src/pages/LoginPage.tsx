@@ -3,13 +3,14 @@ import { GoogleLogin } from "@react-oauth/google";
 import { useNavigate } from "react-router-dom";
 import { performAppLogout } from "../auth/appLogout";
 import { isAuthenticated, saveAuthSession } from "../auth/authStorage";
-import { loginWithGoogleIdToken } from "../auth/authService";
+import { loginWithDevEmail, loginWithGoogleIdToken } from "../auth/authService";
 import { setProfileCompleted } from "../auth/profileGateStorage";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchProfileMe } from "../features/profile/services/profileService";
 import { profileQueryKeys } from "../lib/react-query/queryKeys";
 
 const SUBMARINE_SRC = "/img/Submarino.png";
+const DEV_LOGIN_ENABLED = import.meta.env.DEV;
 const GOOGLE_BTN_WIDTH_DESKTOP = 300;
 const GOOGLE_BTN_WIDTH_TABLET = 280;
 const GOOGLE_BTN_WIDTH_MOBILE = 240;
@@ -47,6 +48,7 @@ export function LoginPage() {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [devEmail, setDevEmail] = useState("");
   const googleButtonWidth = useGoogleButtonWidth();
 
   useEffect(() => {
@@ -79,6 +81,18 @@ export function LoginPage() {
     };
   }, [navigate, queryClient]);
 
+  const completeLogin = async (
+    result: Awaited<ReturnType<typeof loginWithGoogleIdToken>>,
+  ) => {
+    saveAuthSession(result.accessToken, result.user);
+    const profile = await queryClient.fetchQuery({
+      queryKey: profileQueryKeys.profile,
+      queryFn: fetchProfileMe,
+    });
+    setProfileCompleted(profile.profileCompleted);
+    navigate(profile.profileCompleted ? "/loading" : "/onboarding");
+  };
+
   const handleGoogleSuccess = async (credential?: string) => {
     if (!credential) {
       setError("Google no devolvió credenciales válidas");
@@ -92,13 +106,29 @@ export function LoginPage() {
       performAppLogout(queryClient);
 
       const result = await loginWithGoogleIdToken(credential);
-      saveAuthSession(result.accessToken, result.user);
-      const profile = await queryClient.fetchQuery({
-        queryKey: profileQueryKeys.profile,
-        queryFn: fetchProfileMe,
-      });
-      setProfileCompleted(profile.profileCompleted);
-      navigate(profile.profileCompleted ? "/loading" : "/onboarding");
+      await completeLogin(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al iniciar sesión");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDevLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const email = devEmail.trim();
+    if (!email) {
+      setError("Ingresa un correo institucional");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      performAppLogout(queryClient);
+      const result = await loginWithDevEmail(email);
+      await completeLogin(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al iniciar sesión");
     } finally {
@@ -300,6 +330,36 @@ export function LoginPage() {
               </div>
             )}
           </div>
+
+          {DEV_LOGIN_ENABLED ? (
+            <form
+              onSubmit={(e) => void handleDevLogin(e)}
+              className="login-dev mt-6 flex w-full max-w-[26.25rem] flex-col gap-3 rounded-2xl border border-cyan-300/20 bg-white/5 p-4 text-left backdrop-blur-sm"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wide text-cyan-200/90">
+                Acceso dev (correo en base de datos)
+              </p>
+              <label className="flex flex-col gap-1.5 text-sm text-slate-200">
+                Correo @cun.edu.co
+                <input
+                  type="email"
+                  value={devEmail}
+                  onChange={(e) => setDevEmail(e.target.value)}
+                  placeholder="nombre_apellido@cun.edu.co"
+                  className="rounded-xl border border-white/15 bg-slate-950/40 px-4 py-2.5 text-white outline-none ring-cyan-400/40 placeholder:text-slate-500 focus:ring-2"
+                  autoComplete="email"
+                  disabled={loading}
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={loading}
+                className="rounded-xl bg-cyan-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-600 disabled:opacity-60"
+              >
+                Entrar con correo
+              </button>
+            </form>
+          ) : null}
 
           {error ? (
             <p className="mt-4 text-sm text-rose-300" role="alert">

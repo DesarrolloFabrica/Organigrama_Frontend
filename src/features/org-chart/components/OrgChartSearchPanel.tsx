@@ -82,6 +82,22 @@ export function OrgChartSearchPanel({
       <label className="sr-only" htmlFor={inputId}>
         Buscar en el organigrama
       </label>
+      <span
+        className="pointer-events-none absolute left-2.5 top-1/2 z-10 -translate-y-1/2 text-slate-400"
+        aria-hidden
+      >
+        <svg
+          className="size-3.5"
+          viewBox="0 0 20 20"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.328a.75.75 0 11-1.06 1.06l-3.328-3.328A7 7 0 012 9z"
+            fill="currentColor"
+          />
+        </svg>
+      </span>
       <input
         id={inputId}
         type="search"
@@ -92,7 +108,7 @@ export function OrgChartSearchPanel({
         }}
         placeholder="Buscar persona o plaza…"
         autoComplete="off"
-        className="w-full min-w-0 rounded-md border border-cyan-300/20 bg-slate-950/70 px-2.5 py-1.5 font-mono text-[11px] text-slate-100 placeholder:text-slate-500 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.06)] outline-none transition focus:border-cyan-400/35 focus:ring-1 focus:ring-cyan-400/25 sm:min-w-[10rem] sm:max-w-[260px]"
+        className="w-full min-w-0 rounded-lg border border-white/90 bg-white py-2 pl-8 pr-2.5 text-xs text-slate-800 shadow-[0_2px_10px_rgba(0,0,0,0.22),0_0_0_1px_rgba(255,255,255,0.06)] outline-none transition placeholder:text-slate-400 focus:border-cyan-500/60 focus:ring-2 focus:ring-cyan-400/35 sm:min-w-[12rem] sm:max-w-[280px]"
       />
 
       {open && query.trim().length >= 2 ? (

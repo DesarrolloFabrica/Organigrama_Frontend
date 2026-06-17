@@ -59,20 +59,20 @@
   },
   "suites": [
     {
-      "title": "smoke-react-query.spec.ts",
-      "file": "smoke-react-query.spec.ts",
+      "title": "org-versioning-security.spec.ts",
+      "file": "org-versioning-security.spec.ts",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "Smoke manual React Query (navegador)",
-          "file": "smoke-react-query.spec.ts",
-          "line": 58,
+          "title": "Versionamiento — aislamiento del borrador",
+          "file": "org-versioning-security.spec.ts",
+          "line": 67,
           "column": 6,
           "specs": [
             {
-              "title": "1–8 checklist automatizado (dev JWT)",
+              "title": "técnico ve selector, cambia a borrador y David se desconecta de 1162",
               "ok": true,
               "tags": [],
               "tests": [
@@ -87,28 +87,124 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 30481,
+                      "duration": 8000,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-06-02T19:59:23.221Z",
+                      "startTime": "2026-06-17T16:51:45.209Z",
                       "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "smoke-checklist.json",
-                          "contentType": "application/json",
-                          "body": "ewogICJyZXN1bHRzIjogewogICAgIjQiOiAiUEFTUyDigJQgU2VzacOzbiByZXN0YXVyYWRhOiBleHBhbmQ9dHJ1ZSwgc2VsZWN0ZWQ9MTE0NCwgbWluaW1pemVkPXRydWUsIG93bmVyPTEiLAogICAgIjYiOiAiUEFTUyDigJQgVHJhcyBpbnRlbnRvIGVkaWNpw7NuOiBub2RlPTAsIHBlcnNvbj0wLCBwYXRocz1zaW4gcGFuZWwgZWRpY2nDs24gdmlzaWJsZSIsCiAgICAiNyI6ICJQQVNTIOKAlCBTbmFwc2hvdCB1c3VhcmlvIEIgbGltcGlvIChvd25lcj0yKSIsCiAgICAiMWEiOiAiUEFTUyDigJQgU2VzacOzbiBhY3RpdmEgcGVyc29uSWQ9MTsgw6FyYm9sIGFqZW5vIG5vIHZpc2libGU9dHJ1ZSIsCiAgICAiMWIiOiAiUEFTUyDigJQgUmVkaXJlY2Npw7NuIGF1dGVudGljYWRhIE9LIHNpbiBVSSBHb29nbGUgZW4gZXN0YSBydXRhIiwKICAgICIxYyI6ICJQQVNTIOKAlCBSZWRpcmVjY2nDs24gcG9zdC1sb2dpbiDihpIgaHR0cDovL2xvY2FsaG9zdDo1MTczL29yZyIsCiAgICAiMmEiOiAiUEFTUyDigJQgRm9ybXVsYXJpbyBvbmJvYXJkaW5nIGNhcmdhZG8gKHBlcmZpbCBpbmNvbXBsZXRvIDExNDQpIiwKICAgICIyYiI6ICJQQVNTIOKAlCBUcmFzIGd1YXJkYXIg4oaSIGh0dHA6Ly9sb2NhbGhvc3Q6NTE3My9sb2FkaW5nIiwKICAgICIyYyI6ICJQQVNTIOKAlCBObyB2dWVsdmUgYSBvbmJvYXJkaW5nIHNpIHBlcmZpbCBxdWVkw7MgY29tcGxldG8iLAogICAgIjNhIjogIlBBU1Mg4oCUIExvYWRlcnMgdmlzaWJsZXMgZW4gL29yZzogMSAoZXNwZXJhZG8g4omkMSwgc2luIGRvYmxlIG92ZXJsYXkgcGVyc2lzdGVudGUpIiwKICAgICIzYiI6ICJQQVNTIOKAlCBSb290IGV4cGFuZGlkbyAoYm90w7NuIEV4cGFuZGlyIHJlcG9ydGVzKSIsCiAgICAiM2MiOiAiUEFTUyDigJQgRmljaGEgZXN0YWJsZSBlbiBwcmltZXIgYWNjZXNvIiwKICAgICIzZCI6ICJQQVNTIOKAlCBSZWFwZXJ0dXJhIGZpY2hhIHNpbiBjb2xhcHNvIHZpc2libGUiLAogICAgIjVhIjogIlBBU1Mg4oCUIFJlcXVlc3RzIGLDunNxdWVkYSB0cmFzIHRlY2xlYXIgXCJpblwiIHLDoXBpZG86IDEgKGVzcGVyYWRvIHBvY29zLCBubyAxIHBvciB0ZWNsYSkiLAogICAgIjViIjogIlBBU1Mg4oCUIFVuIHNvbG8gcmVxdWVzdCIsCiAgICAiNWMiOiAiUEFTUyDigJQgTGlzdGEgZGUgcmVzdWx0YWRvcyB2aXNpYmxlIiwKICAgICI4YSI6ICJQQVNTIOKAlCAxNCBsb2dzIFtSUSDigKZdIGVuIGRldiIsCiAgICAiOGIiOiAiUEFTUyDigJQgUHJlZmlqb3MgUlEgdsOhbGlkb3MiLAogICAgIjhjIjogIlBBU1Mg4oCUIFNpbiBlcnJvcmVzIGRlIGNvbnNvbGEvcGFnZWVycm9yIGVuIGZsdWpvIC9vcmciCiAgfSwKICAiZmFpbHVyZXMiOiBbXSwKICAicnFTYW1wbGUiOiBbCiAgICAiW1JRIGNhY2hlXSBNSVNTIG9yZy1yb290IHtrZXk6IFtcIm9yZy1yb290XCJdfSIsCiAgICAiW1JRIGNhY2hlXSBISVQgcHJvZmlsZSB7a2V5OiBbXCJwcm9maWxlXCJdfSIsCiAgICAiW1JRIGNhY2hlXSBNSVNTIG9yZy1yb290IHtrZXk6IFtcIm9yZy1yb290XCJdfSIsCiAgICAiW1JRIGNhY2hlXSBISVQgcHJvZmlsZSB7a2V5OiBbXCJwcm9maWxlXCJdfSIsCiAgICAiW1JRIG5ldHdvcmtdIHByb2ZpbGUgMW1zIHtrZXk6IFtcInByb2ZpbGVcIl19IgogIF0KfQ=="
-                        }
-                      ]
+                      "attachments": []
                     }
                   ],
                   "status": "expected"
                 }
               ],
-              "id": "de998b527cb1c2d95910-78561e3a4ca598746b54",
-              "file": "smoke-react-query.spec.ts",
-              "line": 59,
+              "id": "1cf920dccbc9d64fe384-3f14a539e23e31db4631",
+              "file": "org-versioning-security.spec.ts",
+              "line": 69,
+              "column": 3
+            },
+            {
+              "title": "usuario normal no ve versionamiento ni hace llamadas al borrador",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3856,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-17T16:51:53.449Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "1cf920dccbc9d64fe384-e08412461d277d5c3d40",
+              "file": "org-versioning-security.spec.ts",
+              "line": 115,
+              "column": 3
+            },
+            {
+              "title": "usuario normal con storage versionId=4 manipulado: se ignora",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3351,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-17T16:51:57.317Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "1cf920dccbc9d64fe384-bb2ea279b96c133a366f",
+              "file": "org-versioning-security.spec.ts",
+              "line": 138,
+              "column": 3
+            },
+            {
+              "title": "usuario normal forzando API de versión recibe 403",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 23,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-06-17T16:52:00.678Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "1cf920dccbc9d64fe384-ed0606bbf5a9df8e320f",
+              "file": "org-versioning-security.spec.ts",
+              "line": 179,
               "column": 3
             }
           ]
@@ -118,9 +214,9 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-06-02T19:59:22.436Z",
-    "duration": 31759.401,
-    "expected": 1,
+    "startTime": "2026-06-17T16:51:44.677Z",
+    "duration": 16096.543,
+    "expected": 4,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0

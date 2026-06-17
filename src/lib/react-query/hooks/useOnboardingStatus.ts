@@ -43,7 +43,15 @@ export function useOnboardingStatus() {
       if (!profileQuery.data) {
         throw new Error("Perfil no disponible");
       }
-      return buildOnboardingStatusFromProfile(profileQuery.data, 0);
+      // Preservamos el paso del wizard en refetch/invalidación: es estado de
+      // navegación de UI y no debe reiniciarse al revalidar el perfil/foto.
+      const prev = queryClient.getQueryData<OnboardingStatus>(
+        onboardingQueryKeys.status,
+      );
+      return buildOnboardingStatusFromProfile(
+        profileQuery.data,
+        prev?.currentStep ?? 0,
+      );
     },
     enabled: Boolean(profileQuery.data),
     staleTime: Number.POSITIVE_INFINITY,

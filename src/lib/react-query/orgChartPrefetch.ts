@@ -28,18 +28,25 @@ export function clearPrefetchHintsState(): void {
 export function prefetchDirectChildrenHints(
   queryClient: QueryClient,
   children: OrgNode[],
+  versionId?: number,
 ): void {
   for (const child of children) {
     if (!child?.id) continue;
 
-    const nodeKey = orgQueryKeys.node(child.id);
-    const summaryKey = orgQueryKeys.summary(child.id);
+    const nodeKey = orgQueryKeys.node(child.id, versionId);
+    const summaryKey = orgQueryKeys.summary(child.id, versionId);
 
-    void prefetchOne(queryClient, "org-node", nodeKey, () =>
-      fetchOrgChartNode(child.id),
+    void prefetchOne(
+      queryClient,
+      "org-node",
+      nodeKey,
+      () => fetchOrgChartNode(child.id, versionId ? { versionId } : undefined),
     );
-    void prefetchOne(queryClient, "org-summary", summaryKey, () =>
-      fetchOrgSummary(child.id),
+    void prefetchOne(
+      queryClient,
+      "org-summary",
+      summaryKey,
+      () => fetchOrgSummary(child.id, versionId ? { versionId } : undefined),
     );
   }
 }

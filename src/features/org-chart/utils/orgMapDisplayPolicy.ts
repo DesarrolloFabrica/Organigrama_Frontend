@@ -27,10 +27,21 @@ export function getDirectReportsCount(node: OrgNode | undefined): number {
   return node.children.length;
 }
 
+/** Si los hijos ya están en memoria, usa el tamaño real del equipo cargado. */
+export function getEffectiveDirectReportsCount(
+  node: OrgNode | undefined,
+): number {
+  if (!node) return 0;
+  if (node.children.length > 0) {
+    return node.children.length;
+  }
+  return getDirectReportsCount(node);
+}
+
 export function resolveTeamDisplayTier(
   node: OrgNode | undefined,
 ): TeamDisplayTier {
-  const count = getDirectReportsCount(node);
+  const count = getEffectiveDirectReportsCount(node);
   if (count <= TREE_MAX_CHILDREN) return "treeMap";
   if (count <= TEAM_BOX_MAX_CHILDREN) return "teamBox";
   return "teamListPage";
@@ -71,37 +82,53 @@ export function shouldNavigateToTeamListPage(
   return orgNodeHasDirectReports(node) && isLargeTeam(node);
 }
 
+/** Grilla EQUIPO dentro de la caja expandida (hasta 15 personas). */
+export function shouldRenderInternalTeamHub(
+  node: OrgNode | undefined,
+): boolean {
+  if (!node) return false;
+  return (
+    orgNodeHasDirectReports(node) &&
+    getEffectiveDirectReportsCount(node) <= TEAM_BOX_MAX_CHILDREN
+  );
+}
+
+/**
+ * Enlace "Ver equipo" fuera del lienzo (mini-cards, listas).
+ * Cualquier persona con reportes directos puede abrirse en /org/team/:id.
+ */
+export function shouldOfferTeamExplorationLink(
+  node: OrgNode | undefined,
+): boolean {
+  return orgNodeHasDirectReports(node);
+}
+
 /**
  * Decide cómo mostrar o navegar el equipo directo de un nodo.
- * - `treeMap`: fila horizontal o caja según tier del hijo.
- * - `teamBox` / `teamListPage`: nunca anidar; navegar a la página del hijo.
+ * - Raíz + ≤5: fila horizontal en el mapa.
+ * - Raíz + 6–15: hub interno (grilla).
+ * - Fila 2 + ≤15: hub interno en la misma página.
+ * - >15: vista de lista dedicada (nueva página).
  */
 export function resolveTeamNavigation(
   node: OrgNode | undefined,
-  currentMode: OrgMapRenderMode,
+  options: { isCanvasRoot: boolean },
 ): TeamNavigationAction {
   if (!node || !orgNodeHasDirectReports(node)) {
     return "none";
   }
 
-  if (node.deferred_team) {
-    return "navigateToTeamPage";
-  }
-
-  if (currentMode === "teamBox" || currentMode === "teamListPage") {
-    return "navigateToTeamPage";
-  }
-
   const tier = resolveTeamDisplayTier(node);
+
   if (tier === "teamListPage") {
     return "navigateToTeamPage";
   }
 
-  if (tier === "teamBox") {
-    return "expandTeamBox";
+  if (options.isCanvasRoot && tier === "treeMap") {
+    return "expandHorizontalTree";
   }
 
-  return "expandHorizontalTree";
+  return "expandTeamBox";
 }
 
 /** Modo visual activo cuando hay una caja/equipo abierta en el lienzo. */
