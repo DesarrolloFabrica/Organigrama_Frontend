@@ -3,20 +3,19 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { isAuthenticated } from "../auth/authStorage";
 import { PageLoadingScreen } from "../components/PageLoadingScreen";
-import { fetchOrgChartRoot } from "../features/org-chart/services/orgChartService";
 import { fetchProfileMe } from "../features/profile/services/profileService";
-import {
-  buildOnboardingStatusFromProfile,
-} from "../lib/react-query/hooks/useOnboardingStatus";
+import { buildOnboardingStatusFromProfile } from "../lib/react-query/hooks/useOnboardingStatus";
 import {
   logQueryCacheAccess,
   logQueryNetworkTiming,
 } from "../lib/react-query/devTelemetry";
+import { prefetchOrgChartRootForBoot } from "../lib/react-query/bootWarmup";
 import {
   onboardingQueryKeys,
-  orgQueryKeys,
   profileQueryKeys,
 } from "../lib/react-query/queryKeys";
+
+const MIN_BOOT_MS = 800;
 
 export function BootLoadingPage() {
   const navigate = useNavigate();
@@ -24,24 +23,23 @@ export function BootLoadingPage() {
 
   useEffect(() => {
     let cancelled = false;
+    const bootStartedAt = performance.now();
 
-    const minimumLoadingTime = new Promise<void>((resolve) => {
-      window.setTimeout(resolve, 2400);
-    });
+    const waitMinimumBoot = async () => {
+      const elapsed = performance.now() - bootStartedAt;
+      const remaining = MIN_BOOT_MS - elapsed;
+      if (remaining > 0) {
+        await new Promise<void>((resolve) => {
+          window.setTimeout(resolve, remaining);
+        });
+      }
+    };
 
     const preloadOrgChart = (async () => {
-      const key = orgQueryKeys.root();
       const t0 = performance.now();
-      logQueryCacheAccess(
-        "org-root",
-        key,
-        queryClient.getQueryData(key) !== undefined,
-      );
-      await queryClient.prefetchQuery({
-        queryKey: key,
-        queryFn: () => fetchOrgChartRoot(),
-      });
-      logQueryNetworkTiming("org-root", key, performance.now() - t0);
+      logQueryCacheAccess("org-root", ["org-root"], false);
+      await prefetchOrgChartRootForBoot(queryClient);
+      logQueryNetworkTiming("org-root", ["org-root"], performance.now() - t0);
     })();
 
     const preloadProfileAndOnboarding = (async () => {
@@ -60,21 +58,19 @@ export function BootLoadingPage() {
       });
       logQueryNetworkTiming("profile", profileKey, performance.now() - t0);
 
-      const profile = queryClient.getQueryData<Awaited<ReturnType<typeof fetchProfileMe>>>(
-        profileKey,
-      );
+      const profile = queryClient.getQueryData<
+        Awaited<ReturnType<typeof fetchProfileMe>>
+      >(profileKey);
       if (profile) {
         queryClient.setQueryData(
           onboardingQueryKeys.status,
           buildOnboardingStatusFromProfile(profile, 0),
         );
-        if (import.meta.env.DEV) {
-          console.debug("[RQ warmup] onboarding-status seeded from profile");
-        }
       }
     })();
 
-    Promise.all([minimumLoadingTime, preloadOrgChart, preloadProfileAndOnboarding])
+    Promise.all([preloadOrgChart, preloadProfileAndOnboarding])
+      .then(() => waitMinimumBoot())
       .then(() => {
         if (!cancelled) {
           navigate("/org");

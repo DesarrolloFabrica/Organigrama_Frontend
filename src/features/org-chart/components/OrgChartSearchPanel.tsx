@@ -83,11 +83,11 @@ export function OrgChartSearchPanel({
         Buscar en el organigrama
       </label>
       <span
-        className="pointer-events-none absolute left-2.5 top-1/2 z-10 -translate-y-1/2 text-slate-400"
+        className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-cyan-200/80"
         aria-hidden
       >
         <svg
-          className="size-3.5"
+          className="size-4"
           viewBox="0 0 20 20"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
@@ -108,7 +108,7 @@ export function OrgChartSearchPanel({
         }}
         placeholder="Buscar persona o plaza…"
         autoComplete="off"
-        className="w-full min-w-0 rounded-lg border border-white/90 bg-white py-2 pl-8 pr-2.5 text-xs text-slate-800 shadow-[0_2px_10px_rgba(0,0,0,0.22),0_0_0_1px_rgba(255,255,255,0.06)] outline-none transition placeholder:text-slate-400 focus:border-cyan-500/60 focus:ring-2 focus:ring-cyan-400/35 sm:min-w-[12rem] sm:max-w-[280px]"
+        className="w-full min-w-0 rounded-full border border-cyan-300/30 bg-white/14 py-2 pl-10 pr-3.5 text-xs font-medium text-slate-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_20px_rgba(34,211,238,0.06)] outline-none transition placeholder:text-slate-300 hover:border-cyan-300/45 hover:bg-white/18 focus:border-cyan-300/60 focus:bg-white/20 focus:ring-2 focus:ring-cyan-400/30 sm:min-w-[13rem] sm:max-w-[17.5rem]"
       />
 
       {open && query.trim().length >= 2 ? (

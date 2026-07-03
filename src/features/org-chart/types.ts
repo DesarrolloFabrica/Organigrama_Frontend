@@ -72,6 +72,9 @@ export type OrgNodeLocation = {
 
 export type OrgNodeKind = "person" | "vacancy"
 
+/** Estado de asignación de una posición (proviene de un override por relación). */
+export type OrgAssignmentStatus = "TEMPORAL" | "PERMANENT"
+
 /**
  * Nodo del árbol devuelto por GET /api/org-chart.
  * `children` contiene los reportes directos; vacío en hojas.
@@ -87,6 +90,21 @@ export type OrgNode = {
   nodeKind?: OrgNodeKind
   role_id: string | null
   role: OrgNodeRole | null
+  /**
+   * Identidad visual de la posición: `org_visual_relation.id` (arista padre→persona).
+   * `null`/ausente para el nodo raíz y para nodos resueltos por fallback de rol.
+   * Permite diferenciar posiciones distintas de la misma persona (multi-padre).
+   */
+  relation_id?: string | null
+  /** Persona padre de ESTA posición (de la relación). `null` si no hay arista. */
+  parent_person_id?: string | null
+  /**
+   * Estado de asignación visible para ESTA posición (override por relación).
+   * `null`/ausente cuando la posición no tiene override.
+   */
+  assignment_status?: OrgAssignmentStatus | null
+  /** Etiqueta visible de la asignación (override por relación). */
+  assignment_label?: string | null
   hierarchy_id: string | null
   area_id: string | null
   school_id: string | null
@@ -216,6 +234,18 @@ export function formatRoleLabel(node: OrgNode): string {
   return node.role?.name?.trim() ? node.role.name : 'Sin cargo asignado'
 }
 
+/** True si la posición es una asignación temporal (encargo). */
+export function isTemporalAssignment(
+  node: Pick<OrgNode, 'assignment_status'> | undefined,
+): boolean {
+  return node?.assignment_status === 'TEMPORAL'
+}
+
+/** Texto de la píldora de asignación temporal. */
+export function temporalBadgeLabel(): string {
+  return 'TEMPORAL'
+}
+
 /**
  * Indica si la persona tiene equipo directo a cargo, aunque `children` no venga poblado
  * (p. ej. `truncateTreeToMaxLevels` + `deferred_team`) o haya huecos en el árbol.
@@ -309,4 +339,47 @@ export interface OrgSummaryResponse {
   areas: OrgSummaryItem[]
   /** Vacantes según nivel: nivel 1 = subárbol; nivel 2+ = flujo directo. */
   vacancyItems?: OrgSummaryItem[]
+}
+
+// ─── Vacantes reales (schema `vacancies`) ─────────────────────────────────────
+
+/**
+ * Vacante proveniente de `GET /api/org-chart/vacancies`.
+ * Fuente: schema externo `vacancies.vacancy` (solo lectura, sin nodos en el mapa).
+ */
+export interface OrgChartVacancy {
+  id: number
+  areaId: number | null
+  schoolId: number | null
+  programId: number | null
+  positionName: string | null
+  curricularLine: string | null
+  quantity: number | null
+  operationStatus: string | null
+  createdAt: string | null
+  updatedAt?: string | null
+  areaName?: string | null
+  schoolName?: string | null
+  programName?: string | null
+}
+
+export interface OrgChartVacancyListResponse {
+  items: OrgChartVacancy[]
+}
+
+// ─── Hoja de vida (CV) ────────────────────────────────────────────────────────
+
+/**
+ * Respuesta de GET /api/org-chart/person/:personId/cv.
+ * Las URLs de Drive ya están almacenadas en el backend; el frontend NO consulta Drive.
+ */
+export type PersonCvResponse = {
+  /** true si la persona tiene hoja de vida activa. */
+  hasCv: boolean
+  /** Nombre del archivo (solo si hasCv = true). */
+  fileName?: string
+  /** URL para abrir el PDF en Drive (solo si hasCv = true). */
+  viewUrl?: string
+  /** Última sincronización en ISO 8601 (solo si hasCv = true). */
+  lastSync?: string
 }

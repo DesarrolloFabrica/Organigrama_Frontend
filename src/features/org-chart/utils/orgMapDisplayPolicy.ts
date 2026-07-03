@@ -100,6 +100,7 @@ export function shouldRenderInternalTeamHub(
 export function shouldOfferTeamExplorationLink(
   node: OrgNode | undefined,
 ): boolean {
+  if (!node) return false;
   return orgNodeHasDirectReports(node);
 }
 

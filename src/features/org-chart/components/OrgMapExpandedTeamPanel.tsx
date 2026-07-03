@@ -12,7 +12,7 @@ type Props = {
   memberLayoutDepth: number;
   renderMode: OrgMapRenderMode;
   onOpenDetail: (id: string) => void;
-  onExploreTeam?: (nodeId: string) => void;
+  onExploreTeam?: (nodeId: string, relationId?: string | null) => void;
   stopMouse: (e: MouseEvent) => void;
 };
 

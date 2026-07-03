@@ -1,4 +1,9 @@
-import { formatRoleLabel, type OrgNode } from '../types'
+import {
+  formatRoleLabel,
+  isTemporalAssignment,
+  temporalBadgeLabel,
+  type OrgNode,
+} from '../types'
 
 type Props = {
   node: OrgNode
@@ -60,6 +65,15 @@ export function OrgNodeCard({
           <p className="mt-0.5 text-sm font-medium text-sky-800">
             {formatRoleLabel(node)}
           </p>
+          {isTemporalAssignment(node) ? (
+            <span
+              className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700"
+              title="Asignación temporal"
+            >
+              <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
+              {temporalBadgeLabel()}
+            </span>
+          ) : null}
         </header>
 
         <p className="mt-3 text-sm text-slate-600">

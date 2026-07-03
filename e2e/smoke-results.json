@@ -59,21 +59,21 @@
   },
   "suites": [
     {
-      "title": "org-versioning-security.spec.ts",
-      "file": "org-versioning-security.spec.ts",
+      "title": "smoke-react-query.spec.ts",
+      "file": "smoke-react-query.spec.ts",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "Versionamiento — aislamiento del borrador",
-          "file": "org-versioning-security.spec.ts",
-          "line": 67,
+          "title": "Smoke manual React Query (navegador)",
+          "file": "smoke-react-query.spec.ts",
+          "line": 58,
           "column": 6,
           "specs": [
             {
-              "title": "técnico ve selector, cambia a borrador y David se desconecta de 1162",
-              "ok": true,
+              "title": "1–8 checklist automatizado (dev JWT)",
+              "ok": false,
               "tags": [],
               "tests": [
                 {
@@ -86,125 +86,58 @@
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 8000,
-                      "errors": [],
+                      "status": "failed",
+                      "duration": 2959,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:5173/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:5173/\", waiting until \"load\"\u001b[22m\n\n    at C:\\dev\\organigrama\\Organigrama_Frontend\\e2e\\smoke-react-query.spec.ts:70:16",
+                        "location": {
+                          "file": "C:\\dev\\organigrama\\Organigrama_Frontend\\e2e\\smoke-react-query.spec.ts",
+                          "column": 16,
+                          "line": 70
+                        },
+                        "snippet": "  68 |     // ── 1. Login (cache visual + redirección; Google OAuth = parcial) ──\n  69 |     const staleOwner = \"99999\";\n> 70 |     await page.goto(\"/\");\n     |                ^\n  71 |     await page.evaluate(\n  72 |       ({ staleOwner }) => {\n  73 |         sessionStorage.setItem(\"organigrama.accessToken\", \"stale-token\");"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\dev\\organigrama\\Organigrama_Frontend\\e2e\\smoke-react-query.spec.ts",
+                            "column": 16,
+                            "line": 70
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5173/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:5173/\", waiting until \"load\"\u001b[22m\n\n\n  68 |     // ── 1. Login (cache visual + redirección; Google OAuth = parcial) ──\n  69 |     const staleOwner = \"99999\";\n> 70 |     await page.goto(\"/\");\n     |                ^\n  71 |     await page.evaluate(\n  72 |       ({ staleOwner }) => {\n  73 |         sessionStorage.setItem(\"organigrama.accessToken\", \"stale-token\");\n    at C:\\dev\\organigrama\\Organigrama_Frontend\\e2e\\smoke-react-query.spec.ts:70:16"
+                        }
+                      ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-06-17T16:51:45.209Z",
+                      "startTime": "2026-06-23T14:53:34.162Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\dev\\organigrama\\Organigrama_Frontend\\test-results\\smoke-react-query-Smoke-ma-ae8c3-klist-automatizado-dev-JWT--chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\dev\\organigrama\\Organigrama_Frontend\\test-results\\smoke-react-query-Smoke-ma-ae8c3-klist-automatizado-dev-JWT--chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\dev\\organigrama\\Organigrama_Frontend\\e2e\\smoke-react-query.spec.ts",
+                        "column": 16,
+                        "line": 70
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
-              "id": "1cf920dccbc9d64fe384-3f14a539e23e31db4631",
-              "file": "org-versioning-security.spec.ts",
-              "line": 69,
-              "column": 3
-            },
-            {
-              "title": "usuario normal no ve versionamiento ni hace llamadas al borrador",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 120000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 3856,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-06-17T16:51:53.449Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "1cf920dccbc9d64fe384-e08412461d277d5c3d40",
-              "file": "org-versioning-security.spec.ts",
-              "line": 115,
-              "column": 3
-            },
-            {
-              "title": "usuario normal con storage versionId=4 manipulado: se ignora",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 120000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 3351,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-06-17T16:51:57.317Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "1cf920dccbc9d64fe384-bb2ea279b96c133a366f",
-              "file": "org-versioning-security.spec.ts",
-              "line": 138,
-              "column": 3
-            },
-            {
-              "title": "usuario normal forzando API de versión recibe 403",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 120000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 23,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-06-17T16:52:00.678Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "1cf920dccbc9d64fe384-ed0606bbf5a9df8e320f",
-              "file": "org-versioning-security.spec.ts",
-              "line": 179,
+              "id": "de998b527cb1c2d95910-78561e3a4ca598746b54",
+              "file": "smoke-react-query.spec.ts",
+              "line": 59,
               "column": 3
             }
           ]
@@ -214,11 +147,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-06-17T16:51:44.677Z",
-    "duration": 16096.543,
-    "expected": 4,
+    "startTime": "2026-06-23T14:53:33.520Z",
+    "duration": 4402.429,
+    "expected": 0,
     "skipped": 0,
-    "unexpected": 0,
+    "unexpected": 1,
     "flaky": 0
   }
 }

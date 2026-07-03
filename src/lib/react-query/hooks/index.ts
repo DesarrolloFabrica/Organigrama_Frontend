@@ -5,6 +5,7 @@ export {
 } from "./useOrgChartChildren";
 export { useOrgChartNode } from "./useOrgChartNode";
 export { useOrgChartSummary } from "./useOrgChartSummary";
+export { useOrgChartVacancies } from "./useOrgChartVacancies";
 export { useProfile } from "./useProfile";
 export { usePatchProfile, usePostPhotoFromGoogle } from "./useProfileMutations";
 export {
@@ -13,5 +14,7 @@ export {
   type OnboardingStatus,
 } from "./useOnboardingStatus";
 export { useOrgPersonDetail } from "./useOrgPersonDetail";
+export { useOrgPersonCv } from "./useOrgPersonCv";
 export { useOrgChartSearch } from "./useOrgChartSearch";
 export { useDebouncedValue } from "./useDebouncedValue";
+export { useOrgChartHealthQuery, healthQueryKey } from "./useOrgChartHealth";

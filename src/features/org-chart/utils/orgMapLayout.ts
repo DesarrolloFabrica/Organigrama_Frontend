@@ -28,8 +28,8 @@ export type OrgMapNodeInteractiveData = OrgMapNodeData & {
   internalTeamMembers: OrgNode[]
   onToggleExpand: (nodeId: string) => void
   onOpenDetail: (nodeId: string) => void
-  /** Navegación a vista de sub-organigrama centrada en el nodo. */
-  onExploreTeam?: (nodeId: string) => void
+  /** Navegación a vista de sub-organigrama centrada en el nodo (con su posición). */
+  onExploreTeam?: (nodeId: string, relationId?: string | null) => void
   /** Petición en curso de hijos directos bajo demanda. */
   loadingChildren?: boolean
   /** Tema cromático 1..5 (resuelto en la vista). */

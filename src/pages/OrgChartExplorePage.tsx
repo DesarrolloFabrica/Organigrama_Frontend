@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useHoldRouteTransition } from "../contexts/RouteTransitionContext";
 import { type OrgNode, countPeopleUnder } from "../features/org-chart/types";
 import { findNodeInTree } from "../features/org-chart/utils/findNodeInTree";
-import { fetchHealth } from "../features/org-chart/services/orgChartService";
 import { mergeChildrenIntoTree } from "../features/org-chart/utils/mergeChildrenIntoTree";
 import { patchNodePhotoUrl } from "../features/org-chart/utils/patchNodePhotoUrl";
 import { OrgMapView } from "../features/org-chart/components/OrgMapView";
 import { TeamScrollListView } from "../features/org-chart/components/TeamScrollListView";
 import { PersonDetailPanel } from "../features/org-chart/components/PersonDetailPanel";
-import { OrgChartSearchPanel } from "../features/org-chart/components/OrgChartSearchPanel";
+import { PersonDetailRestoreButton } from "../features/org-chart/components/PersonDetailRestoreButton";
 import { OrgChartVersionBar } from "../features/org-chart/components/OrgChartVersionBar";
-import { useOrgChartVersionQueryId } from "../features/org-chart/context/OrgChartVersionContext";
-import { LogoutButton } from "../features/org-chart/components/LogoutButton";
+import { useOrgChartVersionQueryId, useOrgChartVersionReady } from "../features/org-chart/context/OrgChartVersionContext";
+import { fetchOrgChartNode } from "../features/org-chart/services/orgChartService";
+import { OrgChartHeader } from "../features/org-chart/components/OrgChartHeader";
+import { useOrgChartConnection } from "../features/org-chart/hooks/useOrgChartConnection";
 import { NodeSummaryPanel } from "../features/org-chart/components/NodeSummaryPanel";
 import { orgNodeHasDirectReports } from "../features/org-chart/types";
 import { resolveTeamDisplayTier } from "../features/org-chart/utils/orgMapDisplayPolicy";
@@ -30,31 +31,38 @@ import {
 import { orgQueryKeys } from "../lib/react-query/queryKeys";
 import { prefetchDirectChildrenHints } from "../lib/react-query/orgChartPrefetch";
 
-type ConnState = "checking" | "online" | "offline";
-
 const MAP_MAX_LEVELS = 4;
 
 type ExploreBodyProps = {
   personId: string;
-  conn: ConnState;
+  /** Posición visual (`org_visual_relation.id`) que se está explorando, si aplica. */
+  relationId: string | null;
 };
 
-function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
+function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
+  const conn = useOrgChartConnection();
   const navigate = useNavigate();
   const location = useLocation();
   const teamNavState = readOrgTeamNavState(location.state);
   const queryClient = useQueryClient();
   const versionId = useOrgChartVersionQueryId();
+  const versionReady = useOrgChartVersionReady();
   const {
     data: tree,
     isLoading,
     isError,
     error,
-  } = useOrgChartNode(personId);
+  } = useOrgChartNode(personId, true, relationId);
 
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [detailPanelMinimized, setDetailPanelMinimized] = useState(false);
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedPersonId(null);
+    setDetailPanelMinimized(false);
+    setExpandedNodeId(null);
+  }, [personId, relationId]);
 
   const chartError = isError
     ? error instanceof Error
@@ -62,7 +70,7 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
       : "Error desconocido al cargar el equipo"
     : null;
 
-  useHoldRouteTransition(isLoading && !tree);
+  useHoldRouteTransition(!versionReady || (isLoading && !tree));
 
   const treeDescendantCount =
     tree && selectedPersonId
@@ -78,15 +86,26 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
   }, []);
 
   const handleExploreTeam = useCallback(
-    (id: string) => {
-      navigate(buildTeamExplorePath(id), {
+    (id: string, childRelationId?: string | null) => {
+      const nodeKey = orgQueryKeys.node(id, versionId, childRelationId);
+      void queryClient.prefetchQuery({
+        queryKey: nodeKey,
+        queryFn: () =>
+          fetchOrgChartNode(
+            id,
+            versionId || childRelationId != null
+              ? { versionId, relationId: childRelationId }
+              : undefined,
+          ),
+      });
+      navigate(buildTeamExplorePath(id, childRelationId), {
         state: buildTeamExploreNavState({
           currentPersonId: personId,
           navState: teamNavState,
         }),
       });
     },
-    [navigate, personId, teamNavState],
+    [navigate, personId, teamNavState, queryClient, versionId],
   );
 
   const handleBack = useCallback(() => {
@@ -95,21 +114,25 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
   }, [navigate, teamNavState]);
 
   const handleLoadChildren = useCallback(
-    async (parentId: string) => {
+    async (parentId: string, childRelationId?: string | null) => {
       const loaded = await queryClient.fetchQuery(
-        orgChartChildrenQueryOptions(parentId, versionId),
+        orgChartChildrenQueryOptions(parentId, versionId, childRelationId),
       );
-      const current = queryClient.getQueryData<OrgNode>(
-        orgQueryKeys.node(personId, versionId),
-      );
+      const nodeKey = orgQueryKeys.node(personId, versionId, relationId);
+      const current = queryClient.getQueryData<OrgNode>(nodeKey);
       if (current) {
-        const merged = mergeChildrenIntoTree(current, parentId, loaded);
-        queryClient.setQueryData(orgQueryKeys.node(personId, versionId), merged);
+        const merged = mergeChildrenIntoTree(
+          current,
+          parentId,
+          loaded,
+          childRelationId,
+        );
+        queryClient.setQueryData(nodeKey, merged);
       }
-      prefetchDirectChildrenHints(queryClient, loaded, versionId);
+      prefetchDirectChildrenHints(queryClient, parentId, loaded, versionId);
       return loaded;
     },
-    [queryClient, personId, versionId],
+    [queryClient, personId, versionId, relationId],
   );
 
   const displayTier = tree ? resolveTeamDisplayTier(tree) : null;
@@ -121,115 +144,32 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
 
   useEffect(() => {
     if (!needsChildrenLoad) return;
-    void handleLoadChildren(tree!.id);
+    void handleLoadChildren(tree!.id, tree!.relation_id ?? null);
   }, [handleLoadChildren, needsChildrenLoad, tree]);
 
   const handleDetailPhotoUrl = useCallback(
     (id: string, photoUrl: string) => {
-      const current = queryClient.getQueryData<OrgNode>(
-        orgQueryKeys.node(personId, versionId),
-      );
+      const nodeKey = orgQueryKeys.node(personId, versionId, relationId);
+      const current = queryClient.getQueryData<OrgNode>(nodeKey);
       if (current) {
         queryClient.setQueryData(
-          orgQueryKeys.node(personId, versionId),
+          nodeKey,
           patchNodePhotoUrl(current, id, photoUrl),
         );
       }
     },
-    [queryClient, personId, versionId],
+    [queryClient, personId, versionId, relationId],
   );
-
-  const apiBaseDisplay =
-    import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
-
-  const statusPill =
-    conn === "checking" ? (
-      <div
-        role="status"
-        title={`API: ${apiBaseDisplay}`}
-        className="inline-flex max-w-44 items-center gap-1.5 rounded-md border border-slate-200/90 bg-white/80 px-2 py-1 shadow-sm"
-      >
-        <span className="relative flex size-1.5 shrink-0" aria-hidden>
-          <span className="absolute inline-flex size-1.5 animate-ping rounded-full bg-amber-400/50" />
-          <span className="relative size-1.5 rounded-full bg-amber-500" />
-        </span>
-        <span className="truncate text-[11px] font-medium text-slate-700">
-          Verificando…
-        </span>
-      </div>
-    ) : conn === "online" ? (
-      <div
-        role="status"
-        title={`API: ${apiBaseDisplay}`}
-        className="inline-flex max-w-44 items-center gap-1.5 rounded-md border border-emerald-200/80 bg-emerald-50/80 px-2 py-1 shadow-sm ring-1 ring-cyan-500/8"
-      >
-        <span
-          className="size-1.5 shrink-0 rounded-full bg-emerald-500"
-          aria-hidden
-        />
-        <span className="truncate text-[11px] font-semibold text-slate-800">
-          Conectado
-        </span>
-      </div>
-    ) : (
-      <div
-        role="status"
-        title={`API: ${apiBaseDisplay}`}
-        className="inline-flex max-w-44 items-center gap-1.5 rounded-md border border-rose-200/90 bg-rose-50/90 px-2 py-1 shadow-sm"
-      >
-        <span
-          className="size-1.5 shrink-0 rounded-full bg-rose-500"
-          aria-hidden
-        />
-        <span className="truncate text-[11px] font-medium text-rose-900">
-          Sin conexión
-        </span>
-      </div>
-    );
 
   const detailOverlayOpen = Boolean(selectedPersonId && !detailPanelMinimized);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col [--app-header-h:2.75rem] sm:[--app-header-h:3rem]">
-      <header className="sticky top-0 z-20 shrink-0 border-b border-cyan-300/15 bg-[#020617]/82 shadow-[0_12px_38px_-20px_rgba(34,211,238,0.45)] backdrop-blur-xl">
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-cyan-500/30 to-transparent"
-          aria-hidden
-        />
-        <div className="mx-auto flex h-[var(--app-header-h)] max-w-7xl items-center justify-between px-3 sm:px-4 lg:px-6">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <h1 className="truncate text-sm font-semibold tracking-tight text-slate-100 sm:text-[0.9375rem]">
-              Organigrama OP
-            </h1>
-            <span
-              className="hidden h-3 w-px shrink-0 bg-slate-200 sm:block"
-              aria-hidden
-            />
-            <span className="hidden truncate font-mono text-[10px] font-medium uppercase tracking-wider text-cyan-100/90 sm:inline">
-              Dirección de Operaciones
-            </span>
-          </div>
-
-          <div className="pointer-events-none absolute left-1/2 hidden -translate-x-1/2 sm:block">
-            <span className="hidden rounded-full border border-cyan-300/15 bg-cyan-300/5 px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.28em] text-cyan-100/65 shadow-[0_0_22px_rgba(34,211,238,0.08)] sm:inline-flex">
-              <span
-                className="size-1 rounded-full bg-cyan-500/55"
-                aria-hidden
-              />
-              Mapa operacional
-            </span>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
-            {statusPill}
-            <OrgChartSearchPanel
-              inputId="org-chart-search-explore"
-              onSelectHit={handleSelectNodeFromMap}
-            />
-            <LogoutButton />
-          </div>
-        </div>
-      </header>
+    <div className="flex min-h-0 flex-1 flex-col [--app-header-h:3.25rem] sm:[--app-header-h:3.5rem]">
+      <OrgChartHeader
+        conn={conn}
+        onSelectSearchHit={handleSelectNodeFromMap}
+        searchInputId="org-chart-search-explore"
+      />
 
       <OrgChartVersionBar />
 
@@ -258,14 +198,16 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
           </div>
         ) : tree ? (
             <>
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 top-[var(--app-header-h)] z-20 flex items-start justify-start pb-3 pr-3 pt-14 pl-7 sm:pb-4 sm:pr-4 sm:pt-10 sm:pl-10">
-                <NodeSummaryPanel personId={expandedNodeId ?? personId} />
+              <div className="node-summary-panel__slot">
+                <div className="node-summary-panel__dock pointer-events-auto">
+                  <NodeSummaryPanel personId={expandedNodeId ?? personId} />
+                </div>
               </div>
 
               <div className="absolute inset-0 z-0 flex min-h-0 flex-col">
                 {displayTier === "teamListPage" ? (
                   <TeamScrollListView
-                    key={tree.id}
+                    key="explore-list"
                     leader={tree}
                     onSelectPerson={handleSelectNodeFromMap}
                     onExploreTeam={handleExploreTeam}
@@ -274,7 +216,7 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
                   />
                 ) : (
                   <OrgMapView
-                    key={tree.id}
+                    key="explore-map"
                     variant="fullscreen"
                     root={tree}
                     selectedPersonId={selectedPersonId}
@@ -283,9 +225,10 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
                     initialShowRootChildren
                     onExploreTeam={handleExploreTeam}
                     onLoadChildren={handleLoadChildren}
-                    onDirectChildrenVisible={(children) =>
+                    onDirectChildrenVisible={(parentId, children) =>
                       prefetchDirectChildrenHints(
                         queryClient,
+                        parentId,
                         children,
                         versionId,
                       )
@@ -322,15 +265,9 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
               </div>
 
               {selectedPersonId && detailPanelMinimized ? (
-                <button
-                  type="button"
-                  className="pointer-events-auto fixed bottom-5 right-4 z-40 inline-flex items-center gap-2 rounded-lg border border-slate-200/90 bg-white/95 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-800 shadow-lg backdrop-blur-sm transition hover:border-cyan-300/60 hover:text-cyan-900 sm:absolute sm:bottom-auto sm:right-5 sm:top-1/2 sm:-translate-y-1/2"
-                  onClick={() => setDetailPanelMinimized(false)}
-                  aria-label="Mostrar ficha técnica"
-                >
-                  <span className="font-mono text-[10px] text-cyan-700/90" aria-hidden>◈</span>
-                  Ficha
-                </button>
+                <PersonDetailRestoreButton
+                  onRestore={() => setDetailPanelMinimized(false)}
+                />
               ) : null}
             </>
         ) : null}
@@ -341,27 +278,21 @@ function OrgChartExploreBody({ personId, conn }: ExploreBodyProps) {
 
 export function OrgChartExplorePage() {
   const { personId } = useParams<{ personId: string }>();
-  const [conn, setConn] = useState<ConnState>("checking");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    fetchHealth()
-      .then(() => {
-        if (!cancelled) setConn("online");
-      })
-      .catch(() => {
-        if (!cancelled) setConn("offline");
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const [searchParams] = useSearchParams();
+  const versionId = useOrgChartVersionQueryId();
+  const relationId = searchParams.get("relationId");
 
   if (!personId) {
     return <Navigate to="/" replace />;
   }
 
-  return <OrgChartExploreBody key={personId} personId={personId} conn={conn} />;
+  // Re-montar al cambiar versión o posición (relationId); personId se maneja por
+  // props + reset de UI. Así no se mezcla el equipo de dos posiciones distintas.
+  return (
+    <OrgChartExploreBody
+      key={`v:${versionId ?? "active"}:r:${relationId ?? "none"}`}
+      personId={personId}
+      relationId={relationId}
+    />
+  );
 }

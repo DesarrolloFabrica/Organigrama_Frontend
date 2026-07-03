@@ -4,8 +4,13 @@ export type OrgTeamNavState = {
   breadcrumb: string[];
 };
 
-export function buildTeamExplorePath(personId: string): string {
-  return `/org/team/${encodeURIComponent(personId)}`;
+export function buildTeamExplorePath(
+  personId: string,
+  relationId?: string | null,
+): string {
+  const base = `/org/team/${encodeURIComponent(personId)}`;
+  if (relationId == null) return base;
+  return `${base}?relationId=${encodeURIComponent(relationId)}`;
 }
 
 export function readOrgTeamNavState(

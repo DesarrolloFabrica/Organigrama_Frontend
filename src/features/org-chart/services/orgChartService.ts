@@ -2,9 +2,12 @@ import { getAccessToken } from '../../../auth/authStorage'
 import type {
   GeneralAreaSummary,
   OrgChartSearchHit,
+  OrgChartVacancy,
+  OrgChartVacancyListResponse,
   OrgNode,
   OrgPersonDetail,
   OrgSummaryResponse,
+  PersonCvResponse,
 } from '../types'
 import type {
   CreateOrgChartSnapshotPayload,
@@ -126,6 +129,16 @@ export async function fetchOrgPersonDetail(
   )
 }
 
+/**
+ * Estado de la hoja de vida (CV) de una persona.
+ * Llama a GET /api/org-chart/person/:personId/cv reutilizando getJson, que
+ * adjunta automáticamente el JWT. NO consulta Google Drive desde el frontend.
+ */
+export async function getPersonCv(personId: number): Promise<PersonCvResponse> {
+  const safeId = encodeURIComponent(String(personId))
+  return getJson<PersonCvResponse>(`/api/org-chart/person/${safeId}/cv`)
+}
+
 /** Comprueba que el backend responde; útil para indicadores en cabecera. */
 export async function fetchHealth(): Promise<{ ok: boolean }> {
   return getJson<{ ok: boolean }>('/api/health')
@@ -148,6 +161,17 @@ export async function fetchGeneralAreasSummary(
   return getJson<GeneralAreaSummary[]>(
     withVersionQuery('/api/org-chart/summary/general-areas', options),
   )
+}
+
+/**
+ * Vacantes reales del schema `vacancies` (solo `operation_status = requisition_sent`).
+ * Consulta complementaria: no forma parte del árbol ni de las relaciones visuales.
+ */
+export async function fetchOrgChartVacancies(): Promise<OrgChartVacancy[]> {
+  const res = await getJson<OrgChartVacancyListResponse>(
+    '/api/org-chart/vacancies',
+  )
+  return res.items ?? []
 }
 
 /** Resumen jerárquico de un nodo: general + desglose por hijos directos. */

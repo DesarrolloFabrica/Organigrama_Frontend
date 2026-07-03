@@ -5,7 +5,7 @@ import {
   orgPersonDisplayName,
   orgPersonHasFullProfile,
 } from "../types";
-import { useOrgPersonDetail } from "../../../lib/react-query/hooks";
+import { useOrgPersonDetail, useOrgPersonCv } from "../../../lib/react-query/hooks";
 import { withPhotoAccessToken } from "../../../auth/photoUrl";
 import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
 
@@ -98,7 +98,7 @@ function EntityScanShell({
   return (
     <aside
       className={[
-        "entity-scan-shell flex flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-linear-to-b from-slate-50/95 via-white/92 to-slate-100/88 shadow-[0_20px_50px_-28px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-md",
+        "entity-scan-shell flex flex-col overflow-hidden rounded-2xl border border-cyan-400/20 bg-[#020617]/94 shadow-[0_0_0_1px_rgba(34,211,238,0.08),0_24px_64px_-16px_rgba(0,0,0,0.65),0_0_40px_rgba(34,211,238,0.08)] backdrop-blur-2xl",
         heightClasses,
         className,
       ]
@@ -106,9 +106,8 @@ function EntityScanShell({
         .join(" ")}
       aria-label={ariaLabel}
     >
-      {/* Acento superior muy fino — coherencia con cabecera organigrama */}
       <div
-        className="pointer-events-none h-px shrink-0 bg-linear-to-r from-transparent via-cyan-500/35 to-transparent"
+        className="pointer-events-none h-px shrink-0 bg-linear-to-r from-transparent via-cyan-400/50 to-transparent"
         aria-hidden
       />
       {children}
@@ -119,7 +118,7 @@ function EntityScanShell({
 type HudSectionIconKind = "contact" | "org" | "location" | "team" | "path";
 
 function HudSectionIcon({ kind }: { kind: HudSectionIconKind }) {
-  const className = "size-[18px] text-slate-600";
+  const className = "size-[18px] text-cyan-300/80";
   const stroke = "currentColor";
   const sw = 1.5;
 
@@ -200,14 +199,14 @@ function HudSectionRail({ icon }: { icon: HudSectionIconKind }) {
       className="flex w-10 shrink-0 flex-col items-center sm:w-11"
       aria-hidden
     >
-      <div className="flex size-9 items-center justify-center rounded-full border border-slate-200/80 bg-slate-50/90 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="flex size-9 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-950/40 shadow-[0_0_16px_rgba(34,211,238,0.1)]">
         <HudSectionIcon kind={icon} />
       </div>
       <div className="mt-2 flex min-h-[28px] flex-1 flex-col items-center gap-1.5 py-0.5">
-        <div className="w-px flex-1 min-h-4 bg-linear-to-b from-slate-300/70 via-slate-200/40 to-transparent" />
-        <span className="size-1 rounded-full bg-slate-300/80" />
-        <span className="size-1 rounded-full bg-slate-300/55" />
-        <span className="size-1 rounded-full bg-slate-300/35" />
+        <div className="w-px flex-1 min-h-4 bg-linear-to-b from-cyan-400/35 via-cyan-400/15 to-transparent" />
+        <span className="size-1 rounded-full bg-cyan-400/50" />
+        <span className="size-1 rounded-full bg-cyan-400/35" />
+        <span className="size-1 rounded-full bg-cyan-400/20" />
       </div>
     </div>
   );
@@ -232,7 +231,7 @@ function HudSection({
   return (
     <section
       id={id}
-      className="overflow-hidden rounded-xl border border-slate-200/70 bg-white shadow-[0_4px_18px_-14px_rgba(15,23,42,0.12)]"
+      className="overflow-hidden rounded-xl border border-cyan-400/12 bg-[#06111f]/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_8px_24px_-16px_rgba(0,0,0,0.45)]"
       aria-labelledby={`${id}-title`}
     >
       <div className="flex min-w-0 gap-2.5 px-2.5 py-3 sm:gap-3 sm:px-3 sm:py-3.5">
@@ -242,22 +241,22 @@ function HudSection({
           <header className="pb-2">
             <div className="flex min-w-0 items-center gap-1.5">
               <span
-                className="size-1.5 shrink-0 rounded-full bg-sky-600/75"
+                className="size-1.5 shrink-0 rounded-full bg-cyan-400/80 shadow-[0_0_8px_rgba(34,211,238,0.45)]"
                 aria-hidden
               />
               <h3
                 id={`${id}-title`}
-                className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600"
+                className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-100/80"
               >
                 {title}
               </h3>
             </div>
             <div className="mt-1.5 flex items-center gap-0" aria-hidden>
-              <span className="h-px w-5 shrink-0 bg-sky-600/45" />
-              <span className="h-px min-w-0 flex-1 bg-slate-200/90" />
+              <span className="h-px w-5 shrink-0 bg-cyan-400/45" />
+              <span className="h-px min-w-0 flex-1 bg-cyan-400/10" />
             </div>
             {subtitle ? (
-              <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
+              <p className="mt-1.5 text-[11px] leading-snug text-slate-400">
                 {subtitle}
               </p>
             ) : null}
@@ -283,17 +282,17 @@ function HudDetailRow({
   const isEmpty = value === "—";
 
   return (
-    <div className="relative grid grid-cols-[minmax(0,6.75rem)_1fr] gap-x-2.5 gap-y-0.5 py-2 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-linear-to-r after:from-transparent after:via-slate-200/90 after:to-transparent last:py-1.5 last:after:hidden sm:grid-cols-[minmax(0,7.75rem)_1fr] sm:gap-x-3 sm:py-2.5">
+    <div className="relative grid grid-cols-[minmax(0,6.75rem)_1fr] gap-x-2.5 gap-y-0.5 py-2 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-linear-to-r after:from-transparent after:via-cyan-400/12 after:to-transparent last:py-1.5 last:after:hidden sm:grid-cols-[minmax(0,7.75rem)_1fr] sm:gap-x-3 sm:py-2.5">
       <dt className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">
         {label}
       </dt>
       <dd
         className={[
-          "min-w-0 text-[13px] leading-snug text-slate-900",
+          "min-w-0 text-[13px] leading-snug text-slate-100",
           isEmpty
-            ? "font-normal text-slate-400/60"
+            ? "font-normal text-slate-500/70"
             : emphasized
-              ? "font-bold tracking-tight"
+              ? "font-bold tracking-tight text-cyan-50"
               : "font-semibold",
         ].join(" ")}
       >
@@ -305,6 +304,136 @@ function HudDetailRow({
         ) : null}
       </dd>
     </div>
+  );
+}
+
+/** Ícono de documento (hoja de vida). SVG inline, coherente con el set del panel. */
+function IconFileText({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14 3v5h5M8.5 13h7M8.5 16.5h7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Ícono de enlace externo (abre en nueva pestaña). */
+function IconExternalLink({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M14 5h5v5M19 5l-7 7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M17 13.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/**
+ * Acción secundaria de hoja de vida (CV).
+ *
+ * - Consulta el backend (GET /api/org-chart/person/:id/cv) vía React Query.
+ * - NO consulta Google Drive ni muestra la URL en pantalla.
+ * - Estados: cargando / con CV (botón) / sin CV (info) / error (texto discreto).
+ */
+function PersonCvAction({ personId }: { personId: string }) {
+  const [requested, setRequested] = useState(false);
+  const { data: cv, isLoading, isError } = useOrgPersonCv(personId, requested);
+
+  useEffect(() => {
+    setRequested(false);
+  }, [personId]);
+
+  const shellClass =
+    "mt-1 flex items-center gap-2 rounded-lg border border-cyan-400/15 bg-cyan-950/30 px-3 py-2 text-[12px]";
+
+  if (!requested) {
+    return (
+      <button
+        type="button"
+        onClick={() => setRequested(true)}
+        className="mt-1 inline-flex items-center gap-2 rounded-lg border border-cyan-400/20 bg-cyan-950/30 px-3 py-2 text-[12px] font-medium text-cyan-100/90 transition hover:border-cyan-300/35 hover:bg-cyan-500/10"
+      >
+        <IconFileText className="size-4 shrink-0 text-cyan-300/80" />
+        Consultar hoja de vida
+      </button>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className={shellClass} aria-busy="true">
+        <span className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-cyan-900/60 border-t-cyan-300" />
+        <span className="font-medium text-slate-400">
+          Consultando hoja de vida…
+        </span>
+      </div>
+    );
+  }
+
+  // 2) Error: texto discreto (no parece fallo grave).
+  if (isError) {
+    return (
+      <div className={`${shellClass} text-slate-500`}>
+        No fue posible consultar la hoja de vida
+      </div>
+    );
+  }
+
+  // 3) Sin CV: información normal, no error.
+  if (!cv?.hasCv) {
+    return (
+      <div className={`${shellClass} text-slate-400`}>
+        <IconFileText className="size-4 shrink-0 text-slate-500" />
+        Hoja de vida no disponible
+      </div>
+    );
+  }
+
+  // 4) Con CV: botón secundario que abre el PDF en nueva pestaña.
+  const viewUrl = cv.viewUrl;
+
+  const handleOpen = () => {
+    // Seguridad: no abrir si la URL viene vacía.
+    if (!viewUrl) return;
+    // Nueva pestaña aislada (sin acceso a window.opener, sin filtrar referrer).
+    window.open(viewUrl, "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleOpen}
+      disabled={!viewUrl}
+      title="Abrir hoja de vida en Google Drive"
+      aria-label="Abrir hoja de vida en Google Drive"
+      className="mt-1 inline-flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-[12px] font-semibold text-cyan-100 transition hover:border-cyan-300/45 hover:bg-cyan-500/15 hover:shadow-[0_0_16px_rgba(34,211,238,0.15)] disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <IconFileText className="size-4 shrink-0" />
+      <span>Ver hoja de vida</span>
+      <IconExternalLink className="size-3.5 shrink-0 text-cyan-300/80" />
+    </button>
   );
 }
 
@@ -337,22 +466,22 @@ function PersonDetailEmptyAside() {
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
         {/* Núcleo en reposo — panel de espera operacional */}
         <div
-          className="relative flex size-16 items-center justify-center rounded-full border border-cyan-500/20 bg-linear-to-br from-slate-100/90 to-white shadow-[0_0_24px_rgba(34,211,238,0.12),inset_0_1px_0_rgba(255,255,255,0.9)]"
+          className="relative flex size-16 items-center justify-center rounded-full border border-cyan-400/25 bg-cyan-950/40 shadow-[0_0_24px_rgba(34,211,238,0.15)]"
           aria-hidden
         >
-          <span className="font-mono text-xs font-bold tracking-widest text-cyan-700/80">
+          <span className="font-mono text-xs font-bold tracking-widest text-cyan-200/90">
             ◇
           </span>
           <span className="pointer-events-none absolute inset-1 rounded-full border border-dashed border-cyan-400/25" />
         </div>
-        <p className="mt-6 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+        <p className="mt-6 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
           Canal de lectura inactivo
         </p>
-        <p className="mt-2 text-base font-semibold tracking-tight text-slate-800">
+        <p className="mt-2 text-base font-semibold tracking-tight text-slate-100">
           Seleccione una entidad
         </p>
-        <p className="mt-2 max-w-68 text-sm leading-relaxed text-slate-600">
-          Use el control <span className="font-medium text-cyan-800">Detalle</span> en el
+        <p className="mt-2 max-w-68 text-sm leading-relaxed text-slate-400">
+          Use el control <span className="font-medium text-cyan-200/90">Detalle</span> en el
           mapa operacional para abrir la ficha técnica desde el servidor.
         </p>
       </div>
@@ -407,15 +536,15 @@ function PersonDetailLoaded({
           aria-busy="true"
         >
           <div
-            className="relative flex size-14 items-center justify-center rounded-full border border-cyan-500/25 bg-white/80"
+            className="relative flex size-14 items-center justify-center rounded-full border border-cyan-400/25 bg-cyan-950/40"
             aria-hidden
           >
-            <div className="size-7 animate-spin rounded-full border-2 border-slate-200 border-t-cyan-600" />
+            <div className="size-7 animate-spin rounded-full border-2 border-cyan-900/50 border-t-cyan-300" />
           </div>
-          <p className="mt-5 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+          <p className="mt-5 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
             Recuperando registro
           </p>
-          <p className="mt-1.5 text-sm font-medium text-slate-700">
+          <p className="mt-1.5 text-sm font-medium text-slate-300">
             Sincronizando ficha…
           </p>
         </div>
@@ -430,19 +559,19 @@ function PersonDetailLoaded({
         className="min-h-[200px]"
         layoutVariant={layoutVariant}
       >
-        <div className="border-b border-rose-200/60 bg-rose-50/50 px-4 py-3" role="alert">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-800/90">
+        <div className="border-b border-rose-400/20 bg-rose-950/30 px-4 py-3" role="alert">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-300/90">
             Fallo de enlace
           </p>
-          <p className="mt-1 text-sm font-semibold text-rose-950">
+          <p className="mt-1 text-sm font-semibold text-rose-100">
             Error al cargar la entidad
           </p>
-          <p className="mt-1 text-sm text-rose-900/90">{error}</p>
+          <p className="mt-1 text-sm text-rose-200/85">{error}</p>
           {onClose ? (
             <button
               type="button"
               onClick={onClose}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg border border-rose-300/80 bg-white/90 px-3 py-1.5 text-xs font-semibold text-rose-900 shadow-sm hover:bg-rose-50"
+              className="mt-4 inline-flex items-center gap-2 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-100 transition hover:bg-rose-500/15"
             >
               <IconClose className="size-3.5" />
               Cerrar panel
@@ -482,14 +611,14 @@ function PersonDetailLoaded({
       {/*
         Cabecera: núcleo + identidad + estado operativo + cierre táctico.
       */}
-      <header className="shrink-0 border-b border-slate-200/70 bg-linear-to-br from-white/90 via-slate-50/70 to-slate-100/50 px-4 pb-4 pt-3">
+      <header className="shrink-0 border-b border-cyan-400/15 bg-[#041018]/75 px-4 pb-4 pt-3">
         <div className="flex gap-3">
           <div
             className={[
               "relative flex size-13 shrink-0 items-center justify-center rounded-full border text-sm font-bold tracking-tight",
               isVacancy
-                ? "border-dashed border-slate-400/45 bg-slate-100/90 shadow-[0_0_16px_rgba(148,163,184,0.12)]"
-                : "border-cyan-500/22 bg-linear-to-br from-cyan-50/90 to-white text-cyan-900 shadow-[0_0_20px_rgba(34,211,238,0.12)]",
+                ? "border-dashed border-slate-500/40 bg-slate-900/50 text-slate-300 shadow-[0_0_16px_rgba(148,163,184,0.08)]"
+                : "border-cyan-400/30 bg-cyan-950/50 text-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.15)]",
             ].join(" ")}
             aria-hidden
           >
@@ -516,20 +645,20 @@ function PersonDetailLoaded({
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h2 className="truncate text-lg font-semibold tracking-tight text-slate-900">
+                <h2 className="truncate text-lg font-semibold tracking-tight text-slate-50">
                   {displayName}
                 </h2>
                 {hasFull ? (
-                  <p className="mt-0.5 text-sm font-medium leading-snug text-slate-600">
+                  <p className="mt-0.5 text-sm font-medium leading-snug text-slate-300">
                     {roleLabel}
                   </p>
                 ) : (
-                  <p className="mt-0.5 text-xs leading-snug text-slate-500">
+                  <p className="mt-0.5 text-xs leading-snug text-slate-400">
                     Vista limitada — sin permiso de ficha completa
                   </p>
                 )}
                 {isVacancy ? (
-                  <p className="mt-1.5 text-xs leading-snug text-slate-500">
+                  <p className="mt-1.5 text-xs leading-snug text-slate-400">
                     Plaza disponible dentro de la estructura operativa
                   </p>
                 ) : null}
@@ -539,7 +668,7 @@ function PersonDetailLoaded({
                   <button
                     type="button"
                     onClick={onMinimize}
-                    className="flex size-9 items-center justify-center rounded-lg border border-slate-200/90 bg-white/90 text-slate-600 shadow-sm transition hover:border-cyan-300/60 hover:text-cyan-900 hover:shadow-[0_0_12px_rgba(34,211,238,0.12)]"
+                    className="flex size-9 items-center justify-center rounded-lg border border-cyan-400/15 bg-white/5 text-slate-400 transition hover:border-cyan-300/35 hover:bg-cyan-500/10 hover:text-cyan-100"
                     aria-label="Minimizar panel de detalle"
                   >
                     <IconMinimize className="size-4" />
@@ -549,7 +678,7 @@ function PersonDetailLoaded({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="flex size-9 items-center justify-center rounded-lg border border-slate-200/90 bg-white/90 text-slate-600 shadow-sm transition hover:border-cyan-300/60 hover:text-cyan-900 hover:shadow-[0_0_12px_rgba(34,211,238,0.12)]"
+                    className="flex size-9 items-center justify-center rounded-lg border border-cyan-400/15 bg-white/5 text-slate-400 transition hover:border-cyan-300/35 hover:bg-cyan-500/10 hover:text-cyan-100"
                     aria-label="Cerrar panel de detalle"
                   >
                     <IconClose className="size-4" />
@@ -559,7 +688,7 @@ function PersonDetailLoaded({
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {isVacancy ? (
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-slate-400/55 bg-slate-100/90 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-slate-500/40 bg-slate-900/40 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-300">
                   <span
                     className="size-1.5 rounded-sm border border-dashed border-slate-500/70"
                     aria-hidden
@@ -567,9 +696,9 @@ function PersonDetailLoaded({
                   Vacante
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200/80 bg-emerald-50/90 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-emerald-900">
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-emerald-200">
                   <span
-                    className="size-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.45)]"
+                    className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.65)]"
                     aria-hidden
                   />
                   Entidad activa
@@ -614,7 +743,7 @@ function PersonDetailLoaded({
               />
               <HudDetailRow label="Teléfono" value={formatValue(profile.phone)} />
             </dl>
-            <div className="mt-3 border-t border-slate-100/90 pt-2">
+            <div className="mt-3 border-t border-cyan-400/10 pt-2">
               <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
                 Contacto de emergencia
               </p>
@@ -635,6 +764,19 @@ function PersonDetailLoaded({
                 />
               </dl>
             </div>
+            {/*
+              Acción secundaria: hoja de vida (CV).
+              Va debajo de los datos de contacto, no dentro del nodo del mapa.
+              Solo aplica a personas reales (no vacantes).
+            */}
+            {!isVacancy ? (
+              <div className="mt-3 border-t border-cyan-400/10 pt-2">
+                <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                  Hoja de vida
+                </p>
+                <PersonCvAction personId={personId} />
+              </div>
+            ) : null}
           </HudSection>
 
           <HudSection id="sec-org" title="Organización" icon="org">
@@ -698,16 +840,16 @@ function PersonDetailLoaded({
             </dl>
             {profile.direct_reports.length > 0 ? (
               <ul
-                className="mt-2 space-y-1.5 rounded-lg border border-slate-200/70 bg-slate-50/80 px-3 py-2.5"
+                className="mt-2 space-y-1.5 rounded-lg border border-cyan-400/12 bg-cyan-950/20 px-3 py-2.5"
                 aria-label="Lista de reportes directos"
               >
                 {profile.direct_reports.map((r) => (
                   <li
                     key={r.id}
-                    className="flex items-center gap-2 text-[13px] font-medium text-slate-800"
+                    className="flex items-center gap-2 text-[13px] font-medium text-slate-200"
                   >
                     <span
-                      className="size-1 shrink-0 rounded-full bg-slate-400/70"
+                      className="size-1 shrink-0 rounded-full bg-cyan-400/60"
                       aria-hidden
                     />
                     <span className="font-medium">{r.full_name}</span>
@@ -715,7 +857,7 @@ function PersonDetailLoaded({
                 ))}
               </ul>
             ) : (
-              <p className="mt-2 rounded-md border border-dashed border-slate-200/80 bg-slate-50/50 px-2 py-2 text-center text-xs text-slate-500">
+              <p className="mt-2 rounded-md border border-dashed border-cyan-400/15 bg-cyan-950/15 px-2 py-2 text-center text-xs text-slate-400">
                 Sin reportes directos en registro.
               </p>
             )}
@@ -723,7 +865,7 @@ function PersonDetailLoaded({
 
           <HudSection id="sec-path" title="Ruta jerárquica" icon="path">
             {profile.hierarchy_path.length === 0 ? (
-              <p className="text-center text-xs text-slate-500">
+              <p className="text-center text-xs text-slate-400">
                 Sin ruta disponible en sistema.
               </p>
             ) : (
@@ -731,17 +873,17 @@ function PersonDetailLoaded({
                 {profile.hierarchy_path.map((seg, i) => (
                   <li
                     key={seg.id}
-                    className="flex gap-2 rounded-lg border border-slate-200/70 bg-slate-50/60 px-2.5 py-2"
+                    className="flex gap-2 rounded-lg border border-cyan-400/12 bg-cyan-950/20 px-2.5 py-2"
                   >
-                    <span className="font-mono text-[10px] font-semibold tabular-nums text-sky-700/80">
+                    <span className="font-mono text-[10px] font-semibold tabular-nums text-cyan-300/80">
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <span className="text-[13px] font-semibold text-slate-900">
+                      <span className="text-[13px] font-semibold text-slate-100">
                         {seg.name}
                       </span>
                       {seg.role?.name ? (
-                        <span className="mt-0.5 block text-xs text-slate-600">
+                        <span className="mt-0.5 block text-xs text-slate-400">
                           {seg.role.name}
                         </span>
                       ) : null}

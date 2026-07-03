@@ -1,6 +1,16 @@
 import type { QueryKey } from "@tanstack/react-query";
 
-const isDev = import.meta.env.DEV;
+const STORAGE_KEY = "organigrama.rqDebug";
+
+function isTelemetryEnabled(): boolean {
+  if (import.meta.env.VITE_RQ_TELEMETRY === "true") return true;
+  if (typeof localStorage === "undefined") return false;
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 function formatKey(key: QueryKey): string {
   return JSON.stringify(key);
@@ -12,7 +22,7 @@ export function logQueryCacheAccess(
   queryKey: QueryKey,
   hit: boolean,
 ): void {
-  if (!isDev) return;
+  if (!isTelemetryEnabled()) return;
   console.debug(`[RQ cache] ${hit ? "HIT" : "MISS"} ${resource}`, {
     key: formatKey(queryKey),
   });
@@ -24,7 +34,7 @@ export function logQueryNetworkTiming(
   queryKey: QueryKey,
   durationMs: number,
 ): void {
-  if (!isDev) return;
+  if (!isTelemetryEnabled()) return;
   console.debug(`[RQ network] ${resource} ${durationMs.toFixed(0)}ms`, {
     key: formatKey(queryKey),
   });
@@ -36,7 +46,7 @@ export function logQueryServedFromCache(
   queryKey: QueryKey,
   durationMs: number,
 ): void {
-  if (!isDev) return;
+  if (!isTelemetryEnabled()) return;
   console.debug(`[RQ served] ${resource} from cache ${durationMs.toFixed(0)}ms`, {
     key: formatKey(queryKey),
   });

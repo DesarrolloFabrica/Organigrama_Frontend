@@ -21,7 +21,6 @@ import { orgNodeHasDirectReports } from "../types";
 import { OrgMapNode } from "./OrgMapNode";
 import { buildVisibleSubtree } from "../utils/buildVisibleSubtree";
 import {
-  deriveOrgMapRenderMode,
   resolveTeamDisplayTier,
   resolveTeamNavigation,
   shouldNavigateToTeamListPage,
@@ -33,6 +32,8 @@ import { buildOrgMap, type OrgMapNodeData } from "../utils/orgMapLayout";
 import { resolveOrgMapTheme, resolveOrgMapVisualLevel } from "../utils/orgMapLevelTheme";
 import { truncateTreeToMaxLevels } from "../utils/truncateOrgTreeLevels";
 import { RadarBackground } from "./RadarBackground";
+import { OrgMapSelectionProvider } from "../context/OrgMapSelectionContext";
+import { useOrgPerfLite } from "../context/OrgPerfLiteContext";
 
 type Props = {
   root: OrgNode;
@@ -41,11 +42,18 @@ type Props = {
   variant?: "default" | "fullscreen";
   maxRenderLevels?: number;
   initialShowRootChildren?: boolean;
-  onExploreTeam?: (nodeId: string) => void;
-  /** Carga hijos directos bajo demanda y actualiza el árbol en la página. */
-  onLoadChildren?: (parentId: string) => Promise<OrgNode[]>;
+  onExploreTeam?: (nodeId: string, relationId?: string | null) => void;
+  /**
+   * Carga hijos directos bajo demanda y actualiza el árbol en la página.
+   * `relationId` (posición visual) permite pedir el equipo de una posición
+   * concreta cuando la misma persona ocupa varias.
+   */
+  onLoadChildren?: (
+    parentId: string,
+    relationId?: string | null,
+  ) => Promise<OrgNode[]>;
   /** Tras materializar hijos directos (carga o ya en árbol): prefetch / hints. */
-  onDirectChildrenVisible?: (children: OrgNode[]) => void;
+  onDirectChildrenVisible?: (parentId: string, children: OrgNode[]) => void;
   /** Estado de mapa persistido (expansión + viewport) para restaurar al volver a /org. */
   persistedMapState?: OrgMapExpansionPersisted | null;
   onPersistedMapStateChange?: (state: OrgMapExpansionPersisted) => void;
@@ -284,6 +292,7 @@ function OrgMapViewportPersistence({
   const { getNodes, setViewport } = useReactFlow();
   const appliedLayoutKeyRef = useRef<string | null>(null);
   const prevLayoutKeyRef = useRef<string | null>(null);
+  const viewportPersistTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!persistedViewport) return;
@@ -327,12 +336,27 @@ function OrgMapViewportPersistence({
         zoom: viewport.zoom,
       };
       lastViewportRef.current = next;
-      onPersistedMapStateChange?.({
-        ...expansionPatch,
-        viewport: next,
-      });
+      if (viewportPersistTimerRef.current !== null) {
+        window.clearTimeout(viewportPersistTimerRef.current);
+      }
+      viewportPersistTimerRef.current = window.setTimeout(() => {
+        viewportPersistTimerRef.current = null;
+        onPersistedMapStateChange?.({
+          ...expansionPatch,
+          viewport: next,
+        });
+      }, 200);
     },
   });
+
+  useEffect(
+    () => () => {
+      if (viewportPersistTimerRef.current !== null) {
+        window.clearTimeout(viewportPersistTimerRef.current);
+      }
+    },
+    [],
+  );
 
   return null;
 }
@@ -396,6 +420,7 @@ export function OrgMapView({
   onBack,
   onExpandedNodeChange,
 }: Props): ReactElement {
+  const { liteMode, reportMetrics } = useOrgPerfLite();
   const hasPersistedViewport = Boolean(persistedMapState?.viewport);
   const lastViewportRef = useRef<OrgMapExpansionPersisted["viewport"]>(
     persistedMapState?.viewport ?? null,
@@ -411,6 +436,23 @@ export function OrgMapView({
     string | null
   >(null);
   const [mapReady, setMapReady] = useState(false);
+  const rootIdRef = useRef(root.id);
+
+  useEffect(() => {
+    if (rootIdRef.current === root.id) return;
+    rootIdRef.current = root.id;
+    setShowRootChildren(
+      persistedMapState?.showRootChildren ?? initialShowRootChildren,
+    );
+    setExpandedHubNodeId(persistedMapState?.expandedHubNodeId ?? null);
+    setLoadingChildrenNodeId(null);
+    setCameraNonce((nonce) => nonce + 1);
+  }, [
+    root.id,
+    initialShowRootChildren,
+    persistedMapState?.expandedHubNodeId,
+    persistedMapState?.showRootChildren,
+  ]);
 
   useEffect(() => {
     if (!onPersistedMapStateChange) return;
@@ -485,16 +527,6 @@ export function OrgMapView({
     onExpandedNodeChange?.(expandedId);
   }, [expandedHubNodeId, nodeById, onExpandedNodeChange, root, showRootChildren]);
 
-  const currentRenderMode = useMemo(
-    () =>
-      deriveOrgMapRenderMode({
-        rootExpanded: showRootChildren,
-        rootNode: nodeById.get(root.id) ?? root,
-        expandedHubNodeId,
-      }),
-    [expandedHubNodeId, nodeById, root, showRootChildren],
-  );
-
   const layoutRoot = useMemo(() => {
     const visible = buildVisibleSubtree(root, showRootChildren);
     if (maxRenderLevels == null) {
@@ -526,15 +558,15 @@ export function OrgMapView({
       }
 
       if (node.children.length > 0) {
-        onDirectChildrenVisible?.(node.children);
+        onDirectChildrenVisible?.(node.id, node.children);
         return node;
       }
 
       setLoadingChildrenNodeId(node.id);
       try {
-        const loaded = await onLoadChildren(node.id);
+        const loaded = await onLoadChildren(node.id, node.relation_id ?? null);
         if (loaded.length > 0) {
-          onDirectChildrenVisible?.(loaded);
+          onDirectChildrenVisible?.(node.id, loaded);
         }
         return {
           ...node,
@@ -592,7 +624,7 @@ export function OrgMapView({
       });
 
       if (navigation === "navigateToTeamPage") {
-        onExploreTeam?.(nodeId);
+        onExploreTeam?.(nodeId, nodeWithChildren.relation_id ?? null);
         return;
       }
 
@@ -624,7 +656,7 @@ export function OrgMapView({
     [onSelectNode],
   );
 
-  const nodesWithSelection = useMemo(
+  const baseInteractiveNodes = useMemo(
     () =>
       graph.nodes.map((node) => {
         const full = nodeById.get(node.id);
@@ -685,7 +717,6 @@ export function OrgMapView({
             pointerEvents: "all" as const,
             boxShadow: levelTheme.nodeBoxShadow,
           },
-          selected: selectedPersonId != null && node.id === selectedPersonId,
           data: {
             ...node.data,
             orgNode: orgNodeForView,
@@ -715,7 +746,6 @@ export function OrgMapView({
       loadingChildrenNodeId,
       nodeById,
       onExploreTeam,
-      selectedPersonId,
       showRootChildren,
     ],
   );
@@ -754,6 +784,25 @@ export function OrgMapView({
     () => resolveOrgMapVisualLevel(root, 0),
     [root],
   );
+
+  useEffect(() => {
+    reportMetrics("org-map-view", {
+      visibleNodeCount: graph.nodes.length,
+      directReportsCount:
+        root.direct_reports_count ?? root.children.length ?? 0,
+    });
+    return () => {
+      reportMetrics("org-map-view", {
+        visibleNodeCount: 0,
+        directReportsCount: 0,
+      });
+    };
+  }, [
+    graph.nodes.length,
+    reportMetrics,
+    root.children.length,
+    root.direct_reports_count,
+  ]);
 
   return (
     <div className={shellClass}>
@@ -802,6 +851,7 @@ export function OrgMapView({
                 {/* Gradiente radial superior */}
                 <div
                   className="
+            org-map-decor-glow
             absolute
             left-[-10%]
             top-[-20%]
@@ -816,6 +866,7 @@ export function OrgMapView({
                 {/* Glow inferior */}
                 <div
                   className="
+                    org-map-decor-glow
                     absolute
                     bottom-[-30%]
                     right-[-10%]
@@ -826,9 +877,7 @@ export function OrgMapView({
                     blur-3xl
                   "
                 />
-                <RadarBackground level={radarLevel} />
-
-                {/* Grid ortogonal (plano lógico alineado con el pan/zoom de React Flow). */}
+                {!liteMode ? <RadarBackground level={radarLevel} /> : null}
                 <div
                   className="absolute inset-0 opacity-[0.08]"
                   style={{
@@ -862,17 +911,20 @@ export function OrgMapView({
         org-map-flow: anclas para estilos en index.css (nodos, NUNCA .react-flow__viewport).
         El canvas permanece 2D: pan/zoom siguen siendo la única transformación del viewport.
       */}
+              <OrgMapSelectionProvider selectedPersonId={selectedPersonId}>
               <ReactFlow
                 className={[
                   "org-map-flow relative z-1 h-full w-full",
+                  liteMode ? "org-map-flow--lite" : "",
                   "transition-opacity duration-700 ease-out",
                   mapReady ? "opacity-100" : "opacity-0",
                 ].join(" ")}
                 proOptions={{ hideAttribution: true }}
+                onlyRenderVisibleElements
                 {...(persistedMapState?.viewport
                   ? { defaultViewport: persistedMapState.viewport }
                   : {})}
-                nodes={nodesWithSelection}
+                nodes={baseInteractiveNodes}
                 edges={edgesWithStyle}
                 nodeTypes={nodeTypes}
                 minZoom={0.25}
@@ -902,6 +954,7 @@ export function OrgMapView({
                   layoutRootId={layoutRoot.id}
                 />
               </ReactFlow>
+              </OrgMapSelectionProvider>
             </div>
           </section>
         </div>

@@ -8,4 +8,15 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('@xyflow/react')) return 'xyflow'
+          if (id.includes('@tanstack/react-query')) return 'react-query'
+          if (id.includes('@react-oauth/google')) return 'google-oauth'
+        },
+      },
+    },
+  },
 })

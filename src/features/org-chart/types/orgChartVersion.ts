@@ -20,4 +20,9 @@ export type CreateOrgChartSnapshotPayload = {
 
 export type OrgChartRequestOptions = {
   versionId?: number;
+  /**
+   * Posición visual (`org_visual_relation.id`) para pedir el equipo de una
+   * posición concreta de la persona (multi-posición). Opcional.
+   */
+  relationId?: number | string | null;
 };

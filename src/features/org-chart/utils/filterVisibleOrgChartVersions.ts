@@ -1,28 +1,13 @@
 import type { OrgChartVersion } from "../types/orgChartVersion";
 
-export type FilterOrgChartVersionsOptions = {
-  /** Muestra versiones locked e inactivas (p. ej. current, snapshot-prueba). */
-  showAdvancedHistorical?: boolean;
-};
-
 /**
- * Versiones relevantes para el selector del usuario técnico.
- * Solo usa `isActive` e `isLocked` (no el code).
+ * Versiones visibles en el selector del usuario técnico.
+ * El backend ya restringe el listado; aquí se devuelven todas las recibidas.
  */
 export function filterVisibleOrgChartVersions(
   versions: OrgChartVersion[],
-  options: FilterOrgChartVersionsOptions = {},
 ): OrgChartVersion[] {
-  const { showAdvancedHistorical = false } = options;
-
-  return versions.filter((version) => {
-    if (version.isActive) return true;
-    if (!version.isLocked && !version.isActive) return true;
-    if (showAdvancedHistorical && version.isLocked && !version.isActive) {
-      return true;
-    }
-    return false;
-  });
+  return versions;
 }
 
 export function orgChartVersionSelectorLabel(version: OrgChartVersion): string {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { OrganigramaOpLogo } from "../../../components/OrganigramaOpLogo";
 import type { AuthUser } from "../../../auth/types";
 import type { ProfileMe } from "../types";
 
@@ -76,10 +77,8 @@ export function OnboardingProfileIntro({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-200/75">
-          Organigrama OP
-        </p>
-        <h1 className="mt-1 truncate text-lg font-bold tracking-tight text-white sm:text-xl">
+        <OrganigramaOpLogo className="h-7 w-auto object-contain" />
+        <h1 className="mt-2 truncate text-lg font-bold tracking-tight text-white sm:text-xl">
           {fullName}
         </h1>
         <p className="mt-0.5 truncate text-sm text-cyan-100/85">{roleName}</p>

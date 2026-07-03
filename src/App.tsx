@@ -1,16 +1,42 @@
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import type { ReactNode } from "react";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { RouteTransitionProvider } from "./contexts/RouteTransitionContext";
 import { getGoogleClientId } from "./auth/authService";
 import { RequireAuth } from "./auth/RequireAuth";
 import { RequireProfileComplete } from "./auth/RequireProfileComplete";
 import { RequireProfileIncomplete } from "./auth/RequireProfileIncomplete";
-import { OrgChartPage } from "./pages/OrgChartPage";
-import { OnboardingPage } from "./pages/OnboardingPage";
-import { OrgChartExplorePage } from "./pages/OrgChartExplorePage";
-import { LoginPage } from "./pages/LoginPage";
-import { BootLoadingPage } from "./pages/BootLoadingPage";
-import { OrgChartVersionProvider } from "./features/org-chart/context/OrgChartVersionContext";
+import { PageLoadingScreen } from "./components/PageLoadingScreen";
+import { OrgChartLayout } from "./features/org-chart/layout/OrgChartLayout";
+
+const LoginPage = lazy(() =>
+  import("./pages/LoginPage").then((module) => ({ default: module.LoginPage })),
+);
+const OnboardingPage = lazy(() =>
+  import("./pages/OnboardingPage").then((module) => ({
+    default: module.OnboardingPage,
+  })),
+);
+const BootLoadingPage = lazy(() =>
+  import("./pages/BootLoadingPage").then((module) => ({
+    default: module.BootLoadingPage,
+  })),
+);
+const OrgChartPage = lazy(() =>
+  import("./pages/OrgChartPage").then((module) => ({
+    default: module.OrgChartPage,
+  })),
+);
+const OrgChartExplorePage = lazy(() =>
+  import("./pages/OrgChartExplorePage").then((module) => ({
+    default: module.OrgChartExplorePage,
+  })),
+);
+
+function RouteSuspense({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<PageLoadingScreen />}>{children}</Suspense>;
+}
 
 /** Shell de la app: organigrama global y exploración por equipo. */
 function App() {
@@ -33,14 +59,23 @@ function App() {
           <RouteTransitionProvider>
           <Routes>
             {/* Login temporal */}
-            <Route path="/" element={<LoginPage />} />
+            <Route
+              path="/"
+              element={
+                <RouteSuspense>
+                  <LoginPage />
+                </RouteSuspense>
+              }
+            />
 
             <Route
               path="/onboarding"
               element={
                 <RequireAuth>
                   <RequireProfileIncomplete>
-                    <OnboardingPage />
+                    <RouteSuspense>
+                      <OnboardingPage />
+                    </RouteSuspense>
                   </RequireProfileIncomplete>
                 </RequireAuth>
               }
@@ -51,51 +86,50 @@ function App() {
               element={
                 <RequireAuth>
                   <RequireProfileComplete>
-                    <BootLoadingPage />
+                    <RouteSuspense>
+                      <BootLoadingPage />
+                    </RouteSuspense>
                   </RequireProfileComplete>
                 </RequireAuth>
               }
             />
 
-            {/* Organigrama principal */}
             <Route
-              path="/org"
               element={
                 <RequireAuth>
                   <RequireProfileComplete>
-                    <OrgChartVersionProvider>
-                      <OrgChartPage />
-                    </OrgChartVersionProvider>
+                    <OrgChartLayout />
                   </RequireProfileComplete>
                 </RequireAuth>
               }
-            />
+            >
+              <Route
+                path="/org"
+                element={
+                  <RouteSuspense>
+                    <OrgChartPage />
+                  </RouteSuspense>
+                }
+              />
 
-            {/* Flujo de exploración actual */}
-            <Route
-              path="/org/team/:personId"
-              element={
-                <RequireAuth>
-                  <RequireProfileComplete>
-                    <OrgChartVersionProvider>
-                      <OrgChartExplorePage />
-                    </OrgChartVersionProvider>
-                  </RequireProfileComplete>
-                </RequireAuth>
-              }
-            />
-
-            {/* Compatibilidad con la ruta anterior */}
-            <Route
-              path="/org-chart/team/:personId"
-              element={
-                <RequireAuth>
-                  <RequireProfileComplete>
+              <Route
+                path="/org/team/:personId"
+                element={
+                  <RouteSuspense>
                     <OrgChartExplorePage />
-                  </RequireProfileComplete>
-                </RequireAuth>
-              }
-            />
+                  </RouteSuspense>
+                }
+              />
+
+              <Route
+                path="/org-chart/team/:personId"
+                element={
+                  <RouteSuspense>
+                    <OrgChartExplorePage />
+                  </RouteSuspense>
+                }
+              />
+            </Route>
 
             {/* Redirección antigua al organigrama */}
             <Route path="/org-chart" element={<Navigate to="/org" replace />} />

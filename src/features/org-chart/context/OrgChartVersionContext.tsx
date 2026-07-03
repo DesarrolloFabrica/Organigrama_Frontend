@@ -15,6 +15,23 @@ import { clearOrgChartMainSession } from "../state/orgChartMainSession";
 import { canUseOrgVersioning } from "../utils/canUseOrgVersioning";
 import { filterVisibleOrgChartVersions } from "../utils/filterVisibleOrgChartVersions";
 import { orgQueryKeys } from "../../../lib/react-query/queryKeys";
+import { clearPrefetchHintsState } from "../../../lib/react-query/orgChartPrefetch";
+
+function isOrgChartDataQuery(queryKey: readonly unknown[]): boolean {
+  const root = queryKey[0];
+  return (
+    typeof root === "string" &&
+    (orgQueryKeys.allOrgData as readonly string[]).includes(root)
+  );
+}
+
+function orgQueryBelongsToVersion(
+  queryKey: readonly unknown[],
+  versionId: number,
+): boolean {
+  if (!isOrgChartDataQuery(queryKey)) return false;
+  return queryKey.includes(versionId);
+}
 
 type OrgChartVersionContextValue = {
   canVersion: boolean;
@@ -23,8 +40,6 @@ type OrgChartVersionContextValue = {
   versions: OrgChartVersion[];
   isLoadingVersions: boolean;
   refetchVersions: () => void;
-  showAdvancedHistorical: boolean;
-  setShowAdvancedHistorical: (value: boolean) => void;
 };
 
 const OrgChartVersionContext = createContext<OrgChartVersionContextValue | null>(
@@ -38,8 +53,6 @@ export function OrgChartVersionProvider({ children }: { children: ReactNode }) {
   const [selectedVersionId, setSelectedVersionIdState] = useState<
     number | undefined
   >(undefined);
-  const [showAdvancedHistorical, setShowAdvancedHistorical] = useState(false);
-
   const versionsQuery = useQuery({
     queryKey: orgQueryKeys.versions,
     queryFn: fetchOrgChartVersions,
@@ -47,11 +60,8 @@ export function OrgChartVersionProvider({ children }: { children: ReactNode }) {
   });
 
   const visibleVersions = useMemo(
-    () =>
-      filterVisibleOrgChartVersions(versionsQuery.data ?? [], {
-        showAdvancedHistorical,
-      }),
-    [versionsQuery.data, showAdvancedHistorical],
+    () => filterVisibleOrgChartVersions(versionsQuery.data ?? []),
+    [versionsQuery.data],
   );
 
   useEffect(() => {
@@ -71,23 +81,26 @@ export function OrgChartVersionProvider({ children }: { children: ReactNode }) {
   const setSelectedVersionId = useCallback(
     (versionId: number) => {
       if (!canVersion) return;
+      if (versionId === selectedVersionId) return;
+
+      const previousVersionId = selectedVersionId;
+
       setSelectedVersionIdState(versionId);
       clearOrgChartMainSession();
-      void queryClient.removeQueries({
-        predicate: (query) => {
-          const root = query.queryKey[0];
-          return (
-            root === "org-root" ||
-            root === "org-node" ||
-            root === "org-children" ||
-            root === "org-summary" ||
-            root === "org-person-detail" ||
-            root === "org-search"
-          );
-        },
+      clearPrefetchHintsState();
+
+      void queryClient.cancelQueries({
+        predicate: (query) => isOrgChartDataQuery(query.queryKey),
       });
+
+      if (previousVersionId !== undefined) {
+        void queryClient.removeQueries({
+          predicate: (query) =>
+            orgQueryBelongsToVersion(query.queryKey, previousVersionId),
+        });
+      }
     },
-    [canVersion, queryClient],
+    [canVersion, queryClient, selectedVersionId],
   );
 
   const value = useMemo<OrgChartVersionContextValue>(
@@ -100,8 +113,6 @@ export function OrgChartVersionProvider({ children }: { children: ReactNode }) {
       refetchVersions: () => {
         void versionsQuery.refetch();
       },
-      showAdvancedHistorical,
-      setShowAdvancedHistorical,
     }),
     [
       canVersion,
@@ -110,7 +121,6 @@ export function OrgChartVersionProvider({ children }: { children: ReactNode }) {
       visibleVersions,
       versionsQuery.isLoading,
       versionsQuery,
-      showAdvancedHistorical,
     ],
   );
 
@@ -132,8 +142,6 @@ export function useOrgChartVersion() {
       versions: [] as OrgChartVersion[],
       isLoadingVersions: false,
       refetchVersions: () => undefined,
-      showAdvancedHistorical: false,
-      setShowAdvancedHistorical: () => undefined,
     };
   }
   return context;
@@ -143,4 +151,12 @@ export function useOrgChartVersion() {
 export function useOrgChartVersionQueryId(): number | undefined {
   const { canVersion, selectedVersionId } = useOrgChartVersion();
   return canVersion ? selectedVersionId : undefined;
+}
+
+/** true cuando las queries del organigrama pueden ejecutarse (versión resuelta si aplica). */
+export function useOrgChartVersionReady(): boolean {
+  const { canVersion, selectedVersionId, isLoadingVersions } =
+    useOrgChartVersion();
+  if (!canVersion) return true;
+  return !isLoadingVersions && selectedVersionId !== undefined;
 }

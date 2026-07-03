@@ -2,6 +2,7 @@ import { getAuthUser } from "../../../auth/authStorage";
 import type { OrgNode } from "../types";
 
 const SESSION_KEY = "organigrama.orgChartMain.v2";
+const SAVE_DEBOUNCE_MS = 500;
 
 export type OrgMapViewportPersisted = {
   x: number;
@@ -34,6 +35,8 @@ const defaultMapState = (): OrgMapExpansionPersisted => ({
 });
 
 let memorySession: OrgChartMainSession | null = null;
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingSave: OrgChartMainSession | null = null;
 
 export function getOrgChartSessionOwnerKey(): string | null {
   return getAuthUser()?.personId ?? null;
@@ -64,6 +67,31 @@ function writeToStorage(session: OrgChartMainSession | null): void {
   } catch {
     // Cuota o modo privado: memoria sigue activa en la pestaña.
   }
+}
+
+function flushPendingSave(): void {
+  if (saveTimer !== null) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  if (pendingSave) {
+    writeToStorage(pendingSave);
+    pendingSave = null;
+  }
+}
+
+function scheduleSave(session: OrgChartMainSession): void {
+  pendingSave = session;
+  if (saveTimer !== null) {
+    clearTimeout(saveTimer);
+  }
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    if (pendingSave) {
+      writeToStorage(pendingSave);
+      pendingSave = null;
+    }
+  }, SAVE_DEBOUNCE_MS);
 }
 
 function isSessionOwnedByCurrentUser(
@@ -102,13 +130,15 @@ export function getOrgChartMainSession(
 
 export function saveOrgChartMainSession(
   patch: Partial<Omit<OrgChartMainSession, "ownerKey">>,
+  options?: { immediate?: boolean },
 ): void {
   const ownerKey = getOrgChartSessionOwnerKey();
   if (!ownerKey) {
     return;
   }
 
-  const previous = getOrgChartMainSession();
+  const expectedVersionId = patch.versionId;
+  const previous = getOrgChartMainSession(expectedVersionId);
   const current: OrgChartMainSession = {
     ownerKey,
     tree: null,
@@ -124,10 +154,23 @@ export function saveOrgChartMainSession(
     },
   };
   memorySession = current;
-  writeToStorage(current);
+
+  if (options?.immediate) {
+    flushPendingSave();
+    writeToStorage(current);
+    return;
+  }
+
+  scheduleSave(current);
 }
 
 export function clearOrgChartMainSession(): void {
+  flushPendingSave();
   memorySession = null;
   writeToStorage(null);
+}
+
+/** Persiste el snapshot pendiente antes de navegar o cerrar la pestaña. */
+export function flushOrgChartMainSession(): void {
+  flushPendingSave();
 }

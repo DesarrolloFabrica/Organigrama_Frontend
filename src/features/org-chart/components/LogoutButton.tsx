@@ -15,9 +15,9 @@ export function LogoutButton() {
     <button
       type="button"
       onClick={handleLogout}
-      className="inline-flex items-center gap-2 rounded-lg border border-cyan-300/15 bg-white/20 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-cyan-300/35 hover:bg-white/30 hover:text-white"
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[10px] font-medium tracking-wide text-slate-400 transition hover:bg-white/[0.06] hover:text-slate-200"
     >
-      <span className="text-slate-400" aria-hidden>
+      <span className="text-slate-500" aria-hidden>
         <svg
           className="size-3.5"
           viewBox="0 0 20 20"

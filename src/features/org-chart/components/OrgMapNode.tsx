@@ -3,11 +3,17 @@ import { memo, useLayoutEffect } from "react";
 import type { NodeProps } from "@xyflow/react";
 import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
 
-import { formatRoleLabel, orgNodeHasDirectReports } from "../types";
+import {
+  formatRoleLabel,
+  isTemporalAssignment,
+  orgNodeHasDirectReports,
+  temporalBadgeLabel,
+} from "../types";
 import { shouldNavigateToTeamListPage } from "../utils/orgMapDisplayPolicy";
 import type { OrgMapNodeInteractiveData } from "../utils/orgMapLayout";
 import { orgMapNodeThemeToCssVars } from "../utils/orgMapLevelTheme";
 import { OrgMapExpandedTeamPanel } from "./OrgMapExpandedTeamPanel";
+import { useOrgMapSelection } from "../context/OrgMapSelectionContext";
 import { OrgMapNodePhoto } from "./OrgMapNodePhoto";
 import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
 
@@ -79,19 +85,14 @@ function IconScan({ className }: { className?: string }) {
  * Entidad holográfica en el lienzo OP.
  * Fila 2 expandida: la tarjeta crece y el nivel 3 se muestra como grid interno (hub).
  */
-function OrgMapNodeComponent({ id, data, selected }: NodeProps) {
+function OrgMapNodeComponent({ id, data }: NodeProps) {
   const typedData = data as OrgMapNodeInteractiveData;
+  const { selectedPersonId } = useOrgMapSelection();
+  const isSelected =
+    selectedPersonId != null && selectedPersonId === typedData.orgNode.id;
   const updateNodeInternals = useUpdateNodeInternals();
 
   const node = typedData.orgNode;
-
-  if (import.meta.env.DEV) {
-    console.log("[OrgMapNode photo]", {
-      id: node.id,
-      name: node.name,
-      photoUrl: node.photoUrl ?? null,
-    });
-  }
 
   const isVacancy = node.nodeKind === "vacancy";
   const isExpanded = typedData.isExpanded;
@@ -130,7 +131,7 @@ function OrgMapNodeComponent({ id, data, selected }: NodeProps) {
         "org-map-holo relative",
         showTeamHub ? "org-map-holo--hub" : "min-w-[288px] max-w-[300px]",
         isVacancy ? "org-map-holo--vacancy" : "",
-        selected ? "org-map-holo--selected" : "",
+        isSelected ? "org-map-holo--selected" : "",
         isExpanded ? "org-map-holo--expanded" : "",
       ]
         .filter(Boolean)
@@ -139,7 +140,7 @@ function OrgMapNodeComponent({ id, data, selected }: NodeProps) {
       data-visual-level={visualLevel}
       data-node-kind={isVacancy ? "vacancy" : "person"}
       data-expanded={isExpanded ? "true" : "false"}
-      data-selected={selected ? "true" : "false"}
+      data-selected={isSelected ? "true" : "false"}
       aria-label={
         isVacancy
           ? `Plaza disponible: ${node.name}`
@@ -219,6 +220,16 @@ function OrgMapNodeComponent({ id, data, selected }: NodeProps) {
           <p className="org-map-holo__role mt-1 line-clamp-2 text-[11px] font-medium leading-snug tracking-wide text-slate-400/92">
             {formatRoleLabel(node)}
           </p>
+
+          {isTemporalAssignment(node) ? (
+            <span
+              className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-400/45 bg-amber-400/12 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-amber-300"
+              title="Asignación temporal"
+            >
+              <span className="size-1.5 rounded-full bg-amber-400" aria-hidden />
+              {temporalBadgeLabel()}
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -256,7 +267,7 @@ function OrgMapNodeComponent({ id, data, selected }: NodeProps) {
             onPointerDown={stopMouse}
             onClick={(e) => {
               e.stopPropagation();
-              typedData.onExploreTeam?.(id);
+              typedData.onExploreTeam?.(id, node.relation_id ?? null);
             }}
           >
             <IconBranch className="org-map-holo__btn-icon-svg org-map-holo__btn-icon-svg--explore size-4 shrink-0" />
@@ -271,7 +282,7 @@ function OrgMapNodeComponent({ id, data, selected }: NodeProps) {
             onPointerDown={stopMouse}
             onClick={(e) => {
               e.stopPropagation();
-              typedData.onExploreTeam?.(id);
+              typedData.onExploreTeam?.(id, node.relation_id ?? null);
             }}
           >
             <IconBranch className="org-map-holo__btn-icon-svg org-map-holo__btn-icon-svg--explore size-4 shrink-0" />
@@ -337,7 +348,7 @@ function OrgMapNodeComponent({ id, data, selected }: NodeProps) {
 }
 
 function orgMapNodePropsAreEqual(prev: NodeProps, next: NodeProps): boolean {
-  if (prev.id !== next.id || prev.selected !== next.selected) {
+  if (prev.id !== next.id) {
     return false;
   }
 
@@ -356,12 +367,43 @@ function orgMapNodePropsAreEqual(prev: NodeProps, next: NodeProps): boolean {
   if (prevData.orgNode.name !== nextData.orgNode.name) return false;
   if (prevData.orgNode.photoUrl !== nextData.orgNode.photoUrl) return false;
   if (prevData.orgNode.nodeKind !== nextData.orgNode.nodeKind) return false;
+  // El rol, la posición visual y la asignación pueden cambiar sin cambiar
+  // id/name (override por relación, cambio de versión o de padre); deben forzar
+  // re-render del nodo para no quedar con datos de otra versión/posición.
+  if (prevData.orgNode.role_id !== nextData.orgNode.role_id) return false;
+  if (prevData.orgNode.role?.name !== nextData.orgNode.role?.name) return false;
+  if (prevData.orgNode.relation_id !== nextData.orgNode.relation_id)
+    return false;
+  if (prevData.orgNode.parent_person_id !== nextData.orgNode.parent_person_id)
+    return false;
+  if (
+    prevData.orgNode.assignment_status !== nextData.orgNode.assignment_status
+  )
+    return false;
+  if (prevData.orgNode.assignment_label !== nextData.orgNode.assignment_label)
+    return false;
+  if (
+    prevData.orgNode.direct_reports_count !==
+    nextData.orgNode.direct_reports_count
+  )
+    return false;
 
   const prevMembers = prevData.internalTeamMembers ?? [];
   const nextMembers = nextData.internalTeamMembers ?? [];
   if (prevMembers.length !== nextMembers.length) return false;
   for (let i = 0; i < prevMembers.length; i += 1) {
-    if (prevMembers[i]?.id !== nextMembers[i]?.id) return false;
+    const prevMember = prevMembers[i];
+    const nextMember = nextMembers[i];
+    // Compara identidad y datos visibles: el mismo person.id puede traer rol o
+    // asignación distintos entre versiones/posiciones.
+    if (prevMember?.id !== nextMember?.id) return false;
+    if (prevMember?.relation_id !== nextMember?.relation_id) return false;
+    if (prevMember?.role_id !== nextMember?.role_id) return false;
+    if (prevMember?.role?.name !== nextMember?.role?.name) return false;
+    if (prevMember?.assignment_status !== nextMember?.assignment_status)
+      return false;
+    if (prevMember?.assignment_label !== nextMember?.assignment_label)
+      return false;
   }
 
   return true;

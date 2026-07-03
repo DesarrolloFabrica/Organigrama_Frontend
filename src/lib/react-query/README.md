@@ -45,10 +45,10 @@ Capa oficial de datos del frontend ([TanStack Query](https://tanstack.com/query)
 
 ## UX / rendimiento
 
-- **Prefetch colaboradores** (`orgChartPrefetch.ts`): hijos directos visibles → `org-node` + `org-summary`.
+- **Prefetch colaboradores** (`orgChartPrefetch.ts`): hijos directos visibles → solo `org-node` (deduplicado por padre; summary bajo demanda en panel).
 - **Sesión `/org`** (`orgChartMainSession.ts`): árbol, selección, expansión y viewport entre visitas.
 - **Warmup boot**: `org-root` + `profile` + `onboarding-status` en `BootLoadingPage`.
-- **Telemetría dev** (`devTelemetry.ts`): `console.debug` HIT/MISS/network.
+- **Telemetría dev** (`devTelemetry.ts`): opt-in; apagada por defecto. Activar con `localStorage.setItem('organigrama.rqDebug', '1')` o `VITE_RQ_TELEMETRY=true`. Emite `console.debug` HIT/MISS/network.
 
 ## Componentes con React Query
 

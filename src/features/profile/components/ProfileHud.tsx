@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { OrganigramaOpLogo } from "../../../components/OrganigramaOpLogo";
 
 export function ProfileEntityShell({
   children,
@@ -12,10 +13,12 @@ export function ProfileEntityShell({
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4 py-8 sm:px-6">
       <header className="overflow-hidden rounded-2xl border border-slate-200/90 bg-linear-to-b from-slate-50/95 via-white/92 to-slate-100/88 p-6 shadow-[0_20px_50px_-28px_rgba(15,23,42,0.18)]">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-sky-700/80">
-          Organigrama OP
-        </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+        <OrganigramaOpLogo
+          decorative={false}
+          alt="Organigrama OP"
+          className="h-8 w-auto object-contain"
+        />
+        <h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">
           {title}
         </h1>
         {subtitle ? (

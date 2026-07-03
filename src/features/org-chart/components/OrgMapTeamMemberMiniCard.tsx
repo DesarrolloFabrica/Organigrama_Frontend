@@ -1,7 +1,12 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import { memo, useEffect, useState, type MouseEvent } from "react";
 
 import { withPhotoAccessToken } from "../../../auth/photoUrl";
-import { formatRoleLabel, type OrgNode } from "../types";
+import {
+  formatRoleLabel,
+  isTemporalAssignment,
+  temporalBadgeLabel,
+  type OrgNode,
+} from "../types";
 import {
   shouldOfferTeamExplorationLink,
   type OrgMapRenderMode,
@@ -18,7 +23,7 @@ type Props = {
   memberLayoutDepth: number;
   renderMode: OrgMapRenderMode;
   onOpenDetail: (id: string) => void;
-  onExploreTeam?: (nodeId: string) => void;
+  onExploreTeam?: (nodeId: string, relationId?: string | null) => void;
   stopMouse: (e: MouseEvent) => void;
 };
 
@@ -65,10 +70,9 @@ function memberInitials(name: string): string {
 }
 
 /** Tarjeta compacta de una persona del equipo (colores alineados al nivel resuelto). */
-export function OrgMapTeamMemberMiniCard({
+function OrgMapTeamMemberMiniCardComponent({
   member,
   memberLayoutDepth,
-  renderMode,
   onOpenDetail,
   onExploreTeam,
   stopMouse,
@@ -88,14 +92,6 @@ export function OrgMapTeamMemberMiniCard({
   useEffect(() => {
     setPhotoFailed(false);
   }, [member.id, member.photoUrl]);
-
-  if (import.meta.env.DEV) {
-    console.log("[MiniCard photo]", {
-      id: member.id,
-      name: member.name,
-      photoUrl: member.photoUrl ?? null,
-    });
-  }
 
   return (
     <article
@@ -156,6 +152,15 @@ export function OrgMapTeamMemberMiniCard({
           >
             {roleShort}
           </p>
+          {isTemporalAssignment(member) ? (
+            <span
+              className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-400/45 bg-amber-400/12 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-amber-300"
+              title="Asignación temporal"
+            >
+              <span className="size-1 rounded-full bg-amber-400" aria-hidden />
+              {temporalBadgeLabel()}
+            </span>
+          ) : null}
           <p
             className={[
               "org-map-mini-card__active-row mt-1.5 flex items-center gap-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.14em]",
@@ -185,7 +190,7 @@ export function OrgMapTeamMemberMiniCard({
             onPointerDown={stopMouse}
             onClick={(e) => {
               e.stopPropagation();
-              onExploreTeam?.(member.id);
+              onExploreTeam?.(member.id, member.relation_id ?? null);
             }}
           >
             <IconTeamBranch className="org-map-mini-card__explore-icon size-3 shrink-0" />
@@ -210,3 +215,5 @@ export function OrgMapTeamMemberMiniCard({
     </article>
   );
 }
+
+export const OrgMapTeamMemberMiniCard = memo(OrgMapTeamMemberMiniCardComponent);

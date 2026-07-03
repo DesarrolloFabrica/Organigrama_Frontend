@@ -4,14 +4,28 @@ export const orgQueryKeys = {
     versionId !== undefined
       ? (["org-root", versionId] as const)
       : (["org-root"] as const),
-  node: (personId: string, versionId?: number) =>
-    versionId !== undefined
-      ? (["org-node", personId, versionId] as const)
-      : (["org-node", personId] as const),
-  children: (personId: string, versionId?: number) =>
-    versionId !== undefined
-      ? (["org-children", personId, versionId] as const)
-      : (["org-children", personId] as const),
+  node: (
+    personId: string,
+    versionId?: number,
+    relationId?: number | string | null,
+  ) =>
+    [
+      "org-node",
+      personId,
+      relationId != null ? String(relationId) : null,
+      versionId ?? null,
+    ] as const,
+  children: (
+    personId: string,
+    versionId?: number,
+    relationId?: number | string | null,
+  ) =>
+    [
+      "org-children",
+      personId,
+      relationId != null ? String(relationId) : null,
+      versionId ?? null,
+    ] as const,
   summary: (personId: string, versionId?: number) =>
     versionId !== undefined
       ? (["org-summary", personId, versionId] as const)
@@ -20,11 +34,15 @@ export const orgQueryKeys = {
     versionId !== undefined
       ? (["org-person-detail", personId, versionId] as const)
       : (["org-person-detail", personId] as const),
+  /** Hoja de vida (CV) de una persona; no depende de la versión del organigrama. */
+  personCv: (personId: string) => ["org-person-cv", personId] as const,
   search: (query: string, versionId?: number) =>
     versionId !== undefined
       ? (["org-search", query, versionId] as const)
       : (["org-search", query] as const),
   versions: ["org-chart-versions"] as const,
+  /** Vacantes reales del schema `vacancies` (independiente de la versión). */
+  vacancies: ["org-vacancies"] as const,
   /** Prefijos para invalidar familias de queries del organigrama. */
   allNodes: ["org-node"] as const,
   allPersonDetails: ["org-person-detail"] as const,
