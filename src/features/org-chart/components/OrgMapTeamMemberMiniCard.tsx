@@ -3,8 +3,6 @@ import { memo, useEffect, useState, type MouseEvent } from "react";
 import { withPhotoAccessToken } from "../../../auth/photoUrl";
 import {
   formatRoleLabel,
-  isTemporalAssignment,
-  temporalBadgeLabel,
   type OrgNode,
 } from "../types";
 import {
@@ -15,6 +13,7 @@ import {
   orgMapNodeThemeToCssVars,
   resolveOrgMapTheme,
 } from "../utils/orgMapLevelTheme";
+import { AssignmentStatusBadge } from "./AssignmentStatusBadge";
 import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
 
 type Props = {
@@ -152,15 +151,7 @@ function OrgMapTeamMemberMiniCardComponent({
           >
             {roleShort}
           </p>
-          {isTemporalAssignment(member) ? (
-            <span
-              className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-400/45 bg-amber-400/12 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-amber-300"
-              title="Asignación temporal"
-            >
-              <span className="size-1 rounded-full bg-amber-400" aria-hidden />
-              {temporalBadgeLabel()}
-            </span>
-          ) : null}
+          <AssignmentStatusBadge node={member} size="xs" className="mt-1" />
           <p
             className={[
               "org-map-mini-card__active-row mt-1.5 flex items-center gap-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.14em]",

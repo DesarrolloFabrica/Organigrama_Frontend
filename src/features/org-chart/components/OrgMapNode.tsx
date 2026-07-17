@@ -5,13 +5,12 @@ import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
 
 import {
   formatRoleLabel,
-  isTemporalAssignment,
   orgNodeHasDirectReports,
-  temporalBadgeLabel,
 } from "../types";
 import { shouldNavigateToTeamListPage } from "../utils/orgMapDisplayPolicy";
 import type { OrgMapNodeInteractiveData } from "../utils/orgMapLayout";
 import { orgMapNodeThemeToCssVars } from "../utils/orgMapLevelTheme";
+import { AssignmentStatusBadge } from "./AssignmentStatusBadge";
 import { OrgMapExpandedTeamPanel } from "./OrgMapExpandedTeamPanel";
 import { useOrgMapSelection } from "../context/OrgMapSelectionContext";
 import { OrgMapNodePhoto } from "./OrgMapNodePhoto";
@@ -221,15 +220,7 @@ function OrgMapNodeComponent({ id, data }: NodeProps) {
             {formatRoleLabel(node)}
           </p>
 
-          {isTemporalAssignment(node) ? (
-            <span
-              className="mt-1 inline-flex items-center gap-1 rounded-full border border-amber-400/45 bg-amber-400/12 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-amber-300"
-              title="Asignación temporal"
-            >
-              <span className="size-1.5 rounded-full bg-amber-400" aria-hidden />
-              {temporalBadgeLabel()}
-            </span>
-          ) : null}
+          <AssignmentStatusBadge node={node} size="sm" className="mt-1" />
         </div>
       </div>
 

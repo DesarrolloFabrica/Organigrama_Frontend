@@ -72,8 +72,14 @@ export type OrgNodeLocation = {
 
 export type OrgNodeKind = "person" | "vacancy"
 
-/** Estado de asignación de una posición (proviene de un override por relación). */
-export type OrgAssignmentStatus = "TEMPORAL" | "PERMANENT"
+/**
+ * Estado de asignación de una posición (proviene de un override por relación).
+ * `MATERNITY_LEAVE` = licencia de maternidad (píldora rosa en el nodo).
+ */
+export type OrgAssignmentStatus =
+  | "TEMPORAL"
+  | "PERMANENT"
+  | "MATERNITY_LEAVE"
 
 /**
  * Nodo del árbol devuelto por GET /api/org-chart.
@@ -241,9 +247,50 @@ export function isTemporalAssignment(
   return node?.assignment_status === 'TEMPORAL'
 }
 
+/** True si la posición está en licencia de maternidad. */
+export function isMaternityLeaveAssignment(
+  node: Pick<OrgNode, 'assignment_status'> | undefined,
+): boolean {
+  return node?.assignment_status === 'MATERNITY_LEAVE'
+}
+
 /** Texto de la píldora de asignación temporal. */
 export function temporalBadgeLabel(): string {
   return 'TEMPORAL'
+}
+
+/** Texto de la píldora de licencia de maternidad. */
+export function maternityLeaveBadgeLabel(): string {
+  return 'LICENCIA DE MATERNIDAD'
+}
+
+export type AssignmentBadgeTone = 'temporal' | 'maternity'
+
+export type AssignmentBadgeInfo = {
+  label: string
+  title: string
+  tone: AssignmentBadgeTone
+}
+
+/** Píldora visible de estado de asignación (null si no aplica). */
+export function getAssignmentBadge(
+  node: Pick<OrgNode, 'assignment_status'> | undefined,
+): AssignmentBadgeInfo | null {
+  if (isTemporalAssignment(node)) {
+    return {
+      label: temporalBadgeLabel(),
+      title: 'Asignación temporal',
+      tone: 'temporal',
+    }
+  }
+  if (isMaternityLeaveAssignment(node)) {
+    return {
+      label: maternityLeaveBadgeLabel(),
+      title: 'Licencia de maternidad',
+      tone: 'maternity',
+    }
+  }
+  return null
 }
 
 /**
