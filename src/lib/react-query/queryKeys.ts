@@ -36,6 +36,31 @@ export const orgQueryKeys = {
       : (["org-person-detail", personId] as const),
   /** Hoja de vida (CV) de una persona; no depende de la versión del organigrama. */
   personCv: (personId: string) => ["org-person-cv", personId] as const,
+  /** Resumen del Explorador de Competencias (MC1). */
+  personCompetencies: (personId: string, includeAudit = false) =>
+    ["org-person-competencies", personId, includeAudit] as const,
+  /** Perfil profesional multidominio (piloto MC1). */
+  personProfessionalProfile: (personId: string, includeAudit = false) =>
+    ["org-person-professional-profile", personId, includeAudit] as const,
+  personCompetencyDomain: (
+    personId: string,
+    domainCode: string,
+    includeAudit = false,
+  ) =>
+    ["org-person-competency-domain", personId, domainCode, includeAudit] as const,
+  personCompetencySpecialty: (
+    personId: string,
+    domainCode: string,
+    specialtyCode: string,
+    includeAudit = false,
+  ) =>
+    [
+      "org-person-competency-specialty",
+      personId,
+      domainCode,
+      specialtyCode,
+      includeAudit,
+    ] as const,
   search: (query: string, versionId?: number) =>
     versionId !== undefined
       ? (["org-search", query, versionId] as const)

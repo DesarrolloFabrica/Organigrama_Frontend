@@ -8,6 +8,7 @@ import {
 import { useOrgPersonDetail, useOrgPersonCv } from "../../../lib/react-query/hooks";
 import { withPhotoAccessToken } from "../../../auth/photoUrl";
 import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
+import { CompetenciesExplorer } from "../../competencies";
 
 type Props = {
   /** Persona seleccionada en el árbol; `null` muestra estado vacío. */
@@ -359,11 +360,12 @@ function IconExternalLink({ className }: { className?: string }) {
  */
 function PersonCvAction({ personId }: { personId: string }) {
   const [requested, setRequested] = useState(false);
-  const { data: cv, isLoading, isError } = useOrgPersonCv(personId, requested);
-
-  useEffect(() => {
+  const [cvPersonId, setCvPersonId] = useState(personId);
+  if (cvPersonId !== personId) {
+    setCvPersonId(personId);
     setRequested(false);
-  }, [personId]);
+  }
+  const { data: cv, isLoading, isError } = useOrgPersonCv(personId, requested);
 
   const shellClass =
     "mt-1 flex items-center gap-2 rounded-lg border border-cyan-400/15 bg-cyan-950/30 px-3 py-2 text-[12px]";
@@ -506,10 +508,14 @@ function PersonDetailLoaded({
     error: queryError,
   } = useOrgPersonDetail(personId);
   const [photoFailed, setPhotoFailed] = useState(false);
+  const [activeTab, setActiveTab] = useState<"ficha" | "competencias">("ficha");
+  const [tabPersonId, setTabPersonId] = useState(personId);
 
-  useEffect(() => {
+  if (tabPersonId !== personId) {
+    setTabPersonId(personId);
+    setActiveTab("ficha");
     setPhotoFailed(false);
-  }, [personId]);
+  }
 
   useEffect(() => {
     if (detail?.photoUrl) {
@@ -645,7 +651,10 @@ function PersonDetailLoaded({
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h2 className="truncate text-lg font-semibold tracking-tight text-slate-50">
+                <h2
+                  className="line-clamp-2 text-lg font-semibold leading-snug tracking-tight text-slate-50"
+                  title={displayName}
+                >
                   {displayName}
                 </h2>
                 {hasFull ? (
@@ -714,8 +723,65 @@ function PersonDetailLoaded({
         </div>
       </header>
 
+      {hasFull && !isVacancy ? (
+        <div
+          className="shrink-0 border-b border-cyan-400/15 bg-[#041018]/55 px-3 pt-2 sm:px-4"
+          role="tablist"
+          aria-label="Secciones de la ficha"
+        >
+          <div className="flex gap-1">
+            <button
+              type="button"
+              role="tab"
+              id="person-tab-ficha"
+              aria-selected={activeTab === "ficha"}
+              aria-controls="person-panel-ficha"
+              onClick={() => setActiveTab("ficha")}
+              className={[
+                "rounded-t-lg px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] transition",
+                activeTab === "ficha"
+                  ? "border border-b-0 border-cyan-400/25 bg-[#06111f]/90 text-cyan-100"
+                  : "border border-transparent text-slate-500 hover:text-slate-300",
+              ].join(" ")}
+            >
+              Ficha
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="person-tab-competencias"
+              aria-selected={activeTab === "competencias"}
+              aria-controls="person-panel-competencias"
+              onClick={() => setActiveTab("competencias")}
+              className={[
+                "rounded-t-lg px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] transition",
+                activeTab === "competencias"
+                  ? "border border-b-0 border-cyan-400/25 bg-[#06111f]/90 text-cyan-100"
+                  : "border border-transparent text-slate-500 hover:text-slate-300",
+              ].join(" ")}
+            >
+              Competencias
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="entity-scan-scroll flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-3 sm:px-4">
-        <div className="flex flex-col gap-3.5 pb-4">
+        {hasFull && !isVacancy && activeTab === "competencias" ? (
+          <div
+            id="person-panel-competencias"
+            role="tabpanel"
+            aria-labelledby="person-tab-competencias"
+          >
+            <CompetenciesExplorer personId={personId} />
+          </div>
+        ) : (
+        <div
+          id="person-panel-ficha"
+          role={hasFull && !isVacancy ? "tabpanel" : undefined}
+          aria-labelledby={hasFull && !isVacancy ? "person-tab-ficha" : undefined}
+          className="flex flex-col gap-3.5 pb-4"
+        >
           {!hasFull ? (
             <HudSection id="sec-public" title="Contacto institucional" icon="contact">
               <dl>
@@ -896,6 +962,7 @@ function PersonDetailLoaded({
           </>
           ) : null}
         </div>
+        )}
       </div>
     </EntityScanShell>
   );

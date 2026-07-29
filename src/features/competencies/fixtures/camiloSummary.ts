@@ -1,0 +1,138 @@
+/**
+ * Fixture de resumen Camilo (MC1.3.5) — solo tests / documentación.
+ * La UI de producción usa la API real.
+ */
+export const camiloCompetencySummaryFixture = {
+  availabilityStatus: 'AVAILABLE' as const,
+  person: {
+    id: '1',
+    fullName: 'Camilo Quintero',
+    role: null,
+  },
+  evaluation: {
+    id: '1',
+    status: 'SUCCEEDED' as const,
+    availabilityStatus: 'AVAILABLE' as const,
+    evaluatedAt: '2026-07-27T16:03:50.000Z',
+    rulesVersion: 'pa2-software-1.0.0',
+  },
+  domains: [
+    {
+      code: 'SOFTWARE',
+      name: 'Desarrollo de Software',
+      defaultSpecialtyCode: 'SOFTWARE_FRONTEND',
+      activeSpecialtyCount: 5,
+      emergentSpecialtyCount: 2,
+      specialties: [
+        {
+          code: 'SOFTWARE_FRONTEND',
+          name: 'Desarrollo frontend',
+          presentationStatus: 'ACTIVE' as const,
+          isDefault: true,
+          rank: 1,
+          metrics: {
+            mappedSkillCount: 11,
+            evidencedSkillCount: 11,
+            coverage: 1,
+            confidence: 0.8307,
+            strength: 31,
+          },
+          warnings: [],
+        },
+        {
+          code: 'SOFTWARE_BACKEND',
+          name: 'Desarrollo backend',
+          presentationStatus: 'ACTIVE' as const,
+          isDefault: false,
+          rank: 2,
+          metrics: {
+            mappedSkillCount: 11,
+            evidencedSkillCount: 11,
+            coverage: 1,
+            confidence: 0.8537,
+            strength: 48.1,
+          },
+          warnings: [],
+        },
+        {
+          code: 'SOFTWARE_DATA',
+          name: 'Bases de datos',
+          presentationStatus: 'ACTIVE' as const,
+          isDefault: false,
+          rank: 3,
+          metrics: {
+            mappedSkillCount: 8,
+            evidencedSkillCount: 6,
+            coverage: 0.75,
+            confidence: 0.7839,
+            strength: 36.77,
+          },
+          warnings: [],
+        },
+        {
+          code: 'SOFTWARE_AI_APPLIED',
+          name: 'IA aplicada al desarrollo',
+          presentationStatus: 'ACTIVE' as const,
+          isDefault: false,
+          rank: 4,
+          metrics: {
+            mappedSkillCount: 2,
+            evidencedSkillCount: 1,
+            coverage: 0.5,
+            confidence: 0.86,
+            strength: 87.6,
+          },
+          warnings: [
+            'LOW_CARDINALITY_STRONG_EVIDENCE: especialidad activa con lectura cautelosa',
+          ],
+        },
+        {
+          code: 'SOFTWARE_ENGINEERING_QUALITY',
+          name: 'Ingeniería y calidad de software',
+          presentationStatus: 'ACTIVE' as const,
+          isDefault: false,
+          rank: 5,
+          metrics: {
+            mappedSkillCount: 6,
+            evidencedSkillCount: 4,
+            coverage: 0.6667,
+            confidence: 0.7453,
+            strength: 34.9,
+          },
+          warnings: [],
+        },
+        {
+          code: 'SOFTWARE_API_INTEGRATION',
+          name: 'Integración de APIs',
+          presentationStatus: 'EMERGENT' as const,
+          isDefault: false,
+          rank: 6,
+          metrics: {
+            mappedSkillCount: 2,
+            evidencedSkillCount: 1,
+            coverage: 0.5,
+            confidence: 0.86,
+            strength: 70.72,
+          },
+          warnings: [],
+        },
+        {
+          code: 'SOFTWARE_CLOUD_DEPLOY',
+          name: 'Cloud y despliegue',
+          presentationStatus: 'EMERGENT' as const,
+          isDefault: false,
+          rank: 7,
+          metrics: {
+            mappedSkillCount: 8,
+            evidencedSkillCount: 3,
+            coverage: 0.375,
+            confidence: 0.86,
+            strength: 41.39,
+          },
+          warnings: [],
+        },
+      ],
+    },
+  ],
+  warnings: [],
+}

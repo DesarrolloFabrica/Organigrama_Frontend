@@ -13,7 +13,10 @@ import {
   orgMapNodeThemeToCssVars,
   resolveOrgMapTheme,
 } from "../utils/orgMapLevelTheme";
+import { resolveCoordinationEmblem } from "../config/coordinationEmblems";
+import { useOrgMapSelection } from "../context/OrgMapSelectionContext";
 import { AssignmentStatusBadge } from "./AssignmentStatusBadge";
+import { CoordinationEmblem } from "./CoordinationEmblem";
 import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
 
 type Props = {
@@ -76,7 +79,18 @@ function OrgMapTeamMemberMiniCardComponent({
   onExploreTeam,
   stopMouse,
 }: Props) {
+  const { selectedPersonId } = useOrgMapSelection();
   const isVacancy = member.nodeKind === "vacancy";
+  const coordinationEmblem = resolveCoordinationEmblem(member);
+  const showEmblemAsWatermark =
+    coordinationEmblem?.placement === "watermark" ||
+    coordinationEmblem?.placement === "watermarkCorner";
+  const showEmblemAsCornerWatermark =
+    coordinationEmblem?.placement === "watermarkCorner";
+  const showEmblemAsBadge = coordinationEmblem?.placement === "badge";
+  const showEmblemByRole = coordinationEmblem?.placement === "roleInline";
+  const showEmblemInCorner = coordinationEmblem?.placement === "cornerSmall";
+  const isSelected = selectedPersonId === member.id;
   const roleShort = formatRoleLabel(member);
   const showExploreTeam =
     !isVacancy &&
@@ -97,6 +111,7 @@ function OrgMapTeamMemberMiniCardComponent({
       className={[
         "org-map-mini-card group relative flex min-h-0 flex-col gap-2 rounded-sm bg-slate-950/60 p-2.5 transition-[border-color,box-shadow,background-color] duration-200 ease-out",
         isVacancy ? "org-map-mini-card--vacancy" : "",
+        showEmblemAsWatermark ? "overflow-hidden" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -104,7 +119,53 @@ function OrgMapTeamMemberMiniCardComponent({
       data-visual-level={visualLevel}
       data-node-kind={isVacancy ? "vacancy" : "person"}
     >
-      <div className="flex min-w-0 items-start gap-2.5">
+      {showEmblemAsWatermark && coordinationEmblem ? (
+        <div
+          className={
+            showEmblemAsCornerWatermark
+              ? "absolute right-1 top-1 z-0 size-11"
+              : "absolute -right-5 -top-1 z-0 size-32"
+          }
+        >
+          <CoordinationEmblem
+            config={coordinationEmblem}
+            selected={isSelected}
+            disabled={isVacancy}
+          />
+        </div>
+      ) : null}
+
+      {showEmblemAsBadge && coordinationEmblem ? (
+        <div className="absolute right-2 top-2 z-2 size-11">
+          <CoordinationEmblem
+            config={coordinationEmblem}
+            selected={isSelected}
+            disabled={isVacancy}
+          />
+        </div>
+      ) : null}
+
+      {showEmblemInCorner && coordinationEmblem ? (
+        <div className="absolute right-2 top-2 z-2 size-6">
+          <CoordinationEmblem
+            config={coordinationEmblem}
+            selected={isSelected}
+            disabled={isVacancy}
+          />
+        </div>
+      ) : null}
+
+      <div
+        className={`relative z-1 flex min-w-0 items-start gap-2.5 ${
+          showEmblemAsBadge
+            ? "pr-12"
+            : showEmblemInCorner
+              ? "pr-8"
+            : showEmblemAsCornerWatermark
+              ? "pr-12"
+              : ""
+        }`}
+      >
         <div
           className={[
             "org-map-mini-card__avatar flex size-9 shrink-0 items-center justify-center rounded-sm",
@@ -145,12 +206,23 @@ function OrgMapTeamMemberMiniCardComponent({
           >
             {member.name}
           </h4>
-          <p
-            className="mt-0.5 line-clamp-2 text-[10px] font-medium leading-snug tracking-wide text-slate-400/90"
-            title={roleShort}
-          >
-            {roleShort}
-          </p>
+          <div className="mt-0.5 flex items-start gap-1.5">
+            {showEmblemByRole && coordinationEmblem ? (
+              <div className="mt-px size-6 shrink-0">
+                <CoordinationEmblem
+                  config={coordinationEmblem}
+                  selected={isSelected}
+                  disabled={isVacancy}
+                />
+              </div>
+            ) : null}
+            <p
+              className="line-clamp-2 text-[10px] font-medium leading-snug tracking-wide text-slate-400/90"
+              title={roleShort}
+            >
+              {roleShort}
+            </p>
+          </div>
           <AssignmentStatusBadge node={member} size="xs" className="mt-1" />
           <p
             className={[
@@ -165,13 +237,26 @@ function OrgMapTeamMemberMiniCardComponent({
             {isVacancy ? "Vacante" : "Activo"}
           </p>
         </div>
+        {coordinationEmblem &&
+        !showEmblemAsWatermark &&
+        !showEmblemAsBadge &&
+        !showEmblemByRole &&
+        !showEmblemInCorner ? (
+          <div className="size-11 shrink-0 self-center">
+            <CoordinationEmblem
+              config={coordinationEmblem}
+              selected={isSelected}
+              disabled={isVacancy}
+            />
+          </div>
+        ) : null}
       </div>
       <div
-        className={
+        className={`relative z-1 ${
           showExploreTeam
             ? "mt-0.5 grid w-full grid-cols-2 gap-1.5"
             : "mt-0.5 grid w-full grid-cols-1 gap-1.5"
-        }
+        }`}
       >
         {showExploreTeam ? (
           <button
