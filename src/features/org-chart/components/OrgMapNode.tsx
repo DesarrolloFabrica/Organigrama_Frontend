@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 import { memo, useLayoutEffect } from "react";
 import type { NodeProps } from "@xyflow/react";
 import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
@@ -15,6 +15,8 @@ import { OrgMapExpandedTeamPanel } from "./OrgMapExpandedTeamPanel";
 import { useOrgMapSelection } from "../context/OrgMapSelectionContext";
 import { OrgMapNodePhoto } from "./OrgMapNodePhoto";
 import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
+import { resolveCoordinationEmblem } from "../config/coordinationEmblems";
+import { CoordinationEmblem } from "./CoordinationEmblem";
 
 /* ── Iconos lineales tácticos (stroke fino; sin rellenos “dashboard”) ───────── */
 
@@ -122,6 +124,14 @@ function OrgMapNodeComponent({ id, data }: NodeProps) {
   const levelLabel = node.hierarchy?.name ?? "NIVEL ░ SIN ASIGNAR";
   const visualLevel = typedData.visualLevel;
   const levelCss = orgMapNodeThemeToCssVars(node, typedData.mapLayoutDepth);
+  const coordinationEmblem = resolveCoordinationEmblem(node);
+  const cardStyle = coordinationEmblem
+    ? ({
+        ...levelCss,
+        "--coordination-card-glow": coordinationEmblem.glowColor,
+        "--coordination-card-highlight": coordinationEmblem.highlightColor,
+      } as CSSProperties)
+    : levelCss;
   const memberLayoutDepth = typedData.mapLayoutDepth + 1;
 
   return (
@@ -135,7 +145,8 @@ function OrgMapNodeComponent({ id, data }: NodeProps) {
       ]
         .filter(Boolean)
         .join(" ")}
-      style={levelCss}
+      style={cardStyle}
+      data-coordination-emblem={coordinationEmblem ? "true" : "false"}
       data-visual-level={visualLevel}
       data-node-kind={isVacancy ? "vacancy" : "person"}
       data-expanded={isExpanded ? "true" : "false"}
@@ -146,6 +157,16 @@ function OrgMapNodeComponent({ id, data }: NodeProps) {
           : `Colaborador: ${node.name}`
       }
     >
+      {coordinationEmblem ? (
+        <div className="org-map-holo__coordination-watermark pointer-events-none absolute -right-8 top-8 z-0 size-52">
+          <CoordinationEmblem
+            config={coordinationEmblem}
+            selected={isSelected}
+            disabled={isVacancy}
+          />
+        </div>
+      ) : null}
+
       <Handle
         type="target"
         position={Position.Top}

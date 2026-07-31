@@ -1,4 +1,10 @@
-import { memo, useEffect, useState, type MouseEvent } from "react";
+import {
+  memo,
+  useEffect,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+} from "react";
 
 import { withPhotoAccessToken } from "../../../auth/photoUrl";
 import {
@@ -98,6 +104,13 @@ function OrgMapTeamMemberMiniCardComponent({
     shouldOfferTeamExplorationLink(member);
   const { visualLevel } = resolveOrgMapTheme(member, memberLayoutDepth);
   const levelCss = orgMapNodeThemeToCssVars(member, memberLayoutDepth);
+  const cardStyle = coordinationEmblem
+    ? ({
+        ...levelCss,
+        "--coordination-card-glow": coordinationEmblem.glowColor,
+        "--coordination-card-highlight": coordinationEmblem.highlightColor,
+      } as CSSProperties)
+    : levelCss;
   const [photoFailed, setPhotoFailed] = useState(false);
   const resolvedPhotoUrl = withPhotoAccessToken(member.photoUrl);
   const showPhoto = !isVacancy && Boolean(resolvedPhotoUrl) && !photoFailed;
@@ -115,7 +128,8 @@ function OrgMapTeamMemberMiniCardComponent({
       ]
         .filter(Boolean)
         .join(" ")}
-      style={levelCss}
+      style={cardStyle}
+      data-coordination-emblem={coordinationEmblem ? "true" : "false"}
       data-visual-level={visualLevel}
       data-node-kind={isVacancy ? "vacancy" : "person"}
     >
@@ -123,8 +137,8 @@ function OrgMapTeamMemberMiniCardComponent({
         <div
           className={
             showEmblemAsCornerWatermark
-              ? "absolute right-1 top-1 z-0 size-11"
-              : "absolute -right-5 -top-1 z-0 size-32"
+              ? "org-map-mini-card__coordination-watermark absolute right-1 top-1 z-0 size-11"
+              : "org-map-mini-card__coordination-watermark absolute -right-5 -top-1 z-0 size-32"
           }
         >
           <CoordinationEmblem

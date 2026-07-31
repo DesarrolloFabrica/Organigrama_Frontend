@@ -41,6 +41,7 @@ export function CoordinationEmblem({
         .join(" ")}
       data-selected={selected ? "true" : "false"}
       data-disabled={disabled ? "true" : "false"}
+      data-soft-glow={config.softGlow ? "true" : "false"}
       style={style}
       title={config.label}
       aria-hidden="true"

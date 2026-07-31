@@ -33,6 +33,11 @@ const OrgChartExplorePage = lazy(() =>
     default: module.OrgChartExplorePage,
   })),
 );
+const CompetencyExplorerPage = lazy(() =>
+  import("./features/competency-explorer").then((module) => ({
+    default: module.CompetencyExplorerPage,
+  })),
+);
 
 function RouteSuspense({ children }: { children: ReactNode }) {
   return <Suspense fallback={<PageLoadingScreen />}>{children}</Suspense>;
@@ -117,6 +122,15 @@ function App() {
                 element={
                   <RouteSuspense>
                     <OrgChartExplorePage />
+                  </RouteSuspense>
+                }
+              />
+
+              <Route
+                path="/org/competency-explorer"
+                element={
+                  <RouteSuspense>
+                    <CompetencyExplorerPage />
                   </RouteSuspense>
                 }
               />
