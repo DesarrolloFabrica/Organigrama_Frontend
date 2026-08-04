@@ -16,6 +16,7 @@ Capa oficial de datos del frontend ([TanStack Query](https://tanstack.com/query)
 | `["org-children", personId]` | Hijos directos (expansión lazy) |
 | `["org-summary", personId]` | Resumen jerárquico del panel |
 | `["org-person-detail", personId]` | Ficha técnica (`PersonDetailPanel`) |
+| `["org-person-video", personId]` | Metadatos + ticket de Presentación |
 | `["org-search", query]` | Búsqueda global (término ya recortado) |
 | `["profile"]` | Perfil del usuario autenticado |
 | `["onboarding-status"]` | Paso y flags derivados del onboarding |
@@ -29,6 +30,7 @@ Capa oficial de datos del frontend ([TanStack Query](https://tanstack.com/query)
 | `useOrgChartChildren(id)` | `GET /api/org-chart/children/:id` |
 | `useOrgChartSummary(id)` | `GET /api/org-chart/summary/:id` |
 | `useOrgPersonDetail(id)` | `GET /api/org-chart/person/:id` |
+| `useOrgPersonVideo(id, enabled)` | `GET /api/org-chart/person/:id/video` |
 | `useOrgChartSearch(query)` | `GET /api/org-chart/search?q=…` |
 | `useDebouncedValue(value, ms)` | Utilidad para debounce de búsqueda |
 | `useProfile()` | `GET /api/profile/me` |

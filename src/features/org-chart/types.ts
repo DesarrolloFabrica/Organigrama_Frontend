@@ -430,3 +430,24 @@ export type PersonCvResponse = {
   /** Última sincronización en ISO 8601 (solo si hasCv = true). */
   lastSync?: string
 }
+
+// ─── Video de presentación ────────────────────────────────────────────────────
+
+export type PersonVideoUnavailableResponse = {
+  hasVideo: false
+}
+
+export type PersonVideoAvailableResponse = {
+  hasVideo: true
+  fileName: string
+  mimeType: string
+  sizeBytes: number | null
+  lastSync: string | null
+  streamTicket: string
+  streamTicketExpiresAt: string
+  streamUrl: string
+}
+
+export type PersonVideoResponse =
+  | PersonVideoUnavailableResponse
+  | PersonVideoAvailableResponse

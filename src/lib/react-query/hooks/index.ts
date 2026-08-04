@@ -15,6 +15,7 @@ export {
 } from "./useOnboardingStatus";
 export { useOrgPersonDetail } from "./useOrgPersonDetail";
 export { useOrgPersonCv } from "./useOrgPersonCv";
+export { useOrgPersonVideo } from "./useOrgPersonVideo";
 export {
   useOrgPersonCompetencies,
   useOrgPersonCompetencyDomain,

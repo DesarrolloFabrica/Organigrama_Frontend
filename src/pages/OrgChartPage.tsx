@@ -9,6 +9,7 @@ import { NodeSummaryPanel } from "../features/org-chart/components/NodeSummaryPa
 import { mergeChildrenIntoTree } from "../features/org-chart/utils/mergeChildrenIntoTree";
 import { OrgMapView } from "../features/org-chart/components/OrgMapView";
 import { PersonDetailPanel } from "../features/org-chart/components/PersonDetailPanel";
+import type { ProfileModuleCode } from "../features/org-chart/components/profile-modules/profile-module.types";
 import { PersonDetailRestoreButton } from "../features/org-chart/components/PersonDetailRestoreButton";
 import { OrgChartVersionBar } from "../features/org-chart/components/OrgChartVersionBar";
 import { useOrgChartVersionQueryId, useOrgChartVersionReady } from "../features/org-chart/context/OrgChartVersionContext";
@@ -35,6 +36,7 @@ import {
   buildTeamExploreNavState,
   buildTeamExplorePath,
 } from "../features/org-chart/utils/orgChartTeamNavigation";
+import { entityDetailOverlayWidthClass } from "../features/org-chart/utils/personPresentationRules";
 
 const MAP_MAX_LEVELS = 3;
 
@@ -73,6 +75,8 @@ function OrgChartPageBody() {
   const [mapPersisted, setMapPersisted] = useState<OrgMapExpansionPersisted>(
     initial?.map ?? defaultMapPersisted(),
   );
+  const [activeDetailModule, setActiveDetailModule] =
+    useState<ProfileModuleCode | null>(null);
 
   useEffect(() => {
     if (!rootData) return;
@@ -272,7 +276,10 @@ function OrgChartPageBody() {
             >
               {detailOverlayOpen ? (
                 <aside
-                  className="entity-detail-overlay pointer-events-auto flex h-full max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] min-h-0 w-full max-w-[420px] flex-col overflow-hidden shadow-[0_24px_64px_-12px_rgba(0,0,0,0.45)] max-sm:fixed max-sm:bottom-3 max-sm:left-3 max-sm:right-3 max-sm:top-auto max-sm:max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] sm:max-h-[calc(100vh-var(--app-header-h)-2rem)] sm:w-[min(420px,calc(100vw-2rem))]"
+                  className={[
+                    "entity-detail-overlay pointer-events-auto flex h-full max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] min-h-0 w-full flex-col overflow-hidden shadow-[0_24px_64px_-12px_rgba(0,0,0,0.45)] max-sm:fixed max-sm:bottom-3 max-sm:left-3 max-sm:right-3 max-sm:top-auto max-sm:max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] sm:max-h-[calc(100vh-var(--app-header-h)-2rem)]",
+                    entityDetailOverlayWidthClass(activeDetailModule),
+                  ].join(" ")}
                   aria-label="Ficha técnica de la persona"
                 >
                   <PersonDetailPanel
@@ -280,10 +287,12 @@ function OrgChartPageBody() {
                     treeDescendantCount={treeDescendantCount}
                     layoutVariant="overlay"
                     onDetailPhotoUrl={handleDetailPhotoUrl}
+                    onActiveModuleChange={setActiveDetailModule}
                     onMinimize={() => setDetailPanelMinimized(true)}
                     onClose={() => {
                       setSelectedPersonId(null);
                       setDetailPanelMinimized(false);
+                      setActiveDetailModule(null);
                     }}
                   />
                 </aside>

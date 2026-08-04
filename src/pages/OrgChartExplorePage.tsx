@@ -9,6 +9,7 @@ import { patchNodePhotoUrl } from "../features/org-chart/utils/patchNodePhotoUrl
 import { OrgMapView } from "../features/org-chart/components/OrgMapView";
 import { TeamScrollListView } from "../features/org-chart/components/TeamScrollListView";
 import { PersonDetailPanel } from "../features/org-chart/components/PersonDetailPanel";
+import type { ProfileModuleCode } from "../features/org-chart/components/profile-modules/profile-module.types";
 import { PersonDetailRestoreButton } from "../features/org-chart/components/PersonDetailRestoreButton";
 import { OrgChartVersionBar } from "../features/org-chart/components/OrgChartVersionBar";
 import { useOrgChartVersionQueryId, useOrgChartVersionReady } from "../features/org-chart/context/OrgChartVersionContext";
@@ -30,6 +31,7 @@ import {
 } from "../lib/react-query/hooks";
 import { orgQueryKeys } from "../lib/react-query/queryKeys";
 import { prefetchDirectChildrenHints } from "../lib/react-query/orgChartPrefetch";
+import { entityDetailOverlayWidthClass } from "../features/org-chart/utils/personPresentationRules";
 
 const MAP_MAX_LEVELS = 4;
 
@@ -57,11 +59,14 @@ function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [detailPanelMinimized, setDetailPanelMinimized] = useState(false);
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
+  const [activeDetailModule, setActiveDetailModule] =
+    useState<ProfileModuleCode | null>(null);
 
   useEffect(() => {
     setSelectedPersonId(null);
     setDetailPanelMinimized(false);
     setExpandedNodeId(null);
+    setActiveDetailModule(null);
   }, [personId, relationId]);
 
   const chartError = isError
@@ -246,7 +251,10 @@ function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
               >
                 {detailOverlayOpen ? (
                   <aside
-                    className="entity-detail-overlay pointer-events-auto flex h-full max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] min-h-0 w-full max-w-[420px] flex-col overflow-hidden shadow-[0_24px_64px_-12px_rgba(0,0,0,0.45)] max-sm:fixed max-sm:bottom-3 max-sm:left-3 max-sm:right-3 max-sm:top-auto max-sm:max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] sm:max-h-[calc(100vh-var(--app-header-h)-2rem)] sm:w-[min(420px,calc(100vw-2rem))]"
+                    className={[
+                      "entity-detail-overlay pointer-events-auto flex h-full max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] min-h-0 w-full flex-col overflow-hidden shadow-[0_24px_64px_-12px_rgba(0,0,0,0.45)] max-sm:fixed max-sm:bottom-3 max-sm:left-3 max-sm:right-3 max-sm:top-auto max-sm:max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] sm:max-h-[calc(100vh-var(--app-header-h)-2rem)]",
+                      entityDetailOverlayWidthClass(activeDetailModule),
+                    ].join(" ")}
                     aria-label="Ficha técnica de la persona"
                   >
                     <PersonDetailPanel
@@ -254,10 +262,12 @@ function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
                       treeDescendantCount={treeDescendantCount}
                       layoutVariant="overlay"
                       onDetailPhotoUrl={handleDetailPhotoUrl}
+                      onActiveModuleChange={setActiveDetailModule}
                       onMinimize={() => setDetailPanelMinimized(true)}
                       onClose={() => {
                         setSelectedPersonId(null);
                         setDetailPanelMinimized(false);
+                        setActiveDetailModule(null);
                       }}
                     />
                   </aside>

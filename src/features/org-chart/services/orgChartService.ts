@@ -8,6 +8,7 @@ import type {
   OrgPersonDetail,
   OrgSummaryResponse,
   PersonCvResponse,
+  PersonVideoResponse,
 } from '../types'
 import type {
   CreateOrgChartSnapshotPayload,
@@ -15,6 +16,7 @@ import type {
   OrgChartVersion,
 } from '../types/orgChartVersion'
 import { buildVersionQuery } from '../utils/orgChartVersionQuery'
+import { assertSafePersonVideoStreamPath } from '../utils/personVideoStreamUrl'
 
 /**
  * Origen del API. En desarrollo suele ser el Nest en :3000.
@@ -137,6 +139,66 @@ export async function fetchOrgPersonDetail(
 export async function getPersonCv(personId: number): Promise<PersonCvResponse> {
   const safeId = encodeURIComponent(String(personId))
   return getJson<PersonCvResponse>(`/api/org-chart/person/${safeId}/cv`)
+}
+
+/**
+ * Disponibilidad + ticket + streamUrl de video de presentación.
+ * GET /api/org-chart/person/:personId/video (JWT de sesión).
+ * El stream en sí usa solo el ticket embebido en streamUrl (sin Bearer).
+ */
+export async function getPersonVideo(
+  personId: string,
+): Promise<PersonVideoResponse> {
+  const safeId = encodeURIComponent(personId)
+  const data = await getJson<PersonVideoResponse>(
+    `/api/org-chart/person/${safeId}/video`,
+  )
+  return parsePersonVideoResponse(data)
+}
+
+/** Parseo estricto del contrato de video (exportado para tests). */
+export function parsePersonVideoResponse(data: unknown): PersonVideoResponse {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Respuesta de video inválida')
+  }
+  const row = data as Record<string, unknown>
+  if (row.hasVideo === false) {
+    return { hasVideo: false }
+  }
+  if (row.hasVideo !== true) {
+    throw new Error('Respuesta de video inválida')
+  }
+  if (
+    typeof row.fileName !== 'string' ||
+    typeof row.mimeType !== 'string' ||
+    typeof row.streamTicket !== 'string' ||
+    typeof row.streamTicketExpiresAt !== 'string' ||
+    typeof row.streamUrl !== 'string'
+  ) {
+    throw new Error('Metadatos de video incompletos')
+  }
+  // Validación de seguridad del path (sin loguear ticket).
+  assertSafePersonVideoStreamPath(row.streamUrl)
+  return {
+    hasVideo: true,
+    fileName: row.fileName,
+    mimeType: row.mimeType,
+    sizeBytes:
+      row.sizeBytes == null
+        ? null
+        : typeof row.sizeBytes === 'number' && Number.isFinite(row.sizeBytes)
+          ? row.sizeBytes
+          : null,
+    lastSync: typeof row.lastSync === 'string' ? row.lastSync : null,
+    streamTicket: row.streamTicket,
+    streamTicketExpiresAt: row.streamTicketExpiresAt,
+    streamUrl: row.streamUrl,
+  }
+}
+
+/** Base URL del API (sin slash final). Exportada para resolver streamUrl del video. */
+export function getOrgChartApiBaseUrl(): string {
+  return BASE_URL
 }
 
 /** Comprueba que el backend responde; útil para indicadores en cabecera. */

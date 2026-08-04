@@ -36,8 +36,6 @@ describe('Validación escenarios A–F (flujo progresivo)', () => {
       s.name.toLowerCase().includes('frontend'),
     )!
     const react = MOCK_EXPLORER_SKILLS.find((s) => s.name === 'React')!
-    const specMap = new Map(MOCK_EXPLORER_SPECIALTIES.map((s) => [s.code, s]))
-    const skillMap = new Map(MOCK_EXPLORER_SKILLS.map((s) => [s.code, s]))
 
     // A — solo dominio
     let q = selectDomainAsUser(EMPTY_QUERY, soft.code)
@@ -48,7 +46,7 @@ describe('Validación escenarios A–F (flujo progresivo)', () => {
     const countA = r.length
 
     // B — + especialidad
-    q = toggleSpecialty(q, front, specMap)
+    q = toggleSpecialty(q, front)
     rq = rankingQueryFrom(q)
     r = rankPeople(MOCK_EXPLORER_PEOPLE, rq, 'ANY', 'MATCH')
     expect(r.length).toBeGreaterThan(0)
@@ -57,7 +55,7 @@ describe('Validación escenarios A–F (flujo progresivo)', () => {
     const countB = r.length
 
     // C — + React
-    q = toggleSkill(q, react, skillMap, specMap)
+    q = toggleSkill(q, react)
     rq = rankingQueryFrom(q)
     r = rankPeople(MOCK_EXPLORER_PEOPLE, rq, 'ANY', 'MATCH')
     expect(r.length).toBeGreaterThan(0)
