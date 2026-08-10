@@ -332,7 +332,6 @@ function PersonDetailContent({
 
   const probeEnabled = shouldProbePersonVideo({
     personId,
-    hasFullProfile: hasFull,
     isVacancy,
   });
   const {
@@ -445,7 +444,7 @@ function PersonDetailContent({
                   </p>
                 ) : (
                   <p className="mt-0.5 text-xs leading-snug text-slate-400">
-                    Vista limitada — sin permiso de ficha completa
+                    Vista limitada — datos privados restringidos
                   </p>
                 )}
                 {isVacancy ? (
@@ -559,7 +558,7 @@ function PersonDetailContent({
           >
             <PersonCompetenciesPanel personId={personId} />
           </div>
-        ) : (
+        ) : visibleModules.some((m) => m.code === "ficha") ? (
           <div
             id="person-panel-ficha"
             role={showTablist ? "tabpanel" : undefined}
@@ -572,7 +571,7 @@ function PersonDetailContent({
               isVacancy={isVacancy}
             />
           </div>
-        )}
+        ) : null}
       </div>
     </EntityScanShell>
   );

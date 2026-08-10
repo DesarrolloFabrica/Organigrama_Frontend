@@ -1,8 +1,9 @@
 # Módulos extensibles del perfil (PersonDetailPanel)
 
 **Estado módulos base (4A):** **IMPLEMENTADA_Y_VALIDADA**  
-**Estado Presentación (4B):** **IMPLEMENTADA_CON_BLOQUEOS** — ver [`person-profile-presentation.md`](./person-profile-presentation.md) (falta secreto local para smoke stream)  
-**Arquitectura:** `Organigrama_Backend/docs/person-profile-modules-and-presentation-architecture.md`
+**Estado Presentación (4B + visibilidad global autenticada):** **IMPLEMENTADA_CON_BLOQUEOS** — ver [`person-profile-presentation.md`](./person-profile-presentation.md)  
+**Arquitectura:** `Organigrama_Backend/docs/person-profile-modules-and-presentation-architecture.md`  
+**Auditoría:** [`../../docs/person-profile-video-visibility-audit.md`](../../docs/person-profile-video-visibility-audit.md)
 
 ---
 
@@ -47,12 +48,14 @@ src/features/org-chart/components/profile-modules/
   profile-modules.spec.ts
 ```
 
+Helpers de selección: `firstAvailableModule`, `fallbackToAvailableModule`, `resolveActiveProfileModule`.
+
 ---
 
 ## 3. Responsabilidades de PersonDetailPanel
 
 Conserva shell, cabecera, tablist, reset por `personId`, loading/error, scroll.  
-Probe de video en paralelo sin bloquear Ficha.  
+Probe de video en paralelo (también en vista limitada) sin bloquear Ficha.  
 Notifica `onActiveModuleChange` para ensanche del overlay.
 
 ---
@@ -61,9 +64,9 @@ Notifica `onActiveModuleChange` para ensanche del overlay.
 
 | Módulo | Visible cuando |
 |--------|----------------|
-| Ficha | Siempre (con detalle cargado) |
+| Ficha | Siempre (con detalle cargado; contenido privado solo si `hasFullProfile`) |
 | Competencias | `hasFullProfile && !isVacancy` |
-| Presentación | `hasFullProfile && !isVacancy && hasPresentation === true` |
+| Presentación | `!isVacancy && hasPresentation === true` (**sin** exigir ficha completa) |
 
 `hasPresentation` = probe éxito + `hasVideo === true`.  
 Carga / error de probe: sin pestaña Presentación.
@@ -72,9 +75,10 @@ Carga / error de probe: sin pestaña Presentación.
 
 ## 5. Selección y reset
 
-- Default / cambio de persona: `ficha`.
-- Si el activo deja de estar disponible → fallback `ficha`.
-- Aparición tardía de Presentación **no** cambia el módulo activo.
+- Cambio de persona: primer módulo disponible (`firstAvailableModule`).
+- Si el activo deja de estar disponible → fallback al primero disponible (no asume siempre `ficha`).
+- Aparición tardía de Presentación **no** cambia el módulo activo si el actual sigue válido.
+- Tablist solo con **2+** módulos; un solo módulo → contenido directo.
 
 ---
 

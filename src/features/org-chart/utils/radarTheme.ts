@@ -24,14 +24,24 @@ function rgba(rgb: string, alpha: number | string): string {
   return `rgba(${rgb}, ${alpha})`;
 }
 
+function cssRgbChannelsToTriplet(channels: string | undefined): string | null {
+  if (!channels) return null;
+  const values = channels.trim().split(/\s+/).map(Number);
+  if (values.length !== 3 || values.some((value) => !Number.isFinite(value))) return null;
+  return values.join(", ");
+}
+
 /**
  * Paleta del radar: mismos valores de opacidad / estructura SVG que el cyan original;
  * solo sustituye el matiz RGB según el nivel jerárquico (L1–L5).
  */
-export function getRadarPalette(level: RadarThemeLevel) {
+export function getRadarPalette(
+  level: RadarThemeLevel,
+  areaColors?: { glowColor: string; highlightColor?: string } | null,
+) {
   const tokens = getOrgMapLevelTheme(level);
-  const primary = hexToRgbTriplet(tokens.primary);
-  const bright = hexToRgbTriplet(tokens.cornerAccent);
+  const primary = cssRgbChannelsToTriplet(areaColors?.glowColor) ?? hexToRgbTriplet(tokens.primary);
+  const bright = cssRgbChannelsToTriplet(areaColors?.highlightColor) ?? (areaColors ? primary : hexToRgbTriplet(tokens.cornerAccent));
 
   return {
     svg: {

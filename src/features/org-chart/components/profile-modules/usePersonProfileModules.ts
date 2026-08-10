@@ -20,19 +20,45 @@ export function resolveVisibleProfileModules(
     .sort((a, b) => a.order - b.order);
 }
 
+/** Primer módulo disponible por orden; null si la lista está vacía. */
+export function firstAvailableModule(
+  visible: readonly ProfileModuleDefinition[],
+): ProfileModuleCode | null {
+  return visible[0]?.code ?? null;
+}
+
 /**
- * Si el activo no está en la lista visible → fallback a ficha.
+ * Conserva `active` si sigue disponible; si no, cae al primer módulo visible.
+ * No asume que `ficha` siempre exista.
+ */
+export function fallbackToAvailableModule(
+  active: ProfileModuleCode,
+  visible: readonly ProfileModuleDefinition[],
+): ProfileModuleCode | null {
+  if (visible.some((m) => m.code === active)) {
+    return active;
+  }
+  return firstAvailableModule(visible);
+}
+
+/**
+ * Si el activo no está en la lista visible → primer módulo disponible.
+ * Si no hay módulos, conserva `DEFAULT_PROFILE_MODULE` como último recurso de tipo.
  */
 export function resolveActiveProfileModule(
   active: ProfileModuleCode,
   visible: readonly ProfileModuleDefinition[],
 ): ProfileModuleCode {
-  if (visible.some((m) => m.code === active)) {
-    return active;
-  }
-  return DEFAULT_PROFILE_MODULE;
+  return (
+    fallbackToAvailableModule(active, visible) ?? DEFAULT_PROFILE_MODULE
+  );
 }
 
+/**
+ * Tablist visible con 2+ módulos.
+ * Un solo módulo (p. ej. solo Presentación o solo Ficha): sin tablist visual;
+ * el contenido se muestra directo (consistencia con el diseño actual de un módulo).
+ */
 export function profileModulesShowTablist(
   visible: readonly ProfileModuleDefinition[],
 ): boolean {
@@ -41,7 +67,7 @@ export function profileModulesShowTablist(
 
 /**
  * Hook de selección de módulo.
- * `personId` fuerza reset a ficha al cambiar de persona.
+ * Cambio de `personId` → reset al primer módulo disponible (estable).
  */
 export function usePersonProfileModules(
   personId: string,
@@ -52,13 +78,18 @@ export function usePersonProfileModules(
     [ctx.hasFullProfile, ctx.isVacancy, ctx.hasPresentation],
   );
 
+  const initialModule =
+    firstAvailableModule(visibleModules) ?? DEFAULT_PROFILE_MODULE;
+
   const [activeModule, setActiveModule] =
-    useState<ProfileModuleCode>(DEFAULT_PROFILE_MODULE);
+    useState<ProfileModuleCode>(initialModule);
   const [boundPersonId, setBoundPersonId] = useState(personId);
 
   if (boundPersonId !== personId) {
     setBoundPersonId(personId);
-    setActiveModule(DEFAULT_PROFILE_MODULE);
+    setActiveModule(
+      firstAvailableModule(visibleModules) ?? DEFAULT_PROFILE_MODULE,
+    );
   }
 
   const effectiveModule = resolveActiveProfileModule(

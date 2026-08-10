@@ -271,7 +271,8 @@ export function PersonPresentationPanel({
               className="absolute inset-0 size-full bg-black object-contain"
               controls
               playsInline
-              preload="metadata"
+              preload="none"
+              crossOrigin="anonymous"
               controlsList="nodownload"
               aria-label="Video de presentación de la persona seleccionada"
               onLoadedMetadata={onLoadedMetadata}

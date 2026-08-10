@@ -131,12 +131,7 @@
   }
 }
 
-.org-map-flow--lite .radar-sweep-arm {
-  animation: none;
-}
-
-/* Modo lite global: menos GPU en el mapa (radar, blur, animaciones holo). */
-.org-ui--lite .org-map-flow .radar-background,
+/* Modo lite global: reduce efectos pesados, pero conserva el barrido del radar. */
 .org-ui--lite .org-map-decor-glow {
   display: none;
 }
@@ -189,6 +184,25 @@
   z-index: 0;
   pointer-events: none;
   opacity: 0.4;
+}
+
+.radar-background.radar-background--team-list { opacity: 0.46; }
+.radar-background--team-list .radar-background__svg {
+  opacity: 0.58;
+  filter: drop-shadow(0 0 4px rgb(var(--flow-area-color, 34 211 238) / 0.18));
+}
+.radar-background--team-list .radar-guide-line {
+  box-shadow: 0 0 18px rgb(var(--flow-area-color, 34 211 238) / 0.25);
+}
+.team-scroll-list__radar-geometry {
+  opacity: 0.68;
+  background:
+    linear-gradient(to right, transparent calc(50% - 0.75px), rgb(var(--flow-area-color, 34 211 238) / 0.48) 50%, transparent calc(50% + 0.75px)),
+    linear-gradient(to bottom, transparent calc(50% - 0.75px), rgb(var(--flow-area-color, 34 211 238) / 0.48) 50%, transparent calc(50% + 0.75px)),
+    linear-gradient(45deg, transparent calc(50% - 0.6px), rgb(var(--flow-area-color, 34 211 238) / 0.28) 50%, transparent calc(50% + 0.6px)),
+    linear-gradient(-45deg, transparent calc(50% - 0.6px), rgb(var(--flow-area-color, 34 211 238) / 0.28) 50%, transparent calc(50% + 0.6px)),
+    radial-gradient(circle at center, transparent 0 17%, rgb(var(--flow-area-color, 34 211 238) / 0.30) 17.15% 17.35%, transparent 17.5% 31%, rgb(var(--flow-area-color, 34 211 238) / 0.38) 31.15% 31.4%, transparent 31.55% 46%, rgb(var(--flow-area-color, 34 211 238) / 0.32) 46.15% 46.4%, transparent 46.55% 64%, rgb(var(--flow-area-color, 34 211 238) / 0.24) 64.15% 64.4%, transparent 64.55%);
+  filter: drop-shadow(0 0 8px rgb(var(--flow-area-color, 34 211 238) / 0.16));
 }
 
 /* SVG del radar */
@@ -588,6 +602,25 @@ body,
   .org-map-holo__coordination-watermark
   .coordination-emblem__ambient-light {
   opacity: 1;
+}
+
+.org-map-holo:hover
+  .org-map-holo__coordination-watermark
+  .coordination-emblem[data-soft-glow="true"]
+  .coordination-emblem__icon {
+  opacity: 0.36;
+  filter:
+    drop-shadow(0 0 2px rgb(var(--coordination-glow) / 0.58))
+    drop-shadow(0 0 6px rgb(var(--coordination-glow) / 0.28))
+    drop-shadow(0 0 13px rgb(var(--coordination-glow) / 0.12));
+}
+
+.org-map-holo:hover
+  .org-map-holo__coordination-watermark
+  .coordination-emblem[data-soft-glow="true"]
+  .coordination-emblem__ambient-light {
+  opacity: 0.48;
+  filter: blur(8px);
 }
 
 /* Expandido: más energía en el borde (misma familia cromática). */
@@ -1713,7 +1746,8 @@ body,
 
 .mc-radar-polygon-enter {
   animation: mc-radar-polygon-enter 420ms ease-out both;
-  transform-box: fill-box;
+  /* view-box: evita que fill-box (bbox del path asimétrico) deforme/recorte el stroke */
+  transform-box: view-box;
   transform-origin: center;
 }
 
@@ -2080,6 +2114,44 @@ body,
   animation: loadingScreenIn 0.5s ease-out both;
 }
 
+.loading-screen--flow {
+  background: radial-gradient(circle at 50% 50%, rgb(8 47 73) 0%, rgb(2 19 35) 34%, rgb(2 6 23) 72%);
+}
+
+.flow-area-background {
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 50%, rgb(var(--flow-area-color) / 0.09) 0%, rgb(var(--flow-area-color) / 0.045) 30%, transparent 66%),
+    linear-gradient(150deg, rgb(var(--flow-area-color) / 0.035) 0%, transparent 42%, rgb(var(--flow-area-color) / 0.025) 100%);
+  animation: flowAreaBackgroundIn 0.8s ease-out both;
+}
+
+@keyframes flowAreaBackgroundIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.org-flow-area-surface {
+  background: transparent;
+}
+
+.flow-area-active .org-flow-area-surface {
+  background:
+    radial-gradient(ellipse at 50% 38%, rgb(var(--flow-area-color) / 0.25) 0%, rgb(var(--flow-area-color) / 0.14) 34%, transparent 68%),
+    linear-gradient(145deg, #031426 0%, #020617 52%, #061329 100%);
+}
+
+.org-map-area-surface {
+  background: #020617;
+}
+
+.flow-area-active .org-map-area-surface {
+  background:
+    radial-gradient(ellipse 72% 62% at 50% 43%, rgb(var(--flow-area-color) / 0.32) 0%, rgb(var(--flow-area-color) / 0.19) 38%, transparent 72%),
+    radial-gradient(circle at 8% 12%, rgb(var(--flow-area-color) / 0.16), transparent 32%),
+    linear-gradient(135deg, #03152a 0%, #020617 48%, #071329 100%);
+}
+
 .loading-screen--exit {
   animation: loadingScreenOut 0.45s ease-in both;
 }
@@ -2106,6 +2178,8 @@ body,
     opacity: 1;
     transform: none;
   }
+
+  .flow-area-background { animation: none; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

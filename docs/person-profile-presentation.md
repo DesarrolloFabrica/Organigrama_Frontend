@@ -1,8 +1,9 @@
 # Presentación — módulo de video en PersonDetailPanel (Fase 4B)
 
-**Estado:** **IMPLEMENTADA_CON_BLOQUEOS** (2026-08-03) — código y tests OK; smoke browser completo pendiente de `PERSON_VIDEO_STREAM_TICKET_SECRET` local (≥32).  
+**Estado:** **IMPLEMENTADA_CON_BLOQUEOS** (2026-08-05) — política global autenticada implementada; unitarios + builds OK; smoke browser cross-branch pendiente de sesión UI.  
 **Módulos:** [`person-profile-modules.md`](./person-profile-modules.md)  
-**Arquitectura:** `Organigrama_Backend/docs/person-profile-modules-and-presentation-architecture.md`
+**Arquitectura:** `Organigrama_Backend/docs/person-profile-modules-and-presentation-architecture.md`  
+**Auditoría / implementación visibilidad:** [`../../docs/person-profile-video-visibility-audit.md`](../../docs/person-profile-video-visibility-audit.md)
 
 ---
 
@@ -16,18 +17,27 @@ No abre pestaña externa, Drive, `webViewLink` ni iframe de Drive.
 
 ## 2. Disponibilidad
 
-Visible solo si:
+Visible si:
 
-- perfil completo;
-- no vacante;
+- usuario autenticado (sesión app);
+- **no** vacante;
 - probe `GET …/video` **resuelto con éxito**;
 - `hasVideo === true`.
 
-Mientras el probe carga o falla: **no** aparece la pestaña (sin skeleton en tablist). Ficha no se bloquea.
+**No** exige ficha completa, `ORG_READ_ALL` ni relación jerárquica.
+
+Mientras el probe carga o falla: **no** aparece la pestaña. Ficha (pública o completa) no se bloquea.
 
 Error de probe ≠ `hasVideo: false` (ambos ocultan UI; estados internos distintos).
 
-No se consulta en vista limitada ni vacantes.
+No se consulta para vacantes.
+
+En vista limitada pueden coexistir cabecera pública + Ficha (datos mínimos) + tab Presentación, sin CV ni datos privados.
+
+### Tablist
+
+- **2+ módulos:** tablist visible.
+- **1 módulo:** contenido directo **sin** tablist (evita tablist vacío / de una sola pestaña). Helpers `firstAvailableModule` / `fallbackToAvailableModule` permiten Presentación como único módulo si Ficha no estuviera disponible.
 
 ---
 
@@ -66,13 +76,14 @@ Cliente: `getPersonVideo(personId)` + `parsePersonVideoResponse`.
 ## 6. Reproductor
 
 ```html
-<video controls playsInline preload="metadata" controlsList="nodownload" />
+<video controls playsInline preload="metadata" crossorigin="anonymous" controlsList="nodownload" />
 ```
 
 - Sin autoplay / loop / mute automático.
 - Sin fetch+Blob.
 - Fullscreen nativo del navegador.
 - Contenedor 16:9, ancho 100%, fondo neutro.
+- `crossOrigin="anonymous"`: el stream vive en otro origen (Cloud Run FE/BE); requiere CORS con `Range` + `Content-Range` expuestos.
 - `controlsList="nodownload"`: reducción UI, **no** seguridad.
 
 ---

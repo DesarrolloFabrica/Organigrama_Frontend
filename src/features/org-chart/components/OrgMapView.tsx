@@ -34,6 +34,8 @@ import { truncateTreeToMaxLevels } from "../utils/truncateOrgTreeLevels";
 import { RadarBackground } from "./RadarBackground";
 import { OrgMapSelectionProvider } from "../context/OrgMapSelectionContext";
 import { useOrgPerfLite } from "../context/OrgPerfLiteContext";
+import { resolveCoordinationEmblem } from "../config/coordinationEmblems";
+import { useActivateFlowIdentity } from "../../../contexts/RouteTransitionContext";
 
 type Props = {
   root: OrgNode;
@@ -421,6 +423,7 @@ export function OrgMapView({
   onExpandedNodeChange,
 }: Props): ReactElement {
   const { liteMode, reportMetrics } = useOrgPerfLite();
+  const activateFlowIdentity = useActivateFlowIdentity();
   const hasPersistedViewport = Boolean(persistedMapState?.viewport);
   const lastViewportRef = useRef<OrgMapExpansionPersisted["viewport"]>(
     persistedMapState?.viewport ?? null,
@@ -607,6 +610,10 @@ export function OrgMapView({
       const willExpand = !isExpanded;
 
       if (!willExpand) {
+        const rootEmblem = resolveCoordinationEmblem(root);
+        if (rootEmblem && rootEmblem.flowVisuals !== false) {
+          activateFlowIdentity(rootEmblem);
+        }
         cameraIntentRef.current = { parentId: nodeId, expanded: false };
         setCameraNonce((n) => n + 1);
         if (isCanvasRoot) {
@@ -628,6 +635,11 @@ export function OrgMapView({
         return;
       }
 
+      const expandedEmblem = resolveCoordinationEmblem(nodeWithChildren);
+      if (expandedEmblem && expandedEmblem.flowVisuals !== false) {
+        activateFlowIdentity(expandedEmblem);
+      }
+
       cameraIntentRef.current = { parentId: nodeId, expanded: true };
       setCameraNonce((n) => n + 1);
 
@@ -639,11 +651,13 @@ export function OrgMapView({
       setExpandedHubNodeId(nodeId);
     },
     [
+      activateFlowIdentity,
       ensureChildrenLoaded,
       expandedHubNodeId,
       nodeById,
       onExploreTeam,
       root.id,
+      root,
       showRootChildren,
     ],
   );
@@ -834,7 +848,7 @@ export function OrgMapView({
             </div>
           )}
           <section
-            className="relative h-full min-h-0 w-full overflow-visible bg-[#020617]"
+            className="org-map-area-surface relative h-full min-h-0 w-full overflow-visible"
             aria-label="Mapa del organigrama"
           >
             <div ref={mapMeasureRef} className="relative h-full min-h-0 w-full">
@@ -877,7 +891,7 @@ export function OrgMapView({
                     blur-3xl
                   "
                 />
-                {!liteMode ? <RadarBackground level={radarLevel} /> : null}
+                <RadarBackground level={radarLevel} />
                 <div
                   className="absolute inset-0 opacity-[0.08]"
                   style={{

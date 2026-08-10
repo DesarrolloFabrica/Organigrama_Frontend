@@ -7,35 +7,42 @@ import {
   shouldProbePersonVideo,
   shouldRefreshTicketOnEnter,
 } from "./personPresentationRules";
-import { resolveVisibleProfileModules } from "../components/profile-modules/usePersonProfileModules";
+import {
+  firstAvailableModule,
+  resolveActiveProfileModule,
+  resolveVisibleProfileModules,
+} from "../components/profile-modules/usePersonProfileModules";
 
-describe("personPresentationRules (Fase 4B)", () => {
-  it("no consulta video para vista limitada / vacante / sin personId / panel cerrado", () => {
+describe("personPresentationRules (visibilidad global autenticada)", () => {
+  it("probe sin exigir hasFullProfile; bloquea vacante / sin personId / panel cerrado", () => {
+    expect(
+      shouldProbePersonVideo({
+        personId: "10",
+        isVacancy: false,
+      }),
+    ).toBe(true);
     expect(
       shouldProbePersonVideo({
         personId: "10",
         hasFullProfile: false,
         isVacancy: false,
       }),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       shouldProbePersonVideo({
         personId: "10",
-        hasFullProfile: true,
         isVacancy: true,
       }),
     ).toBe(false);
     expect(
       shouldProbePersonVideo({
         personId: null,
-        hasFullProfile: true,
         isVacancy: false,
       }),
     ).toBe(false);
     expect(
       shouldProbePersonVideo({
         personId: "10",
-        hasFullProfile: true,
         isVacancy: false,
         panelOpen: false,
       }),
@@ -43,7 +50,6 @@ describe("personPresentationRules (Fase 4B)", () => {
     expect(
       shouldProbePersonVideo({
         personId: "10",
-        hasFullProfile: true,
         isVacancy: false,
         panelOpen: true,
       }),
@@ -84,13 +90,33 @@ describe("personPresentationRules (Fase 4B)", () => {
     ).toBe(false);
   });
 
-  it("orden 10/20/30 y no cambia active al aparecer (conserva activo válido)", () => {
+  it("vista limitada + video: Presentación en módulos; sin competencias", () => {
+    const limited = resolveVisibleProfileModules({
+      hasFullProfile: false,
+      isVacancy: false,
+      hasPresentation: true,
+    });
+    expect(limited.map((m) => m.code)).toEqual(["ficha", "presentacion"]);
+    expect(firstAvailableModule(limited)).toBe("ficha");
+  });
+
+  it("vista limitada + sin video: solo ficha (sin tablist vacío)", () => {
+    const limited = resolveVisibleProfileModules({
+      hasFullProfile: false,
+      isVacancy: false,
+      hasPresentation: false,
+    });
+    expect(limited.map((m) => m.code)).toEqual(["ficha"]);
+  });
+
+  it("aparición tardía de Presentación no mueve active válido", () => {
     const without = resolveVisibleProfileModules({
       hasFullProfile: true,
       isVacancy: false,
       hasPresentation: false,
     });
     expect(without.map((m) => m.code)).toEqual(["ficha", "competencias"]);
+    expect(resolveActiveProfileModule("ficha", without)).toBe("ficha");
 
     const withPres = resolveVisibleProfileModules({
       hasFullProfile: true,
@@ -102,7 +128,10 @@ describe("personPresentationRules (Fase 4B)", () => {
       "competencias",
       "presentacion",
     ]);
-    expect(withPres.map((m) => m.order)).toEqual([10, 20, 30]);
+    expect(resolveActiveProfileModule("ficha", withPres)).toBe("ficha");
+    expect(resolveActiveProfileModule("competencias", withPres)).toBe(
+      "competencias",
+    );
   });
 
   it("ticket vigente se reutiliza; próximo a expirar se renueva", () => {

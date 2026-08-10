@@ -38,9 +38,14 @@ const CompetencyExplorerPage = lazy(() =>
     default: module.CompetencyExplorerPage,
   })),
 );
+const Mc1ProfilePreviewPage = lazy(() =>
+  import("./features/mc1-profile-preview").then((module) => ({
+    default: module.Mc1ProfilePreviewPage,
+  })),
+);
 
 function RouteSuspense({ children }: { children: ReactNode }) {
-  return <Suspense fallback={<PageLoadingScreen />}>{children}</Suspense>;
+  return <Suspense fallback={<PageLoadingScreen variant="flow" />}>{children}</Suspense>;
 }
 
 /** Shell de la app: organigrama global y exploración por equipo. */
@@ -144,6 +149,16 @@ function App() {
                 }
               />
             </Route>
+
+            {/* Preview LOCAL MC1 — aislada del organigrama productivo */}
+            <Route
+              path="/dev/mc1-profile-preview"
+              element={
+                <RouteSuspense>
+                  <Mc1ProfilePreviewPage />
+                </RouteSuspense>
+              }
+            />
 
             {/* Redirección antigua al organigrama */}
             <Route path="/org-chart" element={<Navigate to="/org" replace />} />

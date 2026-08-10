@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { useHoldRouteTransition } from "../contexts/RouteTransitionContext";
+import { useBeginRouteTransition, useHoldRouteTransition } from "../contexts/RouteTransitionContext";
 import { type OrgNode, countPeopleUnder } from "../features/org-chart/types";
 import { findNodeInTree } from "../features/org-chart/utils/findNodeInTree";
 import { mergeChildrenIntoTree } from "../features/org-chart/utils/mergeChildrenIntoTree";
@@ -32,6 +32,7 @@ import {
 import { orgQueryKeys } from "../lib/react-query/queryKeys";
 import { prefetchDirectChildrenHints } from "../lib/react-query/orgChartPrefetch";
 import { entityDetailOverlayWidthClass } from "../features/org-chart/utils/personPresentationRules";
+import { resolveCoordinationEmblem } from "../features/org-chart/config/coordinationEmblems";
 
 const MAP_MAX_LEVELS = 4;
 
@@ -44,6 +45,7 @@ type ExploreBodyProps = {
 function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
   const conn = useOrgChartConnection();
   const navigate = useNavigate();
+  const beginRouteTransition = useBeginRouteTransition();
   const location = useLocation();
   const teamNavState = readOrgTeamNavState(location.state);
   const queryClient = useQueryClient();
@@ -92,6 +94,9 @@ function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
 
   const handleExploreTeam = useCallback(
     (id: string, childRelationId?: string | null) => {
+      const selectedNode = tree ? findNodeInTree(tree, id) : null;
+      const resolvedEmblem = selectedNode ? resolveCoordinationEmblem(selectedNode) : null;
+      const emblem = resolvedEmblem?.flowVisuals === false ? undefined : resolvedEmblem;
       const nodeKey = orgQueryKeys.node(id, versionId, childRelationId);
       void queryClient.prefetchQuery({
         queryKey: nodeKey,
@@ -103,20 +108,24 @@ function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
               : undefined,
           ),
       });
-      navigate(buildTeamExplorePath(id, childRelationId), {
-        state: buildTeamExploreNavState({
-          currentPersonId: personId,
-          navState: teamNavState,
-        }),
+      void beginRouteTransition(emblem).then(() => {
+        navigate(buildTeamExplorePath(id, childRelationId), {
+          state: buildTeamExploreNavState({
+            currentPersonId: personId,
+            navState: teamNavState,
+          }),
+        });
       });
     },
-    [navigate, personId, teamNavState, queryClient, versionId],
+    [beginRouteTransition, navigate, personId, teamNavState, queryClient, tree, versionId],
   );
 
   const handleBack = useCallback(() => {
     const { path, state } = resolveTeamBackNavigation({ navState: teamNavState });
-    navigate(path, state ? { state } : undefined);
-  }, [navigate, teamNavState]);
+    void beginRouteTransition(path === "/org" ? null : undefined).then(() => {
+      navigate(path, state ? { state } : undefined);
+    });
+  }, [beginRouteTransition, navigate, teamNavState]);
 
   const handleLoadChildren = useCallback(
     async (parentId: string, childRelationId?: string | null) => {
@@ -178,7 +187,7 @@ function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
 
       <OrgChartVersionBar />
 
-      <main className="relative min-h-0 flex-1 overflow-hidden bg-transparent">
+      <main className="org-flow-area-surface relative min-h-0 flex-1 overflow-hidden">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_48%,rgba(34,211,238,0.12),transparent_24%),radial-gradient(circle_at_50%_50%,rgba(14,165,233,0.10),transparent_42%)]"

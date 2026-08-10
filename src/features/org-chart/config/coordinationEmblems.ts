@@ -10,6 +10,13 @@ import transversalSchoolIcon from "../assets/coordination-icons/Transversales.pn
 import businessSchoolIcon from "../assets/coordination-icons/Negocios.png";
 import fineArtsSchoolIcon from "../assets/coordination-icons/Bellas Artes.png";
 import businessTransformationSchoolIcon from "../assets/coordination-icons/Transformación Empresarial.png";
+import b2bIcon from "../assets/coordination-icons/B2B.png";
+import directorOperationsIcon from "../assets/coordination-icons/DirectorOp.png";
+import generalCoordinationIcon from "../assets/coordination-icons/CoordinacionGeneral.png";
+import focaGifIcon from "../assets/coordination-icons/fabrica/FOCA_GIF.png";
+import focaDevelopmentIcon from "../assets/coordination-icons/fabrica/FOCA_DESARROLLO.png";
+import focaAnalystsIcon from "../assets/coordination-icons/fabrica/FOCA_ANALISTAS.png";
+import focaMarketingIcon from "../assets/coordination-icons/fabrica/FOCA_MARKETING.png";
 import type { OrgNode } from "../types";
 
 export type CoordinationEmblemConfig = {
@@ -20,6 +27,10 @@ export type CoordinationEmblemConfig = {
   label: string;
   /** Reduce el halo para iconos cuyo arte fuente ya es muy luminoso. */
   softGlow?: boolean;
+  /** `false`: estética exclusiva de tarjeta; no cambia loader, fondo ni radar. */
+  flowVisuals?: boolean;
+  /** Conserva el color del emblema aunque el nodo sea una vacante. */
+  vacancyVisuals?: boolean;
   placement?:
     | "foreground"
     | "watermark"
@@ -118,16 +129,108 @@ export const COORDINATION_EMBLEMS = {
     label: "Escuela de Transformación Empresarial",
     placement: "watermark",
   },
+  b2b: {
+    icon: b2bIcon,
+    glowColor: "239 68 68",
+    highlightColor: "254 202 202",
+    label: "Coordinación B2B",
+    placement: "watermark",
+  },
+  directorOperations: {
+    icon: directorOperationsIcon,
+    glowColor: "16 185 129",
+    highlightColor: "209 250 229",
+    label: "Director de Operaciones",
+    placement: "watermark",
+    flowVisuals: false,
+  },
+  generalCoordination: {
+    icon: generalCoordinationIcon,
+    glowColor: "245 158 11",
+    highlightColor: "254 243 199",
+    label: "Coordinación General",
+    placement: "watermark",
+    flowVisuals: false,
+  },
+  factoryGif: {
+    icon: focaGifIcon,
+    glowColor: "113 148 113",
+    highlightColor: "220 252 231",
+    label: "Fábrica · GIF",
+    softGlow: true,
+    placement: "watermark",
+  },
+  factoryDevelopment: {
+    icon: focaDevelopmentIcon,
+    glowColor: "79 70 229",
+    highlightColor: "224 231 255",
+    label: "Fábrica · Desarrollo",
+    placement: "watermark",
+  },
+  factoryAnalysts: {
+    icon: focaAnalystsIcon,
+    glowColor: "174 0 235",
+    highlightColor: "243 232 255",
+    label: "Fábrica · Analistas",
+    softGlow: true,
+    placement: "watermark",
+    vacancyVisuals: true,
+  },
+  factoryMarketing: {
+    icon: focaMarketingIcon,
+    glowColor: "249 115 22",
+    highlightColor: "255 237 213",
+    label: "Fábrica · Marketing",
+    softGlow: true,
+    placement: "watermark",
+  },
 } as const satisfies Record<string, CoordinationEmblemConfig>;
+
+function normalizePersonName(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+}
 
 /**
  * Resuelve el emblema de una coordinación por identidad organizacional estable.
  * El id identifica a la persona y el cargo actúa como protección ante reasignaciones.
  */
 export function resolveCoordinationEmblem(
-  node: Pick<OrgNode, "id" | "role">,
+  node: Pick<OrgNode, "id" | "name" | "role" | "nodeKind">,
 ): CoordinationEmblemConfig | null {
   const roleName = node.role?.name?.trim().toUpperCase() ?? "";
+  const personName = normalizePersonName(node.name);
+
+  if (personName === "IRON ALEXANDER FUENTES RODRIGUEZ") {
+    return COORDINATION_EMBLEMS.directorOperations;
+  }
+
+  if (personName === "RAUL VALENCIA CIFUENTES") {
+    return COORDINATION_EMBLEMS.generalCoordination;
+  }
+
+  if (personName === "SARA JULIANA MARTINEZ LOPEZ") {
+    return COORDINATION_EMBLEMS.factoryGif;
+  }
+
+  if (personName === "JOHAN SEBASTIAN DAZA SARMIENTO") {
+    return COORDINATION_EMBLEMS.factoryDevelopment;
+  }
+
+  if (personName === "FELIPE GUERRERO BUENAVENTURA") {
+    return COORDINATION_EMBLEMS.factoryMarketing;
+  }
+
+  if (
+    node.nodeKind === "vacancy" &&
+    personName.includes("COORDINADOR FABRICA DE CONTENIDOS")
+  ) {
+    return COORDINATION_EMBLEMS.factoryAnalysts;
+  }
 
   if (
     node.id === "49" &&
@@ -219,6 +322,13 @@ export function resolveCoordinationEmblem(
     roleName.includes("ESCUELA DE TRANSFORMACION EMPRESARIAL")
   ) {
     return COORDINATION_EMBLEMS.businessTransformationSchool;
+  }
+
+  if (
+    roleName.includes("B2B") &&
+    (roleName.includes("SUPERVISOR") || roleName.includes("COORDINADOR"))
+  ) {
+    return COORDINATION_EMBLEMS.b2b;
   }
 
   return null;

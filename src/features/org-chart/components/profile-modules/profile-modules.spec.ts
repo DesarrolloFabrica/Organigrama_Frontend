@@ -4,15 +4,18 @@ import {
   PERSON_PROFILE_MODULE_DEFINITIONS,
   PROFILE_MODULE_ORDER,
   type ProfileModuleCode,
+  type ProfileModuleDefinition,
   type ProfileModuleVisibilityContext,
 } from "./profile-module.types";
 import {
+  fallbackToAvailableModule,
+  firstAvailableModule,
   profileModulesShowTablist,
   resolveActiveProfileModule,
   resolveVisibleProfileModules,
 } from "./usePersonProfileModules";
 
-describe("profile modules registry (Fase 4B)", () => {
+describe("profile modules registry (visibilidad Presentación autenticada)", () => {
   it("admite presentacion en el tipo/contrato de orden 10/20/30", () => {
     const codes: ProfileModuleCode[] = [
       "ficha",
@@ -38,7 +41,7 @@ describe("profile modules registry (Fase 4B)", () => {
     expect(pres.panelId).toBe("person-panel-presentacion");
   });
 
-  it("orden estable; Presentación solo con hasPresentation", () => {
+  it("vista completa + video: Ficha, Competencias y Presentación", () => {
     const ctx: ProfileModuleVisibilityContext = {
       hasFullProfile: true,
       isVacancy: false,
@@ -51,9 +54,10 @@ describe("profile modules registry (Fase 4B)", () => {
       "presentacion",
     ]);
     expect(visible.map((m) => m.order)).toEqual([10, 20, 30]);
+    expect(profileModulesShowTablist(visible)).toBe(true);
   });
 
-  it("sin hasPresentation no aparece Presentación (carga / false / error probe)", () => {
+  it("sin hasPresentation no aparece Presentación", () => {
     expect(
       resolveVisibleProfileModules({
         hasFullProfile: true,
@@ -69,21 +73,35 @@ describe("profile modules registry (Fase 4B)", () => {
     ).toEqual(["ficha", "competencias"]);
   });
 
-  it("Ficha siempre; Competencias y Presentación con ficha completa y no vacante", () => {
-    const full = resolveVisibleProfileModules({
-      hasFullProfile: true,
-      isVacancy: false,
-      hasPresentation: true,
-    });
-    expect(profileModulesShowTablist(full)).toBe(true);
-
+  it("vista limitada + video: Ficha pública + Presentación; sin Competencias", () => {
     const limited = resolveVisibleProfileModules({
       hasFullProfile: false,
       isVacancy: false,
       hasPresentation: true,
     });
-    expect(limited.map((m) => m.code)).toEqual(["ficha"]);
+    expect(limited.map((m) => m.code)).toEqual(["ficha", "presentacion"]);
+    expect(profileModulesShowTablist(limited)).toBe(true);
+    expect(
+      PERSON_PROFILE_MODULE_DEFINITIONS.find((d) => d.code === "presentacion")!
+        .isAvailable({
+          hasFullProfile: false,
+          isVacancy: false,
+          hasPresentation: true,
+        }),
+    ).toBe(true);
+  });
 
+  it("vista limitada + sin video: solo Ficha; sin tablist vacío", () => {
+    const limited = resolveVisibleProfileModules({
+      hasFullProfile: false,
+      isVacancy: false,
+      hasPresentation: false,
+    });
+    expect(limited.map((m) => m.code)).toEqual(["ficha"]);
+    expect(profileModulesShowTablist(limited)).toBe(false);
+  });
+
+  it("vacante: solo Ficha; Presentación no disponible aunque hasPresentation", () => {
     const vacancy = resolveVisibleProfileModules({
       hasFullProfile: true,
       isVacancy: true,
@@ -92,7 +110,20 @@ describe("profile modules registry (Fase 4B)", () => {
     expect(vacancy.map((m) => m.code)).toEqual(["ficha"]);
   });
 
-  it("fallback a ficha si Presentación deja de estar disponible", () => {
+  it("Presentación como único módulo: firstAvailable y fallback estables", () => {
+    const onlyPres: ProfileModuleDefinition[] = [
+      PERSON_PROFILE_MODULE_DEFINITIONS.find((d) => d.code === "presentacion")!,
+    ];
+    expect(firstAvailableModule(onlyPres)).toBe("presentacion");
+    expect(fallbackToAvailableModule("ficha", onlyPres)).toBe("presentacion");
+    expect(resolveActiveProfileModule("ficha", onlyPres)).toBe("presentacion");
+    expect(resolveActiveProfileModule("presentacion", onlyPres)).toBe(
+      "presentacion",
+    );
+    expect(profileModulesShowTablist(onlyPres)).toBe(false);
+  });
+
+  it("fallback al primer disponible si Presentación deja de estar", () => {
     const without = resolveVisibleProfileModules({
       hasFullProfile: true,
       isVacancy: false,
@@ -103,7 +134,7 @@ describe("profile modules registry (Fase 4B)", () => {
     );
   });
 
-  it("conserva active válido (no auto-selecciona Presentación)", () => {
+  it("conserva active válido (no auto-selecciona Presentación al aparecer)", () => {
     const full = resolveVisibleProfileModules({
       hasFullProfile: true,
       isVacancy: false,
@@ -129,5 +160,25 @@ describe("profile modules registry (Fase 4B)", () => {
     expect(ficha.panelId).toBe("person-panel-ficha");
     expect(comp.tabId).toBe("person-tab-competencias");
     expect(comp.panelId).toBe("person-panel-competencias");
+  });
+
+  it("navegación teclado: un módulo y varios tienen códigos ordenados", () => {
+    const one = resolveVisibleProfileModules({
+      hasFullProfile: false,
+      isVacancy: false,
+      hasPresentation: false,
+    });
+    expect(one.map((m) => m.code)).toEqual(["ficha"]);
+
+    const many = resolveVisibleProfileModules({
+      hasFullProfile: true,
+      isVacancy: false,
+      hasPresentation: true,
+    });
+    const codes = many.map((m) => m.code);
+    expect(codes.indexOf("ficha")).toBeLessThan(codes.indexOf("competencias"));
+    expect(codes.indexOf("competencias")).toBeLessThan(
+      codes.indexOf("presentacion"),
+    );
   });
 });

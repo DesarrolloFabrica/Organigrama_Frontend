@@ -111,6 +111,34 @@ export interface CompetencyMvpTool {
   hasProfessionalContext: boolean
 }
 
+/** FASE 9F — Presentation DTO from local MC1 Profile Assembly. */
+export interface Mc1PersonCompetenciesPresentation {
+  status: 'AVAILABLE'
+  source: 'ARTIFACT_ONLY_LOCAL'
+  fields: Array<{
+    code: string
+    label: string
+    role: 'PRIMARY' | 'SECONDARY'
+    confidence?: number
+    derivedPresentationLabel?: string | null
+    specialties: Array<{
+      code: string
+      label: string
+      confidence?: number
+      skills: Array<{ code: string; name: string }>
+    }>
+    tools: string[]
+    competencyMap: {
+      dimensions: Array<{
+        code: string
+        label: string
+        relativeCoverage: number
+      }>
+    }
+    evidenceVolume: 'LOW' | 'MEDIUM' | 'HIGH'
+  }>
+}
+
 export interface CompetencyProfessionalProfile {
   availabilityStatus: CompetencyAvailability
   person: CompetencyPerson
@@ -130,6 +158,8 @@ export interface CompetencyProfessionalProfile {
     methodologies: CompetencyMvpTool[]
     qualityAlerts: string[]
   } | null
+  /** Presente cuando hay Profile Assembly MC1 local válido. */
+  mc1Profile?: Mc1PersonCompetenciesPresentation | null
   warnings: string[]
 }
 

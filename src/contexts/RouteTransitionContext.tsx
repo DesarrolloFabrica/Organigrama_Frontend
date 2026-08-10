@@ -3,73 +3,106 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { useLocation } from "react-router-dom";
-import { PageLoadingScreen } from "../components/PageLoadingScreen";
+import {
+  PageLoadingScreen,
+  type FlowLoadingIdentity,
+} from "../components/PageLoadingScreen";
 
 const SKIP_LOADER_PATHS = new Set(["/", "/loading"]);
-const MIN_FLASH_MS = 150;
+const MIN_VISIBLE_MS = 800;
 const EXIT_ANIMATION_MS = 220;
+const FLOW_IDENTITY_STORAGE_KEY = "org-chart:flow-identity";
 
-type RouteTransitionContextValue = {
-  holdTransition: () => () => void;
-};
-
-const RouteTransitionContext =
-  createContext<RouteTransitionContextValue | null>(null);
-
-/** Mantiene el overlay mientras `active` sea true (p. ej. fetch o guard). */
-export function useHoldRouteTransition(active: boolean) {
-  const ctx = useContext(RouteTransitionContext);
-
-  useEffect(() => {
-    if (!ctx || !active) {
-      return;
-    }
-    return ctx.holdTransition();
-  }, [ctx, active]);
-}
-
-function isOrgChartRoute(pathname: string): boolean {
+function isTeamRoute(pathname: string): boolean {
   return (
-    pathname === "/org" ||
     pathname.startsWith("/org/team/") ||
     pathname.startsWith("/org-chart/team/")
   );
 }
 
-function shouldShowLoader(pathname: string, previousPathname: string | null): boolean {
-  if (SKIP_LOADER_PATHS.has(pathname)) return false;
-  if (
-    previousPathname &&
-    isOrgChartRoute(pathname) &&
-    isOrgChartRoute(previousPathname)
-  ) {
-    return false;
+function readStoredFlowIdentity(pathname: string): FlowLoadingIdentity | null {
+  if (typeof window === "undefined" || !isTeamRoute(pathname)) return null;
+  try {
+    const parsed = JSON.parse(
+      window.sessionStorage.getItem(FLOW_IDENTITY_STORAGE_KEY) ?? "null",
+    ) as Partial<FlowLoadingIdentity> | null;
+    return parsed &&
+      typeof parsed.icon === "string" &&
+      typeof parsed.label === "string" &&
+      typeof parsed.glowColor === "string"
+      ? (parsed as FlowLoadingIdentity)
+      : null;
+  } catch {
+    return null;
   }
-  return true;
 }
 
-type RouteTransitionProviderProps = {
-  children: ReactNode;
+function clearStoredFlowIdentity() {
+  window.sessionStorage.removeItem(FLOW_IDENTITY_STORAGE_KEY);
+}
+
+type RouteTransitionContextValue = {
+  holdTransition: () => () => void;
+  beginRouteTransition: (
+    identity?: FlowLoadingIdentity | null,
+  ) => Promise<void>;
+  activateFlowIdentity: (identity: FlowLoadingIdentity | null) => void;
+  flowIdentity: FlowLoadingIdentity | null;
 };
 
-/**
- * Overlay global al cambiar de ruta. Permanece solo el mínimo anti-flash
- * o mientras algún guard o página reporte carga con `useHoldRouteTransition`.
- */
-export function RouteTransitionProvider({ children }: RouteTransitionProviderProps) {
+const RouteTransitionContext =
+  createContext<RouteTransitionContextValue | null>(null);
+
+export function useHoldRouteTransition(active: boolean) {
+  const ctx = useContext(RouteTransitionContext);
+
+  useEffect(() => {
+    if (!ctx || !active) return;
+    return ctx.holdTransition();
+  }, [ctx, active]);
+}
+
+export function useBeginRouteTransition() {
+  const ctx = useContext(RouteTransitionContext);
+  if (!ctx) {
+    throw new Error("useBeginRouteTransition requiere RouteTransitionProvider");
+  }
+  return ctx.beginRouteTransition;
+}
+
+export function useFlowAreaIdentity() {
+  return useContext(RouteTransitionContext)?.flowIdentity ?? null;
+}
+
+export function useActivateFlowIdentity() {
+  const ctx = useContext(RouteTransitionContext);
+  if (!ctx) {
+    throw new Error("useActivateFlowIdentity requiere RouteTransitionProvider");
+  }
+  return ctx.activateFlowIdentity;
+}
+
+function shouldShowLoader(pathname: string): boolean {
+  return !SKIP_LOADER_PATHS.has(pathname);
+}
+
+export function RouteTransitionProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [overlayPhase, setOverlayPhase] = useState<"off" | "on" | "out">("off");
+  const [flowIdentity, setFlowIdentity] = useState<FlowLoadingIdentity | null>(
+    () => readStoredFlowIdentity(location.pathname),
+  );
   const holdCountRef = useRef(0);
   const minDoneRef = useRef(true);
   const hideTimerRef = useRef<number | null>(null);
-  const transitionStartedAtRef = useRef(0);
-  const previousPathnameRef = useRef<string | null>(null);
 
   const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current !== null) {
@@ -79,18 +112,11 @@ export function RouteTransitionProvider({ children }: RouteTransitionProviderPro
   }, []);
 
   const tryHide = useCallback(() => {
-    if (!minDoneRef.current || holdCountRef.current > 0) {
-      return;
-    }
-
+    if (!minDoneRef.current || holdCountRef.current > 0) return;
     clearHideTimer();
-    setOverlayPhase((phase) => {
-      if (phase === "off" || phase === "out") {
-        return phase;
-      }
-      return "out";
-    });
-
+    setOverlayPhase((phase) =>
+      phase === "off" || phase === "out" ? phase : "out",
+    );
     hideTimerRef.current = window.setTimeout(() => {
       setOverlayPhase("off");
       hideTimerRef.current = null;
@@ -107,11 +133,62 @@ export function RouteTransitionProvider({ children }: RouteTransitionProviderPro
     };
   }, [clearHideTimer, tryHide]);
 
-  useEffect(() => {
-    const previousPathname = previousPathnameRef.current;
-    previousPathnameRef.current = location.pathname;
+  const activateFlowIdentity = useCallback(
+    (identity: FlowLoadingIdentity | null) => {
+      if (identity === null) {
+        document.documentElement.style.removeProperty("--flow-area-color");
+        document.documentElement.classList.remove("flow-area-active");
+        clearStoredFlowIdentity();
+        setFlowIdentity(null);
+        return;
+      }
+      document.documentElement.style.setProperty(
+        "--flow-area-color",
+        identity.glowColor,
+      );
+      document.documentElement.classList.add("flow-area-active");
+      window.sessionStorage.setItem(
+        FLOW_IDENTITY_STORAGE_KEY,
+        JSON.stringify(identity),
+      );
+      setFlowIdentity(identity);
+    },
+    [],
+  );
 
-    if (!shouldShowLoader(location.pathname, previousPathname)) {
+  const beginRouteTransition = useCallback(
+    (identity?: FlowLoadingIdentity | null) => {
+      clearHideTimer();
+      minDoneRef.current = false;
+      flushSync(() => {
+        if (identity !== undefined) activateFlowIdentity(identity);
+        setOverlayPhase("on");
+      });
+      return new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => resolve());
+      });
+    },
+    [activateFlowIdentity, clearHideTimer],
+  );
+
+  useLayoutEffect(() => {
+    if (!flowIdentity || !isTeamRoute(location.pathname)) return;
+    document.documentElement.style.setProperty(
+      "--flow-area-color",
+      flowIdentity.glowColor,
+    );
+    document.documentElement.classList.add("flow-area-active");
+  }, [flowIdentity, location.pathname]);
+
+  useEffect(() => {
+    if (location.pathname === "/org" || location.pathname === "/") {
+      document.documentElement.style.removeProperty("--flow-area-color");
+      document.documentElement.classList.remove("flow-area-active");
+      clearStoredFlowIdentity();
+      setFlowIdentity(null);
+    }
+
+    if (!shouldShowLoader(location.pathname)) {
       holdCountRef.current = 0;
       minDoneRef.current = true;
       clearHideTimer();
@@ -120,51 +197,47 @@ export function RouteTransitionProvider({ children }: RouteTransitionProviderPro
     }
 
     clearHideTimer();
-    transitionStartedAtRef.current = performance.now();
     minDoneRef.current = false;
     setOverlayPhase("on");
-
-    const elapsed = () => performance.now() - transitionStartedAtRef.current;
-    const scheduleMinDone = () => {
-      const remaining = MIN_FLASH_MS - elapsed();
-      if (remaining <= 0) {
-        minDoneRef.current = true;
-        tryHide();
-        return;
-      }
-      window.setTimeout(() => {
-        minDoneRef.current = true;
-        tryHide();
-      }, remaining);
-    };
-
-    const minTimer = window.setTimeout(scheduleMinDone, 0);
-
-    return () => {
-      window.clearTimeout(minTimer);
-    };
+    const minTimer = window.setTimeout(() => {
+      minDoneRef.current = true;
+      tryHide();
+    }, MIN_VISIBLE_MS);
+    return () => window.clearTimeout(minTimer);
   }, [location.pathname, tryHide, clearHideTimer]);
 
   useEffect(() => () => clearHideTimer(), [clearHideTimer]);
 
-  const value: RouteTransitionContextValue = { holdTransition };
+  const value = {
+    holdTransition,
+    beginRouteTransition,
+    activateFlowIdentity,
+    flowIdentity,
+  };
 
   return (
     <RouteTransitionContext.Provider value={value}>
+      {flowIdentity && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="flow-area-background fixed inset-0 z-[1]"
+              style={{ "--flow-area-color": flowIdentity.glowColor } as CSSProperties}
+              aria-hidden="true"
+            />,
+            document.body,
+          )
+        : null}
       {children}
       {overlayPhase !== "off" && typeof document !== "undefined"
         ? createPortal(
-            <div
-              className="fixed inset-0 z-[9999] isolate"
-              role="presentation"
-            >
+            <div className="fixed inset-0 z-[9999] isolate" role="presentation">
               <PageLoadingScreen
+                variant="flow"
+                flowIdentity={flowIdentity}
                 className={[
                   "min-h-full",
                   overlayPhase === "out" ? "loading-screen--exit" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                ].filter(Boolean).join(" ")}
               />
             </div>,
             document.body,

@@ -112,8 +112,9 @@ export function TeamScrollListView({
 
   return (
     <div className="team-scroll-list-view relative h-full overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <RadarBackground level={radarLevel} />
+      <div className="pointer-events-none absolute inset-0 z-[5] overflow-hidden">
+        <div className="team-scroll-list__radar-geometry absolute inset-0" aria-hidden />
+        <RadarBackground level={radarLevel} className="radar-background--team-list" />
       </div>
 
       {showBackButton && onBack ? (

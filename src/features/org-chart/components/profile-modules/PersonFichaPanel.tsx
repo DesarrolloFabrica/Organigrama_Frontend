@@ -13,6 +13,10 @@ type Props = {
   isVacancy: boolean;
 };
 
+// Ocultamiento temporal para todas las fichas. Cambiar a `true` restaura
+// ambas secciones sin recuperar código eliminado.
+const SHOW_LOCATION_AND_TEAM_SECTIONS = false;
+
 function formatValue(value: string | null | undefined): string {
   if (value == null || String(value).trim() === "") return "—";
   return String(value);
@@ -422,6 +426,8 @@ export function PersonFichaPanel({
             </dl>
           </HudSection>
 
+          {SHOW_LOCATION_AND_TEAM_SECTIONS ? (
+            <>
           <HudSection id="sec-loc" title="Ubicación" icon="location">
             <dl>
               <HudDetailRow label="Región" value={formatValue(regionName)} />
@@ -482,6 +488,9 @@ export function PersonFichaPanel({
               </p>
             )}
           </HudSection>
+
+            </>
+          ) : null}
 
           <HudSection id="sec-path" title="Ruta jerárquica" icon="path">
             {profile.hierarchy_path.length === 0 ? (

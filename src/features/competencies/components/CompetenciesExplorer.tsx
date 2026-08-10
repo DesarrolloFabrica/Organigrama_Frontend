@@ -25,6 +25,7 @@ import {
   SpecialtyDetailPanel,
   SpecialtyDetailSkeleton,
 } from './SpecialtyDetailPanel'
+import { Mc1PersonCompetenciesView } from './Mc1PersonCompetenciesView'
 
 type Props = {
   personId: string
@@ -126,6 +127,10 @@ export function CompetenciesExplorer({ personId }: Props) {
   }
 
   if (!profile) return null
+
+  if (profile.mc1Profile?.status === 'AVAILABLE') {
+    return <Mc1PersonCompetenciesView profile={profile.mc1Profile} />
+  }
 
   if (
     profile.availabilityStatus !== 'AVAILABLE' &&

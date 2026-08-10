@@ -162,7 +162,7 @@ function OrgMapNodeComponent({ id, data }: NodeProps) {
           <CoordinationEmblem
             config={coordinationEmblem}
             selected={isSelected}
-            disabled={isVacancy}
+            disabled={isVacancy && !coordinationEmblem.vacancyVisuals}
           />
         </div>
       ) : null}

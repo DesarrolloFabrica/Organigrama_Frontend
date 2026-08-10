@@ -139,9 +139,14 @@ export function CompetencyRadar({
     [coverages],
   )
 
-  const polygonPath = useMemo(
-    () => polygonPointsToPath(buildCoveragePolygon(CX, CY, MAX_R, coverages)),
+  const polygonPoints = useMemo(
+    () => buildCoveragePolygon(CX, CY, MAX_R, coverages),
     [coverages],
+  )
+
+  const polygonPath = useMemo(
+    () => polygonPointsToPath(polygonPoints),
+    [polygonPoints],
   )
 
   const rings = useMemo(() => buildRingLevels(5), [])
@@ -319,15 +324,20 @@ export function CompetencyRadar({
             )
           })}
 
-          <path
-            key={polygonKey}
-            d={polygonPath}
-            className={reducedMotion ? undefined : 'mc-radar-polygon-enter'}
-            fill="rgba(34,211,238,0.14)"
-            stroke="rgb(34,211,238)"
-            strokeWidth={1.75}
-            strokeLinejoin="round"
-          />
+          <g data-radar-series="primary">
+            <path
+              key={polygonKey}
+              d={polygonPath}
+              className={reducedMotion ? undefined : 'mc-radar-polygon-enter'}
+              fill="rgba(34,211,238,0.14)"
+              stroke="rgb(34,211,238)"
+              strokeWidth={1.75}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              fillRule="nonzero"
+              data-radar-series-part="closed"
+            />
+          </g>
 
           {axes.map((specialty, index) => {
             const g = geometry[index]

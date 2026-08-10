@@ -1,9 +1,20 @@
 /**
  * Geometría pura del radar de especialidades (heptágono / n-gon).
  * Coverage 0–1 → radio normalizado. No usa Strength ni Confidence.
+ *
+ * relativeCoverage / tooltips: valor semántico intacto.
+ * Coordenadas SVG: Coverage exactamente 0 usa un floor visual mínimo
+ * (RADAR_ZERO_VISUAL_FLOOR_RATIO) para cerrar el polígono sin colapsar
+ * todos los ceros en el mismo punto del centro.
  */
 
 export const RADAR_START_ANGLE = -Math.PI / 2
+
+/**
+ * Radio de render para Coverage semántico === 0 (fracción del maxRadius).
+ * Solo afecta coordenadas SVG; tooltips siguen mostrando 0%.
+ */
+export const RADAR_ZERO_VISUAL_FLOOR_RATIO = 0.03
 
 /** viewBox sugerido: labels cerca del borde (~80–90 % del ancho útil). */
 export const RADAR_VIEW_SIZE = 360
@@ -41,21 +52,6 @@ export function polarToCartesian(
   }
 }
 
-/**
- * Punto del polígono para un Coverage (0–1).
- * Coverage 0 → centro; Coverage 1 → radio máximo.
- */
-export function coverageToPoint(
-  centerX: number,
-  centerY: number,
-  maxRadius: number,
-  angleRad: number,
-  coverage: number,
-): Point2D {
-  const normalized = clamp01(coverage)
-  return polarToCartesian(centerX, centerY, maxRadius * normalized, angleRad)
-}
-
 export function clamp01(value: number): number {
   const n = Number(value)
   if (!Number.isFinite(n)) return 0
@@ -64,7 +60,45 @@ export function clamp01(value: number): number {
   return n
 }
 
-/** Coverage 0–1 → porcentaje 0–100 para etiquetas. */
+/**
+ * Ratio de radio para dibujar (0–1).
+ * Solo Coverage semántico exactamente 0 → floor visual.
+ * Valores bajos no-cero (p. ej. 0.05) no se alteran.
+ */
+export function coverageToRenderRatio(semanticCoverage: number): number {
+  const semantic = clamp01(semanticCoverage)
+  if (semantic === 0) return RADAR_ZERO_VISUAL_FLOOR_RATIO
+  return semantic
+}
+
+/**
+ * Punto del polígono para un Coverage (0–1).
+ * Coverage 0 → radio = maxRadius * ZERO_VISUAL_FLOOR (cerca del centro, en su eje).
+ * Coverage 1 → radio máximo.
+ * El valor semántico para labels/tooltips no se modifica aquí.
+ */
+export function coverageToPoint(
+  centerX: number,
+  centerY: number,
+  maxRadius: number,
+  angleRad: number,
+  coverage: number,
+): Point2D {
+  const render = coverageToRenderRatio(coverage)
+  return polarToCartesian(centerX, centerY, maxRadius * render, angleRad)
+}
+
+const POINT_EPS = 1e-6
+
+export function samePoint(
+  a: Point2D,
+  b: Point2D,
+  eps: number = POINT_EPS,
+): boolean {
+  return Math.abs(a.x - b.x) <= eps && Math.abs(a.y - b.y) <= eps
+}
+
+/** Coverage 0–1 → porcentaje 0–100 para etiquetas/tooltips (semántico). */
 export function coverageToPercent(coverage: number): number {
   return Math.round(clamp01(coverage) * 100)
 }
@@ -83,6 +117,9 @@ export function buildRingLevels(steps = 5): number[] {
   return Array.from({ length: steps }, (_, i) => (i + 1) / steps)
 }
 
+/**
+ * Path SVG cerrado (M … L … Z) con exactamente N vértices (sin omitir ceros).
+ */
 export function polygonPointsToPath(points: Point2D[]): string {
   if (points.length === 0) return ''
   const [first, ...rest] = points
@@ -109,6 +146,19 @@ export function buildCoveragePolygon(
       axisAngle(index, n, startAngle),
       coverage,
     ),
+  )
+}
+
+/** Un único path cerrado (fill + stroke comparten geometría). */
+export function buildCoverageClosedPath(
+  centerX: number,
+  centerY: number,
+  maxRadius: number,
+  coverages: number[],
+  startAngle: number = RADAR_START_ANGLE,
+): string {
+  return polygonPointsToPath(
+    buildCoveragePolygon(centerX, centerY, maxRadius, coverages, startAngle),
   )
 }
 

@@ -4,6 +4,7 @@ import {
   getRadarPalette,
   type RadarThemeLevel,
 } from "../utils/radarTheme";
+import { useFlowAreaIdentity } from "../../../contexts/RouteTransitionContext";
 
 type Props = {
   /** Nivel jerárquico visual (1 = más alto en el lienzo). Default L1 cyan. */
@@ -23,7 +24,8 @@ export function RadarBackground({
   style,
 }: Props) {
   const CENTER = 450;
-  const { svg, cssVars } = getRadarPalette(level);
+  const flowIdentity = useFlowAreaIdentity();
+  const { svg, cssVars } = getRadarPalette(level, flowIdentity);
 
   return (
     <div

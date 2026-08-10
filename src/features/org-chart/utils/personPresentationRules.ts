@@ -1,5 +1,8 @@
 /**
- * Reglas puras del módulo Presentación (Fase 4B) — testeables sin DOM.
+ * Reglas puras del módulo Presentación — testeables sin DOM.
+ *
+ * Presentación: visible para cualquier usuario autenticado (probe sin ficha completa).
+ * Ficha / CV / competencias siguen políticas propias.
  */
 
 import type { ProfileModuleCode } from "../components/profile-modules/profile-module.types";
@@ -8,13 +11,17 @@ import { isPersonVideoTicketFresh } from "./personVideoStreamUrl";
 /** ¿Se puede lanzar el probe GET …/video? */
 export function shouldProbePersonVideo(opts: {
   personId: string | null | undefined;
-  hasFullProfile: boolean;
   isVacancy: boolean;
+  /** Panel cerrado → no probe. Default: abierto. */
   panelOpen?: boolean;
+  /**
+   * @deprecated Ya no se usa como gate. Conservado opcional por compatibilidad de llamadas.
+   */
+  hasFullProfile?: boolean;
 }): boolean {
   if (!opts.personId) return false;
   if (opts.panelOpen === false) return false;
-  return opts.hasFullProfile && !opts.isVacancy;
+  return !opts.isVacancy;
 }
 
 /**
