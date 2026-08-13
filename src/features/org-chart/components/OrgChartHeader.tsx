@@ -206,6 +206,19 @@ function HeaderToolbar({
 
         ) : null}
 
+        <Link
+          to="/org/competency-explorer"
+          className="rounded-lg px-2 py-1.5 font-mono text-[0.625rem] font-semibold uppercase tracking-wide text-cyan-100/75 transition hover:bg-cyan-950/45 hover:text-cyan-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 sm:px-2.5"
+          aria-label="Abrir Explorador de Competencias"
+        >
+          Competencias
+        </Link>
+
+        <span
+          className="hidden h-5 w-px shrink-0 bg-white/10 sm:block"
+          aria-hidden
+        />
+
 
 
         <OrgChartConnectionStatus state={conn} />

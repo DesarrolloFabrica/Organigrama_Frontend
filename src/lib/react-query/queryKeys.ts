@@ -63,6 +63,21 @@ export const orgQueryKeys = {
       specialtyCode,
       includeAudit,
     ] as const,
+  competencyPeopleSearch: (
+    domainCode: string | null,
+    specialtyCode: string | null,
+    skillCodes: string[],
+    page: number,
+    versionId?: number,
+  ) =>
+    [
+      "competency-people-search",
+      versionId ?? null,
+      domainCode,
+      specialtyCode,
+      skillCodes.join(","),
+      page,
+    ] as const,
   search: (query: string, versionId?: number) =>
     versionId !== undefined
       ? (["org-search", query, versionId] as const)

@@ -1,150 +1,184 @@
-import { useMemo, useState } from 'react'
-import { ActiveQueryBar } from '../components/ActiveQueryBar'
-import { ExplorerContent } from '../components/ExplorerContent'
-import { ExplorerHeader } from '../components/ExplorerHeader'
-import { GlobalKnowledgeSearch } from '../components/GlobalKnowledgeSearch'
-import { QueryBuilderPanel } from '../components/QueryBuilderPanel'
-import { useCompetencyExplorerQuery } from '../hooks/useCompetencyExplorerQuery'
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { PersonDetailPanel } from "../../org-chart/components/PersonDetailPanel";
+import type { ProfileModuleCode } from "../../org-chart/components/profile-modules/profile-module.types";
+import { OrgChartVersionBar } from "../../org-chart/components/OrgChartVersionBar";
+import { entityDetailOverlayWidthClass } from "../../org-chart/utils/personPresentationRules";
+import { ActiveQueryBar } from "../components/ActiveQueryBar";
+import { AiProjectCandidatePreview } from "../components/AiProjectCandidatePreview";
+import { CompetencyPeopleResults } from "../components/CompetencyPeopleResults";
+import { ExplorerHeader } from "../components/ExplorerHeader";
+import { QueryBuilderPanel } from "../components/QueryBuilderPanel";
+import { useCompetencyPeopleSearch } from "../hooks/useCompetencyPeopleSearch";
+import type { CompetencyPeopleSearchQuery } from "../types/competencyPeopleSearch.types";
 import {
-  MOCK_EXPLORER_DOMAINS,
-  MOCK_EXPLORER_SKILLS,
-  MOCK_EXPLORER_SPECIALTIES,
-  MOCK_EXPLORER_STATS,
-} from '../mocks/competencyExplorer.mock'
-import { MOCK_EXPLORER_PEOPLE } from '../mocks/competencyExplorer.people.mock'
-import type {
-  CompetencyRankingQuery,
-  MatchMode,
-  PersonSortMode,
-  RestrictiveCriterion,
-} from '../types/competencyExplorer.types'
-import {
-  findMostRestrictiveCriterion,
-  rankPeople,
-} from '../utils/rankPeople'
-import { userSelectionCodes } from '../utils/queryState'
+  broadenCompetencyPeopleQuery,
+  competencyPeopleQuerySignature,
+  EMPTY_COMPETENCY_PEOPLE_QUERY,
+  readCompetencyPeopleQuery,
+  sameCompetencyPeopleQuery,
+  selectCompetencyDomain,
+  selectCompetencySpecialty,
+  shouldCanonicalizeCompetencyPeopleQuery,
+  toggleCompetencySkill,
+  writeCompetencyPeopleQuery,
+} from "../utils/competencyPeopleSearchState";
 
-/**
- * Explorador de Competencias — ranking progresivo desde dominio (Fase 3.1).
- */
 export function CompetencyExplorerPage() {
-  const [searchText, setSearchText] = useState('')
-  const [matchMode, setMatchMode] = useState<MatchMode>('ANY')
-  const [sortMode, setSortMode] = useState<PersonSortMode>('MATCH')
-  const explorer = useCompetencyExplorerQuery()
+  const [searchParams, setSearchParams] = useSearchParams();
+  const query = useMemo(
+    () => readCompetencyPeopleQuery(searchParams),
+    [searchParams],
+  );
+  const querySignature = competencyPeopleQuerySignature(query);
+  const [paginationState, setPaginationState] = useState({
+    querySignature,
+    page: 1,
+  });
+  const page =
+    paginationState.querySignature === querySignature
+      ? paginationState.page
+      : 1;
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  const [activeDetailModule, setActiveDetailModule] =
+    useState<ProfileModuleCode | null>(null);
+  const search = useCompetencyPeopleSearch(query, page);
 
-  const domainNameByCode = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const d of explorer.domains) map.set(d.code, d.name)
-    return map
-  }, [explorer.domains])
+  useEffect(() => {
+    if (!search.data) return;
+    if (!shouldCanonicalizeCompetencyPeopleQuery(query, search.data.query))
+      return;
+    setSearchParams(
+      writeCompetencyPeopleQuery(searchParams, search.data.query),
+      { replace: true },
+    );
+  }, [query, search.data, searchParams, setSearchParams]);
 
-  const rankingQuery: CompetencyRankingQuery = useMemo(
-    () => ({
-      domainCodes: userSelectionCodes(explorer.query.domains),
-      specialtyCodes: userSelectionCodes(explorer.query.specialties),
-      skillCodes: userSelectionCodes(explorer.query.skills),
-    }),
-    [explorer.query],
-  )
+  const displayData =
+    search.data && sameCompetencyPeopleQuery(query, search.data.query)
+      ? search.data
+      : undefined;
 
-  const hasExplicitCriteria =
-    rankingQuery.domainCodes.length > 0 ||
-    rankingQuery.specialtyCodes.length > 0 ||
-    rankingQuery.skillCodes.length > 0
-
-  const rankingResults = useMemo(
-    () =>
-      rankPeople(MOCK_EXPLORER_PEOPLE, rankingQuery, matchMode, sortMode),
-    [rankingQuery, matchMode, sortMode],
-  )
-
-  const restrictiveCriterion = useMemo(
-    () => findMostRestrictiveCriterion(MOCK_EXPLORER_PEOPLE, rankingQuery),
-    [rankingQuery],
-  )
-
-  function onRemoveCriterion(criterion: RestrictiveCriterion) {
-    if (criterion.type === 'DOMAIN') {
-      explorer.onRemoveDomain(criterion.code)
-      return
-    }
-    if (criterion.type === 'SPECIALTY') {
-      explorer.onRemoveSpecialty(criterion.code)
-      return
-    }
-    explorer.onRemoveSkill(criterion.code)
+  function updateQuery(next: CompetencyPeopleSearchQuery) {
+    setPaginationState({
+      querySignature: competencyPeopleQuerySignature(next),
+      page: 1,
+    });
+    setSearchParams(writeCompetencyPeopleQuery(searchParams, next));
   }
 
+  function broadenQuery() {
+    updateQuery(broadenCompetencyPeopleQuery(query));
+  }
+
+  const isInitialPending = search.isPending && !search.data;
+  const detailOpen = Boolean(selectedPersonId);
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <main className="min-h-0 flex-1 overflow-y-auto">
+    <div className="flex h-dvh max-h-dvh min-h-0 flex-1 flex-col overflow-hidden">
+      <OrgChartVersionBar />
+      <main className="min-h-0 flex-1 overflow-y-scroll overscroll-y-contain [scrollbar-gutter:stable]">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
-          <ExplorerHeader
-            search={
-              <GlobalKnowledgeSearch
-                value={searchText}
-                onChange={setSearchText}
-                onSelectHit={explorer.onSelectSearchHit}
-              />
-            }
-          />
+          <ExplorerHeader />
+
+          <AiProjectCandidatePreview />
 
           <ActiveQueryBar
-            query={explorer.query}
-            domains={explorer.domains}
-            specialties={MOCK_EXPLORER_SPECIALTIES}
-            skills={MOCK_EXPLORER_SKILLS}
-            matchMode={matchMode}
-            resultCount={hasExplicitCriteria ? rankingResults.length : null}
-            onRemoveDomain={explorer.onRemoveDomain}
-            onRemoveSpecialty={explorer.onRemoveSpecialty}
-            onRemoveSkill={explorer.onRemoveSkill}
-            onClear={explorer.onClear}
+            query={query}
+            selectedCriteria={displayData?.selectedCriteria}
+            resultCount={query.domainCode ? (displayData?.total ?? null) : null}
+            onRemoveDomain={() => updateQuery(selectCompetencyDomain(null))}
+            onRemoveSpecialty={() =>
+              updateQuery(selectCompetencySpecialty(query, null))
+            }
+            onRemoveSkill={(code) =>
+              updateQuery(toggleCompetencySkill(query, code))
+            }
+            onClear={() => updateQuery(EMPTY_COMPETENCY_PEOPLE_QUERY)}
           />
 
-          <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] lg:items-start xl:grid-cols-[minmax(240px,300px)_minmax(0,1fr)]">
-            <div className="lg:sticky lg:top-0 lg:max-h-[calc(100dvh-2rem)]">
+          {search.data?.warnings.length ? (
+            <p role="status" className="text-xs text-amber-200/80">
+              Se retiraron criterios obsoletos o incompatibles de la URL.
+            </p>
+          ) : null}
+
+          <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)] lg:items-start">
+            <div className="min-h-0 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-4rem)] lg:overflow-y-auto lg:overscroll-y-contain lg:[scrollbar-gutter:stable]">
               <QueryBuilderPanel
-                domains={explorer.domains}
-                availableSpecialties={explorer.availableSpecialties}
-                availableSkills={explorer.availableSkills}
-                query={explorer.query}
-                domainNameByCode={domainNameByCode}
-                onToggleDomain={explorer.onToggleDomain}
-                onToggleSpecialty={explorer.onToggleSpecialty}
-                onToggleSkill={explorer.onToggleSkill}
+                query={query}
+                selectedCriteria={displayData?.selectedCriteria}
+                facets={
+                  displayData?.facets ?? {
+                    domains: [],
+                    specialties: [],
+                    skills: [],
+                  }
+                }
+                isLoading={isInitialPending}
+                onSelectDomain={(code) =>
+                  updateQuery(selectCompetencyDomain(code))
+                }
+                onSelectSpecialty={(code) =>
+                  updateQuery(selectCompetencySpecialty(query, code))
+                }
+                onAddSkill={(code) =>
+                  updateQuery(toggleCompetencySkill(query, code))
+                }
               />
             </div>
 
             <section
-              aria-label="Área de exploración"
+              aria-label="Resultados de personas por competencia"
               className="min-w-0 rounded-xl border border-cyan-400/12 bg-[#06111f]/40 px-4 py-5 sm:px-5 sm:py-6"
             >
-              <ExplorerContent
-                mode={explorer.contentMode}
-                stats={MOCK_EXPLORER_STATS}
-                allDomains={explorer.domains}
-                rankingResults={rankingResults}
-                domainCount={rankingQuery.domainCodes.length}
-                specialtyCount={rankingQuery.specialtyCodes.length}
-                skillCount={rankingQuery.skillCodes.length}
-                matchMode={matchMode}
-                sortMode={sortMode}
-                onMatchModeChange={setMatchMode}
-                onSortModeChange={setSortMode}
-                skillCatalog={MOCK_EXPLORER_SKILLS}
-                specialtyCatalog={MOCK_EXPLORER_SPECIALTIES}
-                domainCatalog={MOCK_EXPLORER_DOMAINS}
-                restrictiveCriterion={restrictiveCriterion}
-                onChangeToAny={() => setMatchMode('ANY')}
-                onRemoveCriterion={onRemoveCriterion}
-                onSelectDomain={explorer.onSelectDomain}
+              <CompetencyPeopleResults
+                query={query}
+                data={displayData}
+                isLoading={isInitialPending}
+                isError={search.isError}
+                error={search.error}
+                onRetry={() => void search.refetch()}
+                onSelectDomain={(code) =>
+                  updateQuery(selectCompetencyDomain(code))
+                }
+                onBroaden={broadenQuery}
+                onOpenPerson={setSelectedPersonId}
+                onPageChange={(nextPage) =>
+                  setPaginationState({ querySignature, page: nextPage })
+                }
               />
             </section>
           </div>
         </div>
       </main>
+
+      {detailOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-stretch justify-end bg-slate-950/55 p-3 backdrop-blur-sm sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Perfil de la persona"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelectedPersonId(null);
+          }}
+        >
+          <aside
+            className={`entity-detail-overlay flex h-full min-h-0 w-full flex-col overflow-hidden ${entityDetailOverlayWidthClass(activeDetailModule)}`}
+          >
+            <PersonDetailPanel
+              personId={selectedPersonId}
+              treeDescendantCount={null}
+              layoutVariant="overlay"
+              onActiveModuleChange={setActiveDetailModule}
+              onClose={() => {
+                setSelectedPersonId(null);
+                setActiveDetailModule(null);
+              }}
+            />
+          </aside>
+        </div>
+      ) : null}
     </div>
-  )
+  );
 }

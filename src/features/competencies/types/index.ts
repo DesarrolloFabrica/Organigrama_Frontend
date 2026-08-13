@@ -114,7 +114,7 @@ export interface CompetencyMvpTool {
 /** FASE 9F — Presentation DTO from local MC1 Profile Assembly. */
 export interface Mc1PersonCompetenciesPresentation {
   status: 'AVAILABLE'
-  source: 'ARTIFACT_ONLY_LOCAL'
+  source: 'ARTIFACT_ONLY_LOCAL' | 'CLOUD_PRESENTATION_STORE'
   fields: Array<{
     code: string
     label: string
