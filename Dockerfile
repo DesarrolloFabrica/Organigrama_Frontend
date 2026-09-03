@@ -22,6 +22,13 @@ ARG VITE_GOOGLE_CLIENT_ID=550902908078-fvabjtle954fqr6alhofdv7fvvr4bcbv.apps.goo
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 
+# Allowlist de versionamiento del organigrama (UI).
+# Si no se pasa (o se pasa vacia), el build usa DEFAULT_VERSION_ADMIN_EMAILS de
+# src/features/org-chart/utils/canUseOrgVersioning.ts.
+# Debe coincidir con ORG_CHART_VERSION_ADMIN_EMAILS del backend.
+ARG VITE_ORG_CHART_VERSION_ADMIN_EMAILS=
+ENV VITE_ORG_CHART_VERSION_ADMIN_EMAILS=$VITE_ORG_CHART_VERSION_ADMIN_EMAILS
+
 RUN npm run build
 
 # --- Runtime ---

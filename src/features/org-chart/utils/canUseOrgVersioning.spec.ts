@@ -6,6 +6,7 @@ const AUTHORIZED_EMAILS = [
   "iron_fuentes@cun.edu.co",
   "raul_valencia@cun.edu.co",
   "haider_bello@cun.edu.co",
+  "sara_murillofo@cun.edu.co",
 ] as const;
 
 describe("canUseOrgVersioning", () => {
