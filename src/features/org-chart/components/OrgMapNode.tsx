@@ -1,8 +1,9 @@
-import type { CSSProperties, MouseEvent } from "react";
+import type { MouseEvent } from "react";
 import { memo, useLayoutEffect } from "react";
 import type { NodeProps } from "@xyflow/react";
 import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
 
+import { useFlowAreaIdentity } from "../../../contexts/RouteTransitionContext";
 import {
   formatRoleLabel,
   orgNodeHasDirectReports,
@@ -11,12 +12,22 @@ import { shouldNavigateToTeamListPage } from "../utils/orgMapDisplayPolicy";
 import type { OrgMapNodeInteractiveData } from "../utils/orgMapLayout";
 import { orgMapNodeThemeToCssVars } from "../utils/orgMapLevelTheme";
 import { AssignmentStatusBadge } from "./AssignmentStatusBadge";
+import { WorkforceEventBadge } from "./WorkforceEventBadge";
 import { OrgMapExpandedTeamPanel } from "./OrgMapExpandedTeamPanel";
 import { useOrgMapSelection } from "../context/OrgMapSelectionContext";
 import { OrgMapNodePhoto } from "./OrgMapNodePhoto";
 import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
-import { resolveCoordinationEmblem } from "../config/coordinationEmblems";
+import {
+  resolveCoordinationEmblem,
+  resolveCoordinationEmblemFromAssignmentLabel,
+} from "../config/coordinationEmblems";
+import { orgNodeMatchesTarget } from "../utils/findNodeInTree";
 import { CoordinationEmblem } from "./CoordinationEmblem";
+import {
+  coordinationCardAccentCssVars,
+  coordinationCardPassiveThemeCssVars,
+  coordinationCardThemeCssVars,
+} from "../utils/coordinationCardTheme";
 
 /* ── Iconos lineales tácticos (stroke fino; sin rellenos “dashboard”) ───────── */
 
@@ -88,9 +99,13 @@ function IconScan({ className }: { className?: string }) {
  */
 function OrgMapNodeComponent({ id, data }: NodeProps) {
   const typedData = data as OrgMapNodeInteractiveData;
-  const { selectedPersonId } = useOrgMapSelection();
-  const isSelected =
-    selectedPersonId != null && selectedPersonId === typedData.orgNode.id;
+  const { selectedPersonId, selectedRelationId } = useOrgMapSelection();
+  const isSelected = orgNodeMatchesTarget(
+    typedData.orgNode,
+    selectedPersonId ?? "",
+    selectedRelationId,
+  ) && selectedPersonId != null;
+  const flowIdentity = useFlowAreaIdentity();
   const updateNodeInternals = useUpdateNodeInternals();
 
   const node = typedData.orgNode;
@@ -125,12 +140,43 @@ function OrgMapNodeComponent({ id, data }: NodeProps) {
   const visualLevel = typedData.visualLevel;
   const levelCss = orgMapNodeThemeToCssVars(node, typedData.mapLayoutDepth);
   const coordinationEmblem = resolveCoordinationEmblem(node);
-  const cardStyle = coordinationEmblem
-    ? ({
+  const positionEmblem = resolveCoordinationEmblemFromAssignmentLabel(
+    node.assignment_label,
+  );
+  const useActiveCoordinationTheme =
+    typedData.isCanvasRoot ||
+    isSelected ||
+    (isExpanded && !typedData.passiveCoordinationIdentity);
+  const passiveCoordinationIdentity =
+    !typedData.isCanvasRoot && !isSelected
+      ? typedData.passiveCoordinationIdentity
+      : null;
+  const coordinationIdentity = typedData.isCanvasRoot
+    ? (typedData.canvasRootIdentity ?? coordinationEmblem ?? flowIdentity)
+    : useActiveCoordinationTheme
+      ? isExpanded && !isSelected
+        ? (typedData.effectiveCoordinationIdentity ??
+          coordinationEmblem ??
+          flowIdentity)
+        : (positionEmblem ??
+          flowIdentity ??
+          typedData.effectiveCoordinationIdentity ??
+          coordinationEmblem)
+      : (passiveCoordinationIdentity ?? coordinationEmblem ?? flowIdentity);
+  const cardStyle = coordinationIdentity
+    ? {
         ...levelCss,
-        "--coordination-card-glow": coordinationEmblem.glowColor,
-        "--coordination-card-highlight": coordinationEmblem.highlightColor,
-      } as CSSProperties)
+        ...(useActiveCoordinationTheme
+          ? coordinationCardThemeCssVars(
+              positionEmblem ?? coordinationIdentity,
+            )
+          : passiveCoordinationIdentity
+            ? coordinationCardPassiveThemeCssVars(passiveCoordinationIdentity)
+            : coordinationCardAccentCssVars(coordinationIdentity)),
+        ...(positionEmblem && !useActiveCoordinationTheme
+          ? coordinationCardAccentCssVars(positionEmblem)
+          : {}),
+      }
     : levelCss;
   const memberLayoutDepth = typedData.mapLayoutDepth + 1;
 
@@ -147,6 +193,13 @@ function OrgMapNodeComponent({ id, data }: NodeProps) {
         .join(" ")}
       style={cardStyle}
       data-coordination-emblem={coordinationEmblem ? "true" : "false"}
+      data-coordination-identity={coordinationIdentity ? "true" : "false"}
+      data-active-coordination-theme={
+        useActiveCoordinationTheme && coordinationIdentity ? "true" : "false"
+      }
+      data-passive-coordination-theme={
+        passiveCoordinationIdentity ? "true" : "false"
+      }
       data-visual-level={visualLevel}
       data-node-kind={isVacancy ? "vacancy" : "person"}
       data-expanded={isExpanded ? "true" : "false"}
@@ -237,11 +290,17 @@ function OrgMapNodeComponent({ id, data }: NodeProps) {
             {node.name}
           </h3>
 
-          <p className="org-map-holo__role mt-1 line-clamp-2 text-[11px] font-medium leading-snug tracking-wide text-slate-400/92">
+          <p
+            className="org-map-holo__role mt-1 line-clamp-3 text-[11px] font-medium leading-snug tracking-wide text-slate-400/92"
+            title={formatRoleLabel(node)}
+          >
             {formatRoleLabel(node)}
           </p>
 
-          <AssignmentStatusBadge node={node} size="sm" className="mt-1" />
+          <div className="mt-1 flex max-w-full flex-col items-center gap-1">
+            <AssignmentStatusBadge node={node} size="sm" />
+            <WorkforceEventBadge node={node} size="sm" />
+          </div>
         </div>
       </div>
 
@@ -279,7 +338,7 @@ function OrgMapNodeComponent({ id, data }: NodeProps) {
             onPointerDown={stopMouse}
             onClick={(e) => {
               e.stopPropagation();
-              typedData.onExploreTeam?.(id, node.relation_id ?? null);
+              typedData.onExploreTeam?.(node.id, node.relation_id ?? null);
             }}
           >
             <IconBranch className="org-map-holo__btn-icon-svg org-map-holo__btn-icon-svg--explore size-4 shrink-0" />
@@ -294,7 +353,7 @@ function OrgMapNodeComponent({ id, data }: NodeProps) {
             onPointerDown={stopMouse}
             onClick={(e) => {
               e.stopPropagation();
-              typedData.onExploreTeam?.(id, node.relation_id ?? null);
+              typedData.onExploreTeam?.(node.id, node.relation_id ?? null);
             }}
           >
             <IconBranch className="org-map-holo__btn-icon-svg org-map-holo__btn-icon-svg--explore size-4 shrink-0" />
@@ -312,7 +371,7 @@ function OrgMapNodeComponent({ id, data }: NodeProps) {
             onPointerDown={stopMouse}
             onClick={(e) => {
               e.stopPropagation();
-              typedData.onOpenDetail(id);
+              typedData.onOpenDetail(node.id, node.relation_id ?? null);
             }}
           >
             <IconScan className="org-map-holo__btn-icon-svg org-map-holo__btn-icon-svg--detail size-4 shrink-0" />
@@ -341,6 +400,10 @@ function OrgMapNodeComponent({ id, data }: NodeProps) {
             members={internalTeamMembers}
             memberLayoutDepth={memberLayoutDepth}
             renderMode={typedData.renderMode}
+            passiveSiblingIdentity={
+              typedData.effectiveCoordinationIdentity ??
+              typedData.canvasRootIdentity
+            }
             onOpenDetail={typedData.onOpenDetail}
             onExploreTeam={typedData.onExploreTeam}
             stopMouse={stopMouse}
@@ -374,6 +437,17 @@ function orgMapNodePropsAreEqual(prev: NodeProps, next: NodeProps): boolean {
   if (prevData.showMapExpand !== nextData.showMapExpand) return false;
   if (prevData.showTeamPageNavigate !== nextData.showTeamPageNavigate) return false;
   if (prevData.isCanvasRoot !== nextData.isCanvasRoot) return false;
+  if (prevData.canvasRootIdentity !== nextData.canvasRootIdentity) return false;
+  if (
+    prevData.effectiveCoordinationIdentity !==
+    nextData.effectiveCoordinationIdentity
+  )
+    return false;
+  if (
+    prevData.passiveCoordinationIdentity !==
+    nextData.passiveCoordinationIdentity
+  )
+    return false;
   if (prevData.renderMode !== nextData.renderMode) return false;
   if (prevData.orgNode.id !== nextData.orgNode.id) return false;
   if (prevData.orgNode.name !== nextData.orgNode.name) return false;
@@ -393,6 +467,16 @@ function orgMapNodePropsAreEqual(prev: NodeProps, next: NodeProps): boolean {
   )
     return false;
   if (prevData.orgNode.assignment_label !== nextData.orgNode.assignment_label)
+    return false;
+  if (
+    prevData.orgNode.current_workforce_event?.id !==
+    nextData.orgNode.current_workforce_event?.id
+  )
+    return false;
+  if (
+    prevData.orgNode.current_workforce_event_count !==
+    nextData.orgNode.current_workforce_event_count
+  )
     return false;
   if (
     prevData.orgNode.direct_reports_count !==
@@ -415,6 +499,16 @@ function orgMapNodePropsAreEqual(prev: NodeProps, next: NodeProps): boolean {
     if (prevMember?.assignment_status !== nextMember?.assignment_status)
       return false;
     if (prevMember?.assignment_label !== nextMember?.assignment_label)
+      return false;
+    if (
+      prevMember?.current_workforce_event?.id !==
+      nextMember?.current_workforce_event?.id
+    )
+      return false;
+    if (
+      prevMember?.current_workforce_event_count !==
+      nextMember?.current_workforce_event_count
+    )
       return false;
   }
 

@@ -1,5 +1,6 @@
-import type { KeyboardEvent, ReactNode } from "react";
+import type { CSSProperties, KeyboardEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { useFlowAreaIdentity } from "../../../contexts/RouteTransitionContext";
 import {
   isOrgNodeVacancy,
   orgPersonDisplayName,
@@ -20,6 +21,7 @@ import { PersonFichaPanel } from "./profile-modules/PersonFichaPanel";
 import { PersonPresentationPanel } from "./profile-modules/PersonPresentationPanel";
 import type { ProfileModuleCode } from "./profile-modules/profile-module.types";
 import { usePersonProfileModules } from "./profile-modules/usePersonProfileModules";
+import { resolveCoordinationEmblem } from "../config/coordinationEmblems";
 
 type Props = {
   /** Persona seleccionada en el árbol; `null` muestra estado vacío. */
@@ -87,22 +89,110 @@ function IconMinimize({ className }: { className?: string }) {
   );
 }
 
+type CoordinationVisualIdentity = {
+  glowColor: string;
+  highlightColor?: string;
+};
+
+type Rgb = readonly [number, number, number];
+
+function parseRgbChannels(value: string): Rgb | null {
+  const channels = value.trim().split(/\s+/).map(Number);
+  if (
+    channels.length !== 3 ||
+    channels.some((channel) => !Number.isFinite(channel))
+  ) {
+    return null;
+  }
+  return channels as unknown as Rgb;
+}
+
+function relativeLuminance([r, g, b]: Rgb): number {
+  const linearize = (channel: number) => {
+    const srgb = channel / 255;
+    return srgb <= 0.04045
+      ? srgb / 12.92
+      : ((srgb + 0.055) / 1.055) ** 2.4;
+  };
+
+  return (
+    0.2126 * linearize(r) +
+    0.7152 * linearize(g) +
+    0.0722 * linearize(b)
+  );
+}
+
+function contrastRatio(foreground: Rgb, background: Rgb): number {
+  const light = Math.max(
+    relativeLuminance(foreground),
+    relativeLuminance(background),
+  );
+  const dark = Math.min(
+    relativeLuminance(foreground),
+    relativeLuminance(background),
+  );
+  return (light + 0.05) / (dark + 0.05);
+}
+
+/** Conserva el matiz y aclara solo cuando el azul de la ficha reduce el contraste. */
+function resolveCoordinationTextColor(
+  identity: CoordinationVisualIdentity,
+): string {
+  const base = parseRgbChannels(identity.glowColor);
+  if (!base) return identity.glowColor;
+
+  const detailBackground: Rgb = [2, 6, 23];
+  const minimumContrast = 4.5;
+  if (contrastRatio(base, detailBackground) >= minimumContrast) {
+    return identity.glowColor;
+  }
+
+  const highlight =
+    (identity.highlightColor && parseRgbChannels(identity.highlightColor)) ||
+    ([255, 255, 255] as const);
+
+  for (let highlightWeight = 0.25; highlightWeight <= 1; highlightWeight += 0.05) {
+    const candidate = base.map((channel, index) =>
+      Math.round(
+        channel * (1 - highlightWeight) +
+          highlight[index] * highlightWeight,
+      ),
+    ) as unknown as Rgb;
+    if (contrastRatio(candidate, detailBackground) >= minimumContrast) {
+      return candidate.join(" ");
+    }
+  }
+
+  return highlight.join(" ");
+}
+
 /** Marco común: ficha técnica translúcida, alineada al lienzo OP sin peso “admin”. */
 function EntityScanShell({
   children,
   className = "",
   ariaLabel,
   layoutVariant = "sidebar",
+  coordinationIdentity,
 }: {
   children: ReactNode;
   className?: string;
   ariaLabel?: string;
   layoutVariant?: "sidebar" | "overlay";
+  coordinationIdentity?: CoordinationVisualIdentity | null;
 }) {
+  const flowIdentity = useFlowAreaIdentity();
+  const visualIdentity = coordinationIdentity ?? flowIdentity;
   const heightClasses =
     layoutVariant === "overlay"
       ? "h-full min-h-0 max-h-full"
       : "max-h-[calc(100vh-12rem)]";
+  const visualStyle = visualIdentity
+    ? ({
+        "--entity-detail-coordination-color": visualIdentity.glowColor,
+        "--entity-detail-coordination-text-color":
+          resolveCoordinationTextColor(visualIdentity),
+      } as CSSProperties)
+    : undefined;
 
   return (
     <aside
@@ -113,10 +203,12 @@ function EntityScanShell({
       ]
         .filter(Boolean)
         .join(" ")}
+      data-coordination-background={visualIdentity ? "true" : "false"}
+      style={visualStyle}
       aria-label={ariaLabel}
     >
       <div
-        className="pointer-events-none h-px shrink-0 bg-linear-to-r from-transparent via-cyan-400/50 to-transparent"
+        className="entity-detail-accent-line pointer-events-none h-px shrink-0"
         aria-hidden
       />
       {children}
@@ -327,6 +419,12 @@ function PersonDetailContent({
   const hasFull = orgPersonHasFullProfile(detail);
   const profile = hasFull ? detail.profile : null;
   const isVacancy = isOrgNodeVacancy(detail);
+  const coordinationIdentity = resolveCoordinationEmblem({
+    id: detail.id,
+    name: displayName,
+    role: profile?.role ?? null,
+    nodeKind: detail.nodeKind,
+  });
   const resolvedPhotoUrl = withPhotoAccessToken(detail.photoUrl);
   const showPhoto = !isVacancy && Boolean(resolvedPhotoUrl) && !photoFailed;
 
@@ -397,6 +495,7 @@ function PersonDetailContent({
           : `Escaneo de entidad: ${displayName}`
       }
       layoutVariant={layoutVariant}
+      coordinationIdentity={coordinationIdentity}
     >
       <header className="shrink-0 border-b border-cyan-400/15 bg-[#041018]/75 px-4 pb-4 pt-3">
         <div className="flex gap-3">
@@ -405,7 +504,7 @@ function PersonDetailContent({
               "relative flex size-13 shrink-0 items-center justify-center rounded-full border text-sm font-bold tracking-tight",
               isVacancy
                 ? "border-dashed border-slate-500/40 bg-slate-900/50 text-slate-300 shadow-[0_0_16px_rgba(148,163,184,0.08)]"
-                : "border-cyan-400/30 bg-cyan-950/50 text-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.15)]",
+                : "entity-detail-accent-frame border-cyan-400/30 bg-cyan-950/50 text-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.15)]",
             ].join(" ")}
             aria-hidden
           >
@@ -423,10 +522,12 @@ function PersonDetailContent({
                 onError={onPhotoFailed}
               />
             ) : (
-              initialsFromName(displayName)
+              <span className="text-slate-50">
+                {initialsFromName(displayName)}
+              </span>
             )}
             {!isVacancy ? (
-              <span className="pointer-events-none absolute -inset-0.5 rounded-full border border-cyan-400/15" />
+              <span className="entity-detail-accent-border pointer-events-none absolute -inset-0.5 rounded-full border border-cyan-400/15" />
             ) : null}
           </div>
           <div className="min-w-0 flex-1">
@@ -439,7 +540,7 @@ function PersonDetailContent({
                   {displayName}
                 </h2>
                 {hasFull ? (
-                  <p className="mt-0.5 text-sm font-medium leading-snug text-slate-300">
+                  <p className="mt-0.5 text-sm font-medium leading-snug text-slate-50">
                     {roleLabel}
                   </p>
                 ) : (
@@ -495,7 +596,7 @@ function PersonDetailContent({
                 </span>
               )}
               {hasFull && profile ? (
-                <span className="font-mono text-[10px] text-slate-500">
+                <span className="font-mono text-[10px] text-slate-200">
                   ID {profile.document}
                 </span>
               ) : null}
@@ -506,12 +607,12 @@ function PersonDetailContent({
 
       {showTablist ? (
         <div
-          className="shrink-0 border-b border-cyan-400/15 bg-[#041018]/55 px-3 pt-2 sm:px-4"
+          className="mx-3 mt-3 shrink-0 rounded-xl border border-cyan-400/20 bg-[#041018]/70 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:mx-4"
           role="tablist"
           aria-label="Secciones de la ficha"
           onKeyDown={onTabListKeyDown}
         >
-          <div className="flex gap-1">
+          <div className="grid w-full grid-flow-col auto-cols-fr gap-1">
             {visibleModules.map((mod) => {
               const selected = activeModule === mod.code;
               return (
@@ -525,10 +626,10 @@ function PersonDetailContent({
                   tabIndex={selected ? 0 : -1}
                   onClick={() => setActiveModule(mod.code)}
                   className={[
-                    "rounded-t-lg px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] transition",
+                    "flex min-w-0 items-center justify-center rounded-lg px-2 py-2.5 text-center font-mono text-[10px] font-bold uppercase tracking-[0.12em] transition",
                     selected
-                      ? "border border-b-0 border-cyan-400/25 bg-[#06111f]/90 text-cyan-100"
-                      : "border border-transparent text-slate-500 hover:text-slate-300",
+                      ? "border border-cyan-400/30 bg-cyan-500/12 text-cyan-100 shadow-[0_0_14px_rgba(34,211,238,0.08)]"
+                      : "border border-transparent text-slate-500 hover:border-cyan-400/10 hover:bg-white/4 hover:text-slate-300",
                   ].join(" ")}
                 >
                   {mod.label}

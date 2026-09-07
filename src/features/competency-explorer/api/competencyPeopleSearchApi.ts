@@ -23,6 +23,7 @@ export class CompetencyPeopleSearchApiError extends Error {
 export function buildCompetencyPeopleSearchPath(
   request: CompetencyPeopleSearchRequest,
   versionId?: number,
+  scopeVersionId?: number | "none",
 ): string {
   const params = new URLSearchParams();
   if (request.domainCode) params.set("domain", request.domainCode);
@@ -34,17 +35,27 @@ export function buildCompetencyPeopleSearchPath(
     params.set("page", String(request.page));
   if (request.pageSize) params.set("pageSize", String(request.pageSize));
   if (versionId !== undefined) params.set("versionId", String(versionId));
+  if (scopeVersionId !== undefined)
+    params.set("scopeVersionId", String(scopeVersionId));
   const query = params.toString();
   return `/api/org-chart/competency-people-search${query ? `?${query}` : ""}`;
 }
 
 export async function fetchCompetencyPeopleSearch(
   request: CompetencyPeopleSearchRequest,
-  options: { versionId?: number; signal?: AbortSignal } = {},
+  options: {
+    versionId?: number;
+    scopeVersionId?: number | "none";
+    signal?: AbortSignal;
+  } = {},
 ): Promise<CompetencyPeopleSearchResponse> {
   const token = getAccessToken();
   const response = await fetch(
-    `${BASE_URL}${buildCompetencyPeopleSearchPath(request, options.versionId)}`,
+    `${BASE_URL}${buildCompetencyPeopleSearchPath(
+      request,
+      options.versionId,
+      options.scopeVersionId,
+    )}`,
     {
       signal: options.signal,
       headers: {

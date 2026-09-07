@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import {
+  useOrgChartRequestOptions,
   useOrgChartVersionQueryId,
+  useOrgChartScopeVersionQueryId,
   useOrgChartVersionReady,
 } from "../../org-chart/context/OrgChartVersionContext";
 import { fetchCompetencyPeopleSearch } from "../api/competencyPeopleSearchApi";
@@ -12,6 +14,8 @@ export function useCompetencyPeopleSearch(
   page: number,
 ) {
   const versionId = useOrgChartVersionQueryId();
+  const scopeVersionId = useOrgChartScopeVersionQueryId();
+  const requestOptions = useOrgChartRequestOptions();
   const versionReady = useOrgChartVersionReady();
   return useQuery({
     queryKey: orgQueryKeys.competencyPeopleSearch(
@@ -20,9 +24,13 @@ export function useCompetencyPeopleSearch(
       query.skillCodes,
       page,
       versionId,
+      scopeVersionId,
     ),
     queryFn: ({ signal }) =>
-      fetchCompetencyPeopleSearch({ ...query, page }, { versionId, signal }),
+      fetchCompetencyPeopleSearch(
+        { ...query, page },
+        { ...requestOptions, signal },
+      ),
     enabled: versionReady,
     staleTime: 30_000,
   });

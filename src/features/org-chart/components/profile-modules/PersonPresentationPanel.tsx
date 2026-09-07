@@ -237,10 +237,10 @@ export function PersonPresentationPanel({
       className="flex flex-col gap-3 pb-4"
     >
       <header className="px-0.5">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-100/80">
+        <p className="entity-detail-title font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-100/80">
           Presentación
         </p>
-        <p className="mt-1 text-[12px] leading-snug text-slate-400">
+        <p className="entity-detail-subtitle mt-1 text-[12px] leading-snug text-slate-400">
           Video de presentación de la persona seleccionada
         </p>
       </header>

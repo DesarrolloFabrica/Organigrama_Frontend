@@ -28,19 +28,28 @@ import {
   shouldRenderInternalTeamHub,
   shouldRenderTeamBox,
 } from "../utils/orgMapDisplayPolicy";
-import { buildOrgMap, type OrgMapNodeData } from "../utils/orgMapLayout";
+import { buildOrgMap, orgMapNodeKey, type OrgMapNodeData } from "../utils/orgMapLayout";
 import { resolveOrgMapTheme, resolveOrgMapVisualLevel } from "../utils/orgMapLevelTheme";
 import { truncateTreeToMaxLevels } from "../utils/truncateOrgTreeLevels";
 import { RadarBackground } from "./RadarBackground";
 import { OrgMapSelectionProvider } from "../context/OrgMapSelectionContext";
 import { useOrgPerfLite } from "../context/OrgPerfLiteContext";
-import { resolveCoordinationEmblem } from "../config/coordinationEmblems";
-import { useActivateFlowIdentity } from "../../../contexts/RouteTransitionContext";
+import {
+  resolveCoordinationEmblem,
+  resolveCoordinationEmblemFromAssignmentLabel,
+  resolveNodeCoordinationContext,
+} from "../config/coordinationEmblems";
+import { orgNodeMatchesTarget } from "../utils/findNodeInTree";
+import {
+  useActivateFlowIdentity,
+  useFlowAreaIdentity,
+} from "../../../contexts/RouteTransitionContext";
 
 type Props = {
   root: OrgNode;
   selectedPersonId: string | null;
-  onSelectNode: (id: string) => void;
+  selectedRelationId?: string | null;
+  onSelectNode: (id: string, relationId?: string | null) => void;
   variant?: "default" | "fullscreen";
   maxRenderLevels?: number;
   initialShowRootChildren?: boolean;
@@ -132,7 +141,7 @@ function OrgMapViewCamera({
       if (expanded) {
         const isRoot = parentId === layoutRootId;
         if (isRoot && shouldRenderHorizontalRow(full)) {
-          targetIds = [parentId, ...full.children.map((c) => c.id)];
+          targetIds = [parentId, ...full.children.map((c) => orgMapNodeKey(c))];
         } else {
           targetIds = [parentId];
           fitPadding = 0.06;
@@ -144,7 +153,7 @@ function OrgMapViewCamera({
         const rootFull = nodeByIdRef.current.get(layoutRootId);
         targetIds =
           rootFull && shouldRenderHorizontalRow(rootFull)
-            ? [layoutRootId, ...rootFull.children.map((c) => c.id)]
+            ? [layoutRootId, ...rootFull.children.map((c) => orgMapNodeKey(c))]
             : [layoutRootId];
       }
 
@@ -409,6 +418,7 @@ const nodeTypes = {
 export function OrgMapView({
   root,
   selectedPersonId,
+  selectedRelationId = null,
   onSelectNode,
   variant = "default",
   maxRenderLevels,
@@ -424,6 +434,12 @@ export function OrgMapView({
 }: Props): ReactElement {
   const { liteMode, reportMetrics } = useOrgPerfLite();
   const activateFlowIdentity = useActivateFlowIdentity();
+  const flowIdentity = useFlowAreaIdentity();
+  const [canvasRootIdentity] = useState(
+    () =>
+      resolveNodeCoordinationContext(root, root.id, root.relation_id)
+        ?.identity ?? flowIdentity,
+  );
   const hasPersistedViewport = Boolean(persistedMapState?.viewport);
   const lastViewportRef = useRef<OrgMapExpansionPersisted["viewport"]>(
     persistedMapState?.viewport ?? null,
@@ -438,6 +454,7 @@ export function OrgMapView({
   const [loadingChildrenNodeId, setLoadingChildrenNodeId] = useState<
     string | null
   >(null);
+
   const [mapReady, setMapReady] = useState(false);
   const rootIdRef = useRef(root.id);
 
@@ -511,7 +528,7 @@ export function OrgMapView({
   const nodeById = useMemo(() => {
     const map = new Map<string, OrgNode>();
     function index(n: OrgNode) {
-      map.set(n.id, n);
+      map.set(orgMapNodeKey(n), n);
       for (const child of n.children) index(child);
     }
     index(root);
@@ -523,10 +540,12 @@ export function OrgMapView({
   }, [nodeById]);
 
   useEffect(() => {
-    const rootNode = nodeById.get(root.id) ?? root;
+    const rootNode = nodeById.get(orgMapNodeKey(root)) ?? root;
     const expandedId =
       expandedHubNodeId ??
-      (showRootChildren && shouldRenderTeamBox(rootNode) ? root.id : null);
+      (showRootChildren && shouldRenderTeamBox(rootNode)
+        ? orgMapNodeKey(root)
+        : null);
     onExpandedNodeChange?.(expandedId);
   }, [expandedHubNodeId, nodeById, onExpandedNodeChange, root, showRootChildren]);
 
@@ -540,7 +559,7 @@ export function OrgMapView({
 
   const expandedHubForLayout = useMemo(() => {
     if (!expandedHubNodeId) return null;
-    return layoutRoot.children.some((c) => c.id === expandedHubNodeId)
+    return layoutRoot.children.some((c) => orgMapNodeKey(c) === expandedHubNodeId)
       ? expandedHubNodeId
       : null;
   }, [expandedHubNodeId, layoutRoot]);
@@ -565,7 +584,7 @@ export function OrgMapView({
         return node;
       }
 
-      setLoadingChildrenNodeId(node.id);
+      setLoadingChildrenNodeId(orgMapNodeKey(node));
       try {
         const loaded = await onLoadChildren(node.id, node.relation_id ?? null);
         if (loaded.length > 0) {
@@ -585,7 +604,7 @@ export function OrgMapView({
 
   useEffect(() => {
     if (!initialShowRootChildren && !showRootChildren) return;
-    const rootNode = nodeById.get(root.id) ?? root;
+    const rootNode = nodeById.get(orgMapNodeKey(root)) ?? root;
     if (!orgNodeHasDirectReports(rootNode) || rootNode.children.length > 0) {
       return;
     }
@@ -603,17 +622,23 @@ export function OrgMapView({
       const fullNode = nodeById.get(nodeId);
       if (!fullNode) return;
 
-      const isCanvasRoot = nodeId === root.id;
+      const isCanvasRoot = nodeId === orgMapNodeKey(root);
       const isExpanded = isCanvasRoot
         ? showRootChildren
         : expandedHubNodeId === nodeId;
       const willExpand = !isExpanded;
+      const nodeCoordination = resolveNodeCoordinationContext(
+        root,
+        fullNode.id,
+        fullNode.relation_id,
+      );
 
       if (!willExpand) {
-        const rootEmblem = resolveCoordinationEmblem(root);
-        if (rootEmblem && rootEmblem.flowVisuals !== false) {
-          activateFlowIdentity(rootEmblem);
-        }
+        const collapsedIdentity = isCanvasRoot
+          ? (canvasRootIdentity ?? nodeCoordination?.identity)
+          : (nodeCoordination?.managerIdentity ??
+            canvasRootIdentity);
+        activateFlowIdentity(collapsedIdentity ?? null);
         cameraIntentRef.current = { parentId: nodeId, expanded: false };
         setCameraNonce((n) => n + 1);
         if (isCanvasRoot) {
@@ -631,14 +656,15 @@ export function OrgMapView({
       });
 
       if (navigation === "navigateToTeamPage") {
-        onExploreTeam?.(nodeId, nodeWithChildren.relation_id ?? null);
+        onExploreTeam?.(fullNode.id, nodeWithChildren.relation_id ?? null);
         return;
       }
 
-      const expandedEmblem = resolveCoordinationEmblem(nodeWithChildren);
-      if (expandedEmblem && expandedEmblem.flowVisuals !== false) {
-        activateFlowIdentity(expandedEmblem);
-      }
+      const expandedIdentity =
+        nodeCoordination?.identity ??
+        resolveCoordinationEmblem(nodeWithChildren) ??
+        canvasRootIdentity;
+      activateFlowIdentity(expandedIdentity ?? null);
 
       cameraIntentRef.current = { parentId: nodeId, expanded: true };
       setCameraNonce((n) => n + 1);
@@ -652,6 +678,7 @@ export function OrgMapView({
     },
     [
       activateFlowIdentity,
+      canvasRootIdentity,
       ensureChildrenLoaded,
       expandedHubNodeId,
       nodeById,
@@ -664,15 +691,15 @@ export function OrgMapView({
 
   /** Sólo abre el panel lateral; no confundir con expandir ramas del mapa. */
   const handleOpenDetail = useCallback(
-    (nodeId: string) => {
-      onSelectNode(nodeId);
+    (personId: string, relationId?: string | null) => {
+      onSelectNode(personId, relationId);
     },
     [onSelectNode],
   );
 
   const baseInteractiveNodes = useMemo(
-    () =>
-      graph.nodes.map((node) => {
+    () => {
+      return graph.nodes.map((node) => {
         const full = nodeById.get(node.id);
         const layoutOrg = node.data.orgNode;
         const orgNodeForView = full
@@ -688,7 +715,7 @@ export function OrgMapView({
           (orgNodeHasDirectReports(reportNode)
             ? (full?.children.length ?? 0)
             : 0);
-        const isCanvasRoot = node.id === layoutRoot.id;
+        const isCanvasRoot = node.id === orgMapNodeKey(layoutRoot);
         const isExpanded = isCanvasRoot
           ? showRootChildren
           : expandedHubNodeId === node.id;
@@ -707,6 +734,34 @@ export function OrgMapView({
         const showMapExpand =
           hasChildren && nodeTier !== "teamListPage";
         const loadingChildren = loadingChildrenNodeId === node.id;
+        const nodeCoordination = resolveNodeCoordinationContext(
+          root,
+          orgNodeForView.id,
+          orgNodeForView.relation_id,
+        );
+        const positionEmblem = resolveCoordinationEmblemFromAssignmentLabel(
+          orgNodeForView.assignment_label,
+        );
+        const isActiveNode =
+          (selectedPersonId != null &&
+            orgNodeMatchesTarget(
+              orgNodeForView,
+              selectedPersonId,
+              selectedRelationId,
+            )) ||
+          node.id === expandedHubNodeId;
+        const passiveParentIdentity =
+          !isCanvasRoot && !isActiveNode
+            ? (nodeCoordination?.managerIdentity ?? canvasRootIdentity)
+            : null;
+        const nodeBoxIdentity = isCanvasRoot
+          ? canvasRootIdentity
+          : isActiveNode
+            ? (positionEmblem ??
+              flowIdentity ??
+              nodeCoordination?.identity ??
+              canvasRootIdentity)
+            : passiveParentIdentity;
         const internalTeamMembers =
           isCanvasRoot && showRootChildren && full && shouldRenderTeamBox(full)
             ? full.children
@@ -729,7 +784,9 @@ export function OrgMapView({
           style: {
             ...node.style,
             pointerEvents: "all" as const,
-            boxShadow: levelTheme.nodeBoxShadow,
+            boxShadow: nodeBoxIdentity
+              ? `0 0 ${isActiveNode || isCanvasRoot ? "32px" : "22px"} rgb(${nodeBoxIdentity.glowColor} / ${isActiveNode || isCanvasRoot ? "0.18" : "0.08"})`
+              : levelTheme.nodeBoxShadow,
           },
           data: {
             ...node.data,
@@ -742,6 +799,12 @@ export function OrgMapView({
             showTeamPageNavigate,
             loadingChildren,
             isCanvasRoot,
+            canvasRootIdentity: isCanvasRoot ? canvasRootIdentity : null,
+            effectiveCoordinationIdentity:
+              positionEmblem ??
+              nodeCoordination?.identity ??
+              canvasRootIdentity,
+            passiveCoordinationIdentity: passiveParentIdentity,
             internalTeamMembers,
             visualLevel,
             renderMode: nodeRenderMode,
@@ -750,16 +813,22 @@ export function OrgMapView({
             onExploreTeam,
           },
         };
-      }),
+      });
+    },
     [
       expandedHubNodeId,
+      canvasRootIdentity,
+      flowIdentity,
       graph.nodes,
       handleOpenDetail,
       handleToggleExpand,
-      layoutRoot.id,
+      layoutRoot,
       loadingChildrenNodeId,
       nodeById,
       onExploreTeam,
+      root,
+      selectedPersonId,
+      selectedRelationId,
       showRootChildren,
     ],
   );
@@ -914,8 +983,8 @@ export function OrgMapView({
               -32deg,
               transparent,
               transparent 38px,
-              rgba(34, 211, 238, 0.35) 38px,
-              rgba(34, 211, 238, 0.35) 39px
+              rgb(var(--flow-area-color, 34 211 238) / 0.35) 38px,
+              rgb(var(--flow-area-color, 34 211 238) / 0.35) 39px
             )`,
                   }}
                 />
@@ -925,7 +994,10 @@ export function OrgMapView({
         org-map-flow: anclas para estilos en index.css (nodos, NUNCA .react-flow__viewport).
         El canvas permanece 2D: pan/zoom siguen siendo la única transformación del viewport.
       */}
-              <OrgMapSelectionProvider selectedPersonId={selectedPersonId}>
+              <OrgMapSelectionProvider
+                selectedPersonId={selectedPersonId}
+                selectedRelationId={selectedRelationId}
+              >
               <ReactFlow
                 className={[
                   "org-map-flow relative z-1 h-full w-full",
@@ -965,7 +1037,7 @@ export function OrgMapView({
                   expansionStateKey={expansionStateKey}
                   cameraIntentRef={cameraIntentRef}
                   nodeByIdRef={nodeByIdRef}
-                  layoutRootId={layoutRoot.id}
+                  layoutRootId={orgMapNodeKey(layoutRoot)}
                 />
               </ReactFlow>
               </OrgMapSelectionProvider>

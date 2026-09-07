@@ -2,11 +2,11 @@ import {
   memo,
   useEffect,
   useState,
-  type CSSProperties,
   type MouseEvent,
 } from "react";
 
 import { withPhotoAccessToken } from "../../../auth/photoUrl";
+import { useFlowAreaIdentity } from "../../../contexts/RouteTransitionContext";
 import {
   formatRoleLabel,
   type OrgNode,
@@ -22,15 +22,24 @@ import {
 import { resolveCoordinationEmblem } from "../config/coordinationEmblems";
 import { useOrgMapSelection } from "../context/OrgMapSelectionContext";
 import { AssignmentStatusBadge } from "./AssignmentStatusBadge";
+import { WorkforceEventBadge } from "./WorkforceEventBadge";
 import { CoordinationEmblem } from "./CoordinationEmblem";
 import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
+import {
+  coordinationCardAccentCssVars,
+  coordinationCardPassiveThemeCssVars,
+  coordinationCardThemeCssVars,
+  type CoordinationCardThemeIdentity,
+} from "../utils/coordinationCardTheme";
 
 type Props = {
   member: OrgNode;
   /** Profundidad de layout del miembro en el mapa (p. ej. padre + 1). */
   memberLayoutDepth: number;
   renderMode: OrgMapRenderMode;
-  onOpenDetail: (id: string) => void;
+  selected?: boolean;
+  passiveCoordinationIdentity?: CoordinationCardThemeIdentity | null;
+  onOpenDetail: (id: string, relationId?: string | null) => void;
   onExploreTeam?: (nodeId: string, relationId?: string | null) => void;
   stopMouse: (e: MouseEvent) => void;
 };
@@ -77,17 +86,24 @@ function memberInitials(name: string): string {
   return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
 }
 
-/** Tarjeta compacta de una persona del equipo (colores alineados al nivel resuelto). */
+/** Tarjeta compacta: nivel en reposo y coordinación activa al seleccionarla. */
 function OrgMapTeamMemberMiniCardComponent({
   member,
   memberLayoutDepth,
+  selected,
+  passiveCoordinationIdentity = null,
   onOpenDetail,
   onExploreTeam,
   stopMouse,
 }: Props) {
   const { selectedPersonId } = useOrgMapSelection();
+  const flowIdentity = useFlowAreaIdentity();
   const isVacancy = member.nodeKind === "vacancy";
   const coordinationEmblem = resolveCoordinationEmblem(member);
+  const isSelected = selected ?? selectedPersonId === member.id;
+  const coordinationIdentity = isSelected
+    ? (flowIdentity ?? coordinationEmblem)
+    : (passiveCoordinationIdentity ?? coordinationEmblem ?? flowIdentity);
   const showEmblemAsWatermark =
     coordinationEmblem?.placement === "watermark" ||
     coordinationEmblem?.placement === "watermarkCorner";
@@ -96,7 +112,6 @@ function OrgMapTeamMemberMiniCardComponent({
   const showEmblemAsBadge = coordinationEmblem?.placement === "badge";
   const showEmblemByRole = coordinationEmblem?.placement === "roleInline";
   const showEmblemInCorner = coordinationEmblem?.placement === "cornerSmall";
-  const isSelected = selectedPersonId === member.id;
   const roleShort = formatRoleLabel(member);
   const showExploreTeam =
     !isVacancy &&
@@ -104,12 +119,17 @@ function OrgMapTeamMemberMiniCardComponent({
     shouldOfferTeamExplorationLink(member);
   const { visualLevel } = resolveOrgMapTheme(member, memberLayoutDepth);
   const levelCss = orgMapNodeThemeToCssVars(member, memberLayoutDepth);
-  const cardStyle = coordinationEmblem
-    ? ({
+  const cardStyle = coordinationIdentity
+    ? {
         ...levelCss,
-        "--coordination-card-glow": coordinationEmblem.glowColor,
-        "--coordination-card-highlight": coordinationEmblem.highlightColor,
-      } as CSSProperties)
+        ...(isSelected
+          ? coordinationCardThemeCssVars(coordinationIdentity)
+          : passiveCoordinationIdentity
+            ? coordinationCardPassiveThemeCssVars(
+                passiveCoordinationIdentity,
+              )
+            : coordinationCardAccentCssVars(coordinationIdentity)),
+      }
     : levelCss;
   const [photoFailed, setPhotoFailed] = useState(false);
   const resolvedPhotoUrl = withPhotoAccessToken(member.photoUrl);
@@ -130,6 +150,14 @@ function OrgMapTeamMemberMiniCardComponent({
         .join(" ")}
       style={cardStyle}
       data-coordination-emblem={coordinationEmblem ? "true" : "false"}
+      data-coordination-identity={coordinationIdentity ? "true" : "false"}
+      data-active-coordination-theme={
+        isSelected && coordinationIdentity ? "true" : "false"
+      }
+      data-passive-coordination-theme={
+        !isSelected && passiveCoordinationIdentity ? "true" : "false"
+      }
+      data-selected={isSelected ? "true" : "false"}
       data-visual-level={visualLevel}
       data-node-kind={isVacancy ? "vacancy" : "person"}
     >
@@ -238,6 +266,7 @@ function OrgMapTeamMemberMiniCardComponent({
             </p>
           </div>
           <AssignmentStatusBadge node={member} size="xs" className="mt-1" />
+          <WorkforceEventBadge node={member} size="xs" className="mt-1" />
           <p
             className={[
               "org-map-mini-card__active-row mt-1.5 flex items-center gap-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.14em]",
@@ -296,7 +325,7 @@ function OrgMapTeamMemberMiniCardComponent({
           onPointerDown={stopMouse}
           onClick={(e) => {
             e.stopPropagation();
-            onOpenDetail(member.id);
+            onOpenDetail(member.id, member.relation_id ?? null);
           }}
         >
           Detalle

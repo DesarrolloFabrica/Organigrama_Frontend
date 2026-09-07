@@ -20,6 +20,7 @@ const SKIP_LOADER_PATHS = new Set(["/", "/loading"]);
 const MIN_VISIBLE_MS = 800;
 const EXIT_ANIMATION_MS = 220;
 const FLOW_IDENTITY_STORAGE_KEY = "org-chart:flow-identity";
+const FLOW_BACKGROUND_STATE_KEY = "flowBackgroundIdentity";
 
 function isTeamRoute(pathname: string): boolean {
   return (
@@ -47,6 +48,28 @@ function readStoredFlowIdentity(pathname: string): FlowLoadingIdentity | null {
 
 function clearStoredFlowIdentity() {
   window.sessionStorage.removeItem(FLOW_IDENTITY_STORAGE_KEY);
+}
+
+function readRouteFlowIdentity(
+  state: unknown,
+): FlowLoadingIdentity | null | undefined {
+  if (!state || typeof state !== "object") return undefined;
+  if (!Object.prototype.hasOwnProperty.call(state, FLOW_BACKGROUND_STATE_KEY)) {
+    return undefined;
+  }
+
+  const identity = (state as Record<string, unknown>)[FLOW_BACKGROUND_STATE_KEY];
+  if (identity === null) return null;
+  if (!identity || typeof identity !== "object") return undefined;
+
+  const candidate = identity as Partial<FlowLoadingIdentity>;
+  return typeof candidate.icon === "string" &&
+    typeof candidate.label === "string" &&
+    typeof candidate.glowColor === "string" &&
+    (candidate.highlightColor === undefined ||
+      typeof candidate.highlightColor === "string")
+    ? (candidate as FlowLoadingIdentity)
+    : undefined;
 }
 
 type RouteTransitionContextValue = {
@@ -181,11 +204,13 @@ export function RouteTransitionProvider({ children }: { children: ReactNode }) {
   }, [flowIdentity, location.pathname]);
 
   useEffect(() => {
-    if (location.pathname === "/org" || location.pathname === "/") {
-      document.documentElement.style.removeProperty("--flow-area-color");
-      document.documentElement.classList.remove("flow-area-active");
-      clearStoredFlowIdentity();
-      setFlowIdentity(null);
+    if (location.pathname === "/") {
+      activateFlowIdentity(null);
+    } else if (location.pathname === "/org") {
+      const routeIdentity = readRouteFlowIdentity(location.state);
+      if (routeIdentity !== undefined) {
+        activateFlowIdentity(routeIdentity);
+      }
     }
 
     if (!shouldShowLoader(location.pathname)) {
@@ -204,7 +229,13 @@ export function RouteTransitionProvider({ children }: { children: ReactNode }) {
       tryHide();
     }, MIN_VISIBLE_MS);
     return () => window.clearTimeout(minTimer);
-  }, [location.pathname, tryHide, clearHideTimer]);
+  }, [
+    activateFlowIdentity,
+    location.pathname,
+    location.state,
+    tryHide,
+    clearHideTimer,
+  ]);
 
   useEffect(() => () => clearHideTimer(), [clearHideTimer]);
 

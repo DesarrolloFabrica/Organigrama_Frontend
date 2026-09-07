@@ -1,7 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { withPhotoAccessToken } from "../../../auth/photoUrl";
+import { useFlowAreaIdentity } from "../../../contexts/RouteTransitionContext";
 import {
   formatRoleLabel,
   type OrgNode,
@@ -11,14 +18,18 @@ import {
   resolveOrgMapTheme,
 } from "../utils/orgMapLevelTheme";
 import { AssignmentStatusBadge } from "./AssignmentStatusBadge";
+import { WorkforceEventBadge } from "./WorkforceEventBadge";
 import { OrgMapTeamMemberMiniCard } from "./OrgMapTeamMemberMiniCard";
 import { RadarBackground } from "./RadarBackground";
 import { useOrgPerfLite } from "../context/OrgPerfLiteContext";
+import { resolveCoordinationEmblem } from "../config/coordinationEmblems";
+import { coordinationCardThemeCssVars } from "../utils/coordinationCardTheme";
 
 type Props = {
   leader: OrgNode;
   members?: OrgNode[];
-  onSelectPerson: (id: string) => void;
+  selectedPersonId?: string | null;
+  onSelectPerson: (id: string, relationId?: string | null) => void;
   onExploreTeam?: (id: string, relationId?: string | null) => void;
   showBackButton?: boolean;
   onBack?: () => void;
@@ -63,6 +74,7 @@ function gridClassForColumns(columns: number): string {
 export function TeamScrollListView({
   leader,
   members: membersProp,
+  selectedPersonId = null,
   onSelectPerson,
   onExploreTeam,
   showBackButton = false,
@@ -71,7 +83,19 @@ export function TeamScrollListView({
   const members = membersProp ?? leader.children;
   const leaderRole = formatRoleLabel(leader);
   const { visualLevel } = resolveOrgMapTheme(leader, 0);
-  const leaderCss = orgMapNodeThemeToCssVars(leader, 0);
+  const flowIdentity = useFlowAreaIdentity();
+  const leaderCoordinationEmblem = resolveCoordinationEmblem(leader);
+  const [leaderCoordinationIdentity] = useState(
+    () => leaderCoordinationEmblem ?? flowIdentity,
+  );
+  const leaderLevelCss = orgMapNodeThemeToCssVars(leader, 0);
+  const leaderCss = leaderCoordinationIdentity
+    ? {
+        ...leaderLevelCss,
+        ...coordinationCardThemeCssVars(leaderCoordinationIdentity),
+      }
+    : leaderLevelCss;
+  const isLeaderSelected = selectedPersonId === leader.id;
   const radarLevel = visualLevel;
   const leaderPhotoUrl = withPhotoAccessToken(leader.photoUrl);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -138,8 +162,20 @@ export function TeamScrollListView({
       >
         <div className="mx-auto w-full max-w-5xl">
           <section
-            className="org-map-holo org-map-holo--list-leader rounded-xl p-5 backdrop-blur-xl"
+            className={[
+              "org-map-holo org-map-holo--list-leader rounded-xl p-5 backdrop-blur-xl",
+              isLeaderSelected ? "org-map-holo--selected" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             style={leaderCss}
+            data-coordination-identity={
+              leaderCoordinationIdentity ? "true" : "false"
+            }
+            data-active-coordination-theme={
+              leaderCoordinationIdentity ? "true" : "false"
+            }
+            data-selected={isLeaderSelected ? "true" : "false"}
             data-visual-level={visualLevel}
           >
             <div className="flex items-center gap-4">
@@ -173,6 +209,7 @@ export function TeamScrollListView({
                   {leaderRole}
                 </p>
                 <AssignmentStatusBadge node={leader} size="md" className="mt-1" />
+                <WorkforceEventBadge node={leader} size="md" className="mt-1" />
                 <p className="org-map-mini-card__active-row mt-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em]">
                   <span
                     className="org-map-mini-card__pulse size-1.5 rounded-full"
@@ -183,7 +220,9 @@ export function TeamScrollListView({
               </div>
               <button
                 type="button"
-                onClick={() => onSelectPerson(leader.id)}
+                onClick={() =>
+                  onSelectPerson(leader.id, leader.relation_id ?? null)
+                }
                 className="org-map-mini-card__detail shrink-0 rounded-md px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] transition"
               >
                 Detalle
@@ -227,6 +266,12 @@ export function TeamScrollListView({
                             member={member}
                             memberLayoutDepth={1}
                             renderMode="teamListPage"
+                            selected={selectedPersonId === member.id}
+                            passiveCoordinationIdentity={
+                              member.id !== selectedPersonId
+                                ? leaderCoordinationIdentity
+                                : null
+                            }
                             onOpenDetail={onSelectPerson}
                             onExploreTeam={onExploreTeam}
                             stopMouse={stopMouse}

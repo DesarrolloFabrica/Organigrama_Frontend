@@ -1,6 +1,7 @@
 import type { Edge, Node } from '@xyflow/react'
 import type { OrgNode } from '../types'
 import type { OrgMapRenderMode } from './orgMapDisplayPolicy'
+import type { CoordinationCardThemeIdentity } from './coordinationCardTheme'
 
 export type OrgMapNodeData = {
   orgNode: OrgNode
@@ -24,10 +25,16 @@ export type OrgMapNodeInteractiveData = OrgMapNodeData & {
   showTeamPageNavigate: boolean
   /** Raíz del subárbol actual en el lienzo. */
   isCanvasRoot: boolean
+  /** Paleta estable del jefe que actúa como raíz del lienzo actual. */
+  canvasRootIdentity: CoordinationCardThemeIdentity | null
+  /** Coordinación efectiva del nodo, incluida la heredada. */
+  effectiveCoordinationIdentity: CoordinationCardThemeIdentity | null
+  /** Paleta tenue del padre cuando este nodo es hermano del seleccionado. */
+  passiveCoordinationIdentity: CoordinationCardThemeIdentity | null
   /** Miembros del equipo interno (raíz o fila 2 expandida; datos del árbol completo). */
   internalTeamMembers: OrgNode[]
   onToggleExpand: (nodeId: string) => void
-  onOpenDetail: (nodeId: string) => void
+  onOpenDetail: (nodeId: string, relationId?: string | null) => void
   /** Navegación a vista de sub-organigrama centrada en el nodo (con su posición). */
   onExploreTeam?: (nodeId: string, relationId?: string | null) => void
   /** Petición en curso de hijos directos bajo demanda. */
@@ -41,6 +48,38 @@ export type OrgMapNodeInteractiveData = OrgMapNodeData & {
 export type OrgMapGraph = {
   nodes: Node<OrgMapNodeData>[]
   edges: Edge[]
+}
+
+/** Identidad de nodo en el lienzo: distingue dos posiciones de la misma persona. */
+export function orgMapNodeKey(
+  node: Pick<OrgNode, "id" | "relation_id">,
+): string {
+  const relationId = node.relation_id
+  if (relationId == null || relationId === "") return node.id
+  return `${node.id}::${relationId}`
+}
+
+export type OrgMapNodeIdentity = {
+  personId: string
+  relationId: string | null
+}
+
+/**
+ * Descompone la identidad exclusiva del lienzo sin confundirla con el id de
+ * dominio que aceptan los endpoints de persona.
+ */
+export function parseOrgMapNodeKey(nodeKey: string): OrgMapNodeIdentity {
+  const separatorIndex = nodeKey.indexOf("::")
+  if (separatorIndex < 0) {
+    return { personId: nodeKey, relationId: null }
+  }
+
+  const personId = nodeKey.slice(0, separatorIndex)
+  const relationId = nodeKey.slice(separatorIndex + 2)
+  return {
+    personId,
+    relationId: relationId || null,
+  }
 }
 
 const LAYOUT_SLOT_PX = 340
@@ -108,7 +147,7 @@ export function buildOrgMap(
     depth: number,
   ) {
     nodes.push({
-      id: node.id,
+      id: orgMapNodeKey(node),
       type: 'orgNode',
       /** `x` del walk es el centro horizontal del slot; `y` es el borde superior de la fila. */
       origin: [0.5, 0],
@@ -121,9 +160,9 @@ export function buildOrgMap(
 
     if (parentId) {
       edges.push({
-        id: `${parentId}-${node.id}`,
+        id: `${parentId}-${orgMapNodeKey(node)}`,
         source: parentId,
-        target: node.id,
+        target: orgMapNodeKey(node),
         type: 'smoothstep',
         animated: false,
         style: {
@@ -139,7 +178,7 @@ export function buildOrgMap(
     const hubOpen = Boolean(expandedHubNodeId)
     const gap = hubOpen ? SIBLING_GAP_HUB_OPEN_PX : SIBLING_GAP_COMPACT_PX
     const widths = node.children.map((c) =>
-      branchWidthRow2(c.id, expandedHubNodeId, viewportWidth),
+      branchWidthRow2(orgMapNodeKey(c), expandedHubNodeId, viewportWidth),
     )
     const totalWidth =
       widths.reduce((a, b) => a + b, 0) +
@@ -150,7 +189,7 @@ export function buildOrgMap(
     for (let i = 0; i < node.children.length; i++) {
       const w = widths[i]!
       const cx = currentX + w / 2
-      walk(node.children[i]!, cx, y + VERTICAL_SPACING, node.id, depth + 1)
+      walk(node.children[i]!, cx, y + VERTICAL_SPACING, orgMapNodeKey(node), depth + 1)
       currentX += w + gap
     }
   }

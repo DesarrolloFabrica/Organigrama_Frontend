@@ -9,6 +9,7 @@ import type {
   OrgSummaryResponse,
   PersonCvResponse,
   PersonVideoResponse,
+  WorkforceEventListResponse,
 } from '../types'
 import type {
   CreateOrgChartSnapshotPayload,
@@ -139,6 +140,23 @@ export async function fetchOrgPersonDetail(
 export async function getPersonCv(personId: number): Promise<PersonCvResponse> {
   const safeId = encodeURIComponent(String(personId))
   return getJson<PersonCvResponse>(`/api/org-chart/person/${safeId}/cv`)
+}
+
+/**
+ * Historial de novedades de una persona (schema `workforce_events`, solo lectura).
+ * GET /api/org-chart/person/:personId/workforce-events
+ */
+export async function getPersonWorkforceEvents(
+  personId: string,
+  options?: OrgChartRequestOptions,
+): Promise<WorkforceEventListResponse> {
+  const safeId = encodeURIComponent(personId)
+  return getJson<WorkforceEventListResponse>(
+    withVersionQuery(
+      `/api/org-chart/person/${safeId}/workforce-events`,
+      options,
+    ),
+  )
 }
 
 /**

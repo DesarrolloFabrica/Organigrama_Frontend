@@ -6,6 +6,7 @@ import {
 
 type OrgMapSelectionContextValue = {
   selectedPersonId: string | null;
+  selectedRelationId: string | null;
 };
 
 const OrgMapSelectionContext =
@@ -13,15 +14,19 @@ const OrgMapSelectionContext =
 
 type OrgMapSelectionProviderProps = {
   selectedPersonId: string | null;
+  selectedRelationId?: string | null;
   children: ReactNode;
 };
 
 export function OrgMapSelectionProvider({
   selectedPersonId,
+  selectedRelationId = null,
   children,
 }: OrgMapSelectionProviderProps) {
   return (
-    <OrgMapSelectionContext.Provider value={{ selectedPersonId }}>
+    <OrgMapSelectionContext.Provider
+      value={{ selectedPersonId, selectedRelationId }}
+    >
       {children}
     </OrgMapSelectionContext.Provider>
   );
@@ -30,7 +35,7 @@ export function OrgMapSelectionProvider({
 export function useOrgMapSelection(): OrgMapSelectionContextValue {
   const context = useContext(OrgMapSelectionContext);
   if (!context) {
-    return { selectedPersonId: null };
+    return { selectedPersonId: null, selectedRelationId: null };
   }
   return context;
 }

@@ -17,6 +17,7 @@ import {
   polygonPointsToPath,
   preferredTooltipSide,
   radarUsefulWidthRatio,
+  resolveRadarDisplayCoverage,
   samePoint,
 } from './radarGeometry'
 
@@ -47,6 +48,12 @@ function assertClosedNGon(coverages: number[]) {
 }
 
 describe('radarGeometry', () => {
+  it('uses backend displayCoverage and falls back safely for historical profiles', () => {
+    expect(resolveRadarDisplayCoverage(82.3, 86.9)).toBe(86.9)
+    expect(resolveRadarDisplayCoverage(32.4, undefined)).toBe(32.4)
+    expect(resolveRadarDisplayCoverage(50, 0)).toBe(0)
+  })
+
   it('genera siete ejes con primer ángulo arriba (-90°)', () => {
     expect(axisAngle(0, 7)).toBeCloseTo(RADAR_START_ANGLE, 10)
     expect(axisAngle(1, 7) - axisAngle(0, 7)).toBeCloseTo((2 * Math.PI) / 7, 10)

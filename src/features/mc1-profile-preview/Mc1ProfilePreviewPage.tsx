@@ -155,13 +155,16 @@ function FieldBlock({
         </div>
       </section>
 
-      {field.radar.axes.some((a) => a.relativeCoverage > 0) ? (
+      {field.radar.axes.some(
+        (a) => (a.displayCoverage ?? a.relativeCoverage) > 0,
+      ) ? (
         <section>
           <h3 className="mb-1 text-sm font-medium uppercase tracking-wide text-slate-400">
             Mapa de competencias
           </h3>
           <p className="mb-3 text-xs text-slate-500">
-            Cobertura relativa de práctica observada en el CV.
+            Mapa relativo de competencias basado en la evidencia disponible en
+            el perfil. No representa un porcentaje absoluto de dominio.
           </p>
           <Mc1DimensionRadar axes={field.radar.axes} debug={debug} />
         </section>

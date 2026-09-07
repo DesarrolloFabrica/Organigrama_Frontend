@@ -7,14 +7,22 @@ import {
   buildRingPolygon,
   coverageToPercent,
   polygonPointsToPath,
+  resolveRadarDisplayCoverage,
   type RadarAxisGeometry,
 } from '../competencies/utils/radarGeometry'
+import {
+  inferRadarEvidenceState,
+  radarEvidenceStateLabel,
+  type RadarEvidenceState,
+} from '../competencies/utils/radarEvidenceState'
 
 type Axis = {
   dimensionCode: string
   label: string
   relativeCoverage: number
+  displayCoverage?: number
   rawScore?: number
+  evidenceState?: RadarEvidenceState
 }
 
 type Props = {
@@ -74,7 +82,20 @@ export function Mc1DimensionRadar({ axes, debug = false }: Props) {
   const gradId = useId().replace(/:/g, '')
   const [active, setActive] = useState<string | null>(null)
   const coverages = useMemo(
-    () => axes.map((a) => Math.max(0, Math.min(100, a.relativeCoverage)) / 100),
+    () =>
+      axes.map(
+        (a) =>
+          Math.max(
+            0,
+            Math.min(
+              100,
+              resolveRadarDisplayCoverage(
+                a.relativeCoverage,
+                a.displayCoverage,
+              ),
+            ),
+          ) / 100,
+      ),
     [axes],
   )
 
@@ -111,14 +132,20 @@ export function Mc1DimensionRadar({ axes, debug = false }: Props) {
   }
 
   const activeAxis = axes.find((a) => a.dimensionCode === active)
+  const activeDisplayCoverage = activeAxis
+    ? resolveRadarDisplayCoverage(
+        activeAxis.relativeCoverage,
+        activeAxis.displayCoverage,
+      )
+    : null
 
   return (
     <div className="relative mx-auto w-full max-w-[560px]">
       <svg
         viewBox={`0 0 ${VIEW} ${VIEW}`}
-        className="h-auto w-full overflow-visible"
+        className="entity-detail-dimension-radar h-auto w-full overflow-visible"
         role="img"
-        aria-label="Mapa de cobertura relativa por dimensión"
+        aria-label="Mapa relativo de competencias por dimensión"
         data-radar="mc1-dimension"
       >
         <defs>
@@ -179,24 +206,38 @@ export function Mc1DimensionRadar({ axes, debug = false }: Props) {
             const lines = wrapLabel(axis.label)
             const startDy = labelBlockDy(lines.length, g.labelDy)
             const semanticPct = coverageToPercent(coverages[i])
+            const state = inferRadarEvidenceState(
+              axis.relativeCoverage,
+              axis.evidenceState,
+            )
+            const pointFill =
+              state === 'WEAK_EVIDENCE'
+                ? selected
+                  ? '#fcd34d'
+                  : '#fbbf24'
+                : selected
+                  ? '#5eead4'
+                  : '#2dd4bf'
             return (
               <g key={axis.dimensionCode} data-radar-axis={axis.dimensionCode}>
                 <circle
                   cx={g.valuePoint.x}
                   cy={g.valuePoint.y}
                   r={selected ? RADAR_POINT_RADIUS + 1.5 : RADAR_POINT_RADIUS}
-                  fill={selected ? '#5eead4' : '#2dd4bf'}
+                  fill={pointFill}
                   stroke="#0f172a"
                   strokeWidth={1.5}
                   className="cursor-pointer"
                   data-value={semanticPct}
+                  data-evidence-state={state}
+                  data-selected={selected || undefined}
                   onMouseEnter={() => setActive(axis.dimensionCode)}
                   onMouseLeave={() => setActive(null)}
                   onFocus={() => setActive(axis.dimensionCode)}
                   onBlur={() => setActive(null)}
                   tabIndex={0}
                   role="button"
-                  aria-label={`${axis.label}: cobertura relativa ${semanticPct} por ciento`}
+                  aria-label={`${axis.label}: ${radarEvidenceStateLabel(state)}, representación en el mapa ${semanticPct} por ciento`}
                 />
                 <text
                   x={g.labelAnchor.x}
@@ -223,10 +264,23 @@ export function Mc1DimensionRadar({ axes, debug = false }: Props) {
 
       {activeAxis ? (
         <div className="mt-2 rounded-lg border border-teal-500/30 bg-slate-900/80 px-3 py-2 text-sm text-slate-200">
-          <div className="font-medium text-teal-200">{activeAxis.label}</div>
+          <div className="entity-detail-accent-text font-medium text-teal-200">{activeAxis.label}</div>
           <div>
-            Cobertura relativa: {Math.round(activeAxis.relativeCoverage)}%
+            {radarEvidenceStateLabel(
+              inferRadarEvidenceState(
+                activeAxis.relativeCoverage,
+                activeAxis.evidenceState,
+              ),
+            )}
           </div>
+          <div>
+            Representación en el mapa: {Math.round(activeDisplayCoverage ?? 0)}%
+          </div>
+          {debug ? (
+            <div className="text-xs text-slate-400">
+              relativeCoverage: {activeAxis.relativeCoverage}
+            </div>
+          ) : null}
           {debug && activeAxis.rawScore != null ? (
             <div className="text-xs text-slate-400">
               rawScore: {activeAxis.rawScore}

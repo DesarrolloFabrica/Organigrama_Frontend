@@ -15,6 +15,24 @@ describe("buildVersionQuery", () => {
     );
   });
 
+  it("añade scopeVersionId cuando se indica", () => {
+    expect(
+      buildVersionQuery("/api/org-chart/root", {
+        versionId: 4,
+        scopeVersionId: 9,
+      }),
+    ).toBe("/api/org-chart/root?versionId=4&scopeVersionId=9");
+  });
+
+  it("permite heredar el subárbol de la versión global", () => {
+    expect(
+      buildVersionQuery("/api/org-chart/root", {
+        versionId: 4,
+        scopeVersionId: "none",
+      }),
+    ).toBe("/api/org-chart/root?versionId=4&scopeVersionId=none");
+  });
+
   it("usa & si el path ya tiene query", () => {
     expect(
       buildVersionQuery("/api/org-chart/search?q=david", { versionId: 4 }),

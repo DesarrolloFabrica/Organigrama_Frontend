@@ -81,6 +81,44 @@ export type OrgAssignmentStatus =
   | "PERMANENT"
   | "MATERNITY_LEAVE"
 
+/** Novedad vigente de `workforce_events` (schema Orbit, solo lectura). */
+export type OrgNodeWorkforceEvent = {
+  id: string
+  eventTypeName: string
+  status: string
+  startDate: string | null
+  endDate: string | null
+}
+
+export type WorkforceEventStatus =
+  | "NOT_TAKEN"
+  | "PENDING"
+  | "APPROVED"
+  | "TAKEN"
+  | "REJECTED"
+  | "CANCELLED"
+
+/** Ítem de GET /api/org-chart/person/:id/workforce-events */
+export type WorkforceEventItem = {
+  id: string
+  eventTypeId: string
+  eventTypeName: string
+  observation: string | null
+  status: string
+  startDate: string | null
+  endDate: string | null
+  startTime: string | null
+  endTime: string | null
+  createdAt: string
+  updatedAt: string
+  createdByPerson: { id: string; name: string | null } | null
+  isCurrent: boolean
+}
+
+export type WorkforceEventListResponse = {
+  items: WorkforceEventItem[]
+}
+
 /**
  * Nodo del árbol devuelto por GET /api/org-chart.
  * `children` contiene los reportes directos; vacío en hojas.
@@ -111,6 +149,13 @@ export type OrgNode = {
   assignment_status?: OrgAssignmentStatus | null
   /** Etiqueta visible de la asignación (override por relación). */
   assignment_label?: string | null
+  /**
+   * Novedad vigente hoy (licencia, incapacidad, permiso, etc.).
+   * Ausente/`null` si la persona no tiene eventos activos.
+   */
+  current_workforce_event?: OrgNodeWorkforceEvent | null
+  /** Cantidad de novedades vigentes (el badge muestra +N si es > 1). */
+  current_workforce_event_count?: number
   hierarchy_id: string | null
   area_id: string | null
   school_id: string | null
@@ -235,9 +280,26 @@ export function orgPersonHasFullProfile(
   return detail.canViewFullProfile === true && detail.profile != null
 }
 
-/** Texto de cargo para UI cuando `role` viene nulo. */
+/**
+ * Texto de cargo para UI. Si la posición tiene `assignment_label`, se muestra
+ * como distinción del cargo base (`CARGO / distinción`) para poder separar
+ * dos equipos de la misma persona. Si la etiqueta ya incluye el cargo, no se
+ * duplica.
+ */
 export function formatRoleLabel(node: OrgNode): string {
-  return node.role?.name?.trim() ? node.role.name : 'Sin cargo asignado'
+  const roleName = node.role?.name?.trim() ?? ''
+  const assignmentLabel = node.assignment_label?.trim() ?? ''
+  if (!assignmentLabel) {
+    return roleName || 'Sin cargo asignado'
+  }
+  if (!roleName) return assignmentLabel
+  const roleNorm = roleName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
+  const labelNorm = assignmentLabel
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+  if (labelNorm.includes(roleNorm)) return assignmentLabel
+  return `${roleName} / ${assignmentLabel}`
 }
 
 /** True si la posición es una asignación temporal (encargo). */
@@ -291,6 +353,123 @@ export function getAssignmentBadge(
     }
   }
   return null
+}
+
+export const WORKFORCE_EVENT_STATUS_LABEL: Record<WorkforceEventStatus, string> = {
+  NOT_TAKEN: 'No tomado',
+  PENDING: 'Pendiente',
+  APPROVED: 'Aprobado',
+  TAKEN: 'Tomado',
+  REJECTED: 'Rechazado',
+  CANCELLED: 'Cancelado',
+}
+
+export function formatWorkforceEventStatus(status: string): string {
+  if (status in WORKFORCE_EVENT_STATUS_LABEL) {
+    return WORKFORCE_EVENT_STATUS_LABEL[status as WorkforceEventStatus]
+  }
+  return status
+}
+
+export type WorkforceEventBadgeTone =
+  | 'health'
+  | 'leave'
+  | 'sanction'
+  | 'remote'
+  | 'other'
+
+export type WorkforceEventBadgeInfo = {
+  label: string
+  title: string
+  tone: WorkforceEventBadgeTone
+}
+
+function normalizeEventTypeName(name: string): string {
+  return name.trim().toUpperCase()
+}
+
+/** Agrupa el tipo de novedad para color del badge (sin hardcodear ids). */
+export function workforceEventBadgeTone(
+  eventTypeName: string,
+): WorkforceEventBadgeTone {
+  const name = normalizeEventTypeName(eventTypeName)
+  if (
+    name.includes('INCAPACIDAD') ||
+    name.includes('CITA MEDICA') ||
+    name.includes('CITA MÉDICA')
+  ) {
+    return 'health'
+  }
+  if (
+    name.includes('SANCION') ||
+    name.includes('SANCIÓN') ||
+    name.includes('SUSPENSION') ||
+    name.includes('SUSPENSIÓN')
+  ) {
+    return 'sanction'
+  }
+  if (name.includes('TELETRABAJO') || name.includes('TRABAJO EN CASA')) {
+    return 'remote'
+  }
+  if (
+    name.includes('LICENCIA') ||
+    name.includes('PERMISO') ||
+    name.includes('AUSENCIA') ||
+    name.includes('CALAMIDAD') ||
+    name.includes('ESTUDIO') ||
+    name.includes('CUMPLEA')
+  ) {
+    return 'leave'
+  }
+  return 'other'
+}
+
+/**
+ * Píldora visible de novedad vigente en el nodo (null si no hay evento actual).
+ */
+export function getWorkforceEventBadge(
+  node: Pick<
+    OrgNode,
+    'current_workforce_event' | 'current_workforce_event_count'
+  > | undefined,
+): WorkforceEventBadgeInfo | null {
+  const event = node?.current_workforce_event
+  if (!event?.eventTypeName) return null
+
+  const extra =
+    (node?.current_workforce_event_count ?? 1) > 1
+      ? ` +${(node?.current_workforce_event_count ?? 1) - 1}`
+      : ''
+  const statusLabel = formatWorkforceEventStatus(event.status)
+  const range = formatWorkforceEventRange(event.startDate, event.endDate)
+
+  return {
+    label: `${event.eventTypeName}${extra}`,
+    title: [event.eventTypeName, statusLabel, range].filter(Boolean).join(' · '),
+    tone: workforceEventBadgeTone(event.eventTypeName),
+  }
+}
+
+/** Formatea `YYYY-MM-DD` a `DD/MM/YYYY` sin usar Date (evita desfase TZ). */
+export function formatWorkforceEventDate(
+  value: string | null | undefined,
+): string {
+  if (!value) return ''
+  const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!match) return value
+  return `${match[3]}/${match[2]}/${match[1]}`
+}
+
+export function formatWorkforceEventRange(
+  startDate: string | null | undefined,
+  endDate: string | null | undefined,
+): string {
+  const start = formatWorkforceEventDate(startDate)
+  const end = formatWorkforceEventDate(endDate)
+  if (start && end) return start === end ? start : `${start} – ${end}`
+  if (start) return `Desde ${start}`
+  if (end) return `Hasta ${end}`
+  return ''
 }
 
 /**

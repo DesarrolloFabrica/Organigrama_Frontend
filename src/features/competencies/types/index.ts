@@ -115,6 +115,10 @@ export interface CompetencyMvpTool {
 export interface Mc1PersonCompetenciesPresentation {
   status: 'AVAILABLE'
   source: 'ARTIFACT_ONLY_LOCAL' | 'CLOUD_PRESENTATION_STORE'
+  calibration?: {
+    policy: string
+    version: string
+  }
   fields: Array<{
     code: string
     label: string
@@ -133,6 +137,8 @@ export interface Mc1PersonCompetenciesPresentation {
         code: string
         label: string
         relativeCoverage: number
+        displayCoverage?: number
+        evidenceState?: 'NO_EVIDENCE' | 'WEAK_EVIDENCE' | 'OBSERVED'
       }>
     }
     evidenceVolume: 'LOW' | 'MEDIUM' | 'HIGH'

@@ -272,7 +272,7 @@ export function CompetencyRadar({
       <header className="px-1.5">
         <h4
           id={titleId}
-          className="text-[13px] font-semibold tracking-tight text-slate-100"
+          className="entity-detail-title text-[13px] font-semibold tracking-tight text-slate-100"
         >
           Mapa de cobertura por especialidad
         </h4>
@@ -308,6 +308,9 @@ export function CompetencyRadar({
             return (
               <line
                 key={`axis-${g.index}`}
+                className="entity-detail-radar-axis"
+                data-selected={isSelected || undefined}
+                data-hovered={isHovered || undefined}
                 x1={CX}
                 y1={CY}
                 x2={g.tip.x}
@@ -328,7 +331,12 @@ export function CompetencyRadar({
             <path
               key={polygonKey}
               d={polygonPath}
-              className={reducedMotion ? undefined : 'mc-radar-polygon-enter'}
+              className={[
+                'entity-detail-radar-series',
+                reducedMotion ? '' : 'mc-radar-polygon-enter',
+              ]
+                .filter(Boolean)
+                .join(' ')}
               fill="rgba(34,211,238,0.14)"
               stroke="rgb(34,211,238)"
               strokeWidth={1.75}
@@ -394,9 +402,14 @@ export function CompetencyRadar({
                   strokeWidth={isEmergent ? 1.75 : isSelected ? 2 : 1.25}
                   opacity={isEmergent ? 0.8 : 1}
                   pointerEvents="none"
-                  className={
-                    isSelected ? 'mc-radar-point-selected' : undefined
-                  }
+                  className={[
+                    'entity-detail-radar-point',
+                    isSelected ? 'mc-radar-point-selected' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  data-selected={isSelected || undefined}
+                  data-emergent={isEmergent || undefined}
                 />
 
                 {/* Anillo de selección (persistente, animable) */}
@@ -409,9 +422,12 @@ export function CompetencyRadar({
                     stroke="rgba(103,232,249,0.85)"
                     strokeWidth={1.75}
                     pointerEvents="none"
-                    className={
-                      reducedMotion ? undefined : 'mc-radar-selection-ring'
-                    }
+                    className={[
+                      'entity-detail-radar-selection',
+                      reducedMotion ? '' : 'mc-radar-selection-ring',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
                   />
                 ) : null}
 
@@ -426,6 +442,7 @@ export function CompetencyRadar({
                     strokeWidth={1}
                     strokeDasharray="2.5 2"
                     pointerEvents="none"
+                    className="entity-detail-radar-default"
                   />
                 ) : null}
 
@@ -447,6 +464,7 @@ export function CompetencyRadar({
                     stroke="rgba(34,211,238,0.22)"
                     strokeWidth={1}
                     pointerEvents="none"
+                    className="entity-detail-radar-label-backdrop"
                   />
                 ) : null}
 
@@ -456,6 +474,7 @@ export function CompetencyRadar({
                   textAnchor={g.textAnchor}
                   dominantBaseline="middle"
                   className="cursor-pointer select-none"
+                  data-selected={isSelected || undefined}
                   fill={
                     isSelected
                       ? 'rgb(207,250,254)'
@@ -492,6 +511,7 @@ export function CompetencyRadar({
                     y={g.valuePoint.y - (isSelected ? 16 : 14)}
                     textAnchor="middle"
                     className="select-none"
+                    data-radar-percentage="true"
                     fill="rgb(165,243,252)"
                     fontSize={9}
                     fontWeight={600}

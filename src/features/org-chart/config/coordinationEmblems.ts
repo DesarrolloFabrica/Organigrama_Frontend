@@ -18,6 +18,7 @@ import focaDevelopmentIcon from "../assets/coordination-icons/fabrica/FOCA_DESAR
 import focaAnalystsIcon from "../assets/coordination-icons/fabrica/FOCA_ANALISTAS.png";
 import focaMarketingIcon from "../assets/coordination-icons/fabrica/FOCA_MARKETING.png";
 import type { OrgNode } from "../types";
+import { orgNodeMatchesTarget } from "../utils/findNodeInTree";
 
 export type CoordinationEmblemConfig = {
   icon: string;
@@ -27,8 +28,6 @@ export type CoordinationEmblemConfig = {
   label: string;
   /** Reduce el halo para iconos cuyo arte fuente ya es muy luminoso. */
   softGlow?: boolean;
-  /** `false`: estética exclusiva de tarjeta; no cambia loader, fondo ni radar. */
-  flowVisuals?: boolean;
   /** Conserva el color del emblema aunque el nodo sea una vacante. */
   vacancyVisuals?: boolean;
   placement?:
@@ -142,7 +141,6 @@ export const COORDINATION_EMBLEMS = {
     highlightColor: "209 250 229",
     label: "Director de Operaciones",
     placement: "watermark",
-    flowVisuals: false,
   },
   generalCoordination: {
     icon: generalCoordinationIcon,
@@ -150,7 +148,6 @@ export const COORDINATION_EMBLEMS = {
     highlightColor: "254 243 199",
     label: "Coordinación General",
     placement: "watermark",
-    flowVisuals: false,
   },
   factoryGif: {
     icon: focaGifIcon,
@@ -196,12 +193,39 @@ function normalizePersonName(name: string): string {
 }
 
 /**
+ * Identidad visual de una posición concreta (p. ej. la misma persona en un
+ * segundo cargo). Se resuelve antes que el emblema por persona/id.
+ */
+export function resolveCoordinationEmblemFromAssignmentLabel(
+  assignmentLabel: string | null | undefined,
+): CoordinationEmblemConfig | null {
+  const label = normalizePersonName(assignmentLabel ?? "");
+  if (!label) return null;
+
+  if (
+    label.includes("ANALISTAS DE DISENO") ||
+    label.includes("PRESENTADOR DE CONTENIDO") ||
+    label.includes("REALIZADOR MULTIMEDIA") ||
+    label.includes("SUBJEFE DE ANALISTAS")
+  ) {
+    return COORDINATION_EMBLEMS.factoryAnalysts;
+  }
+
+  return null;
+}
+
+/**
  * Resuelve el emblema de una coordinación por identidad organizacional estable.
  * El id identifica a la persona y el cargo actúa como protección ante reasignaciones.
  */
 export function resolveCoordinationEmblem(
-  node: Pick<OrgNode, "id" | "name" | "role" | "nodeKind">,
+  node: Pick<OrgNode, "id" | "name" | "role" | "nodeKind" | "assignment_label">,
 ): CoordinationEmblemConfig | null {
+  const fromAssignment = resolveCoordinationEmblemFromAssignmentLabel(
+    node.assignment_label,
+  );
+  if (fromAssignment) return fromAssignment;
+
   const roleName = node.role?.name?.trim().toUpperCase() ?? "";
   const personName = normalizePersonName(node.name);
 
@@ -332,4 +356,45 @@ export function resolveCoordinationEmblem(
   }
 
   return null;
+}
+
+export type OrgNodeCoordinationContext = {
+  /** Identidad propia o heredada del ancestro de coordinación más cercano. */
+  identity: CoordinationEmblemConfig | null;
+  /** Identidad efectiva del jefe inmediato dentro de la ruta visible. */
+  managerIdentity: CoordinationEmblemConfig | null;
+};
+
+/**
+ * Resuelve la identidad cromática de una persona dentro de un árbol visible.
+ * Una coordinación declarada en el nodo reemplaza la heredada; sus descendientes
+ * conservan esa identidad hasta encontrar una subcoordinación más específica.
+ */
+export function resolveNodeCoordinationContext(
+  root: OrgNode,
+  targetId: string,
+  targetRelationId?: string | null,
+): OrgNodeCoordinationContext | null {
+  function visit(
+    node: OrgNode,
+    inheritedIdentity: CoordinationEmblemConfig | null,
+  ): OrgNodeCoordinationContext | null {
+    const identity = resolveCoordinationEmblem(node) ?? inheritedIdentity;
+
+    if (orgNodeMatchesTarget(node, targetId, targetRelationId)) {
+      return {
+        identity,
+        managerIdentity: inheritedIdentity,
+      };
+    }
+
+    for (const child of node.children) {
+      const resolved = visit(child, identity);
+      if (resolved) return resolved;
+    }
+
+    return null;
+  }
+
+  return visit(root, null);
 }

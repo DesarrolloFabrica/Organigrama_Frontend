@@ -15,6 +15,7 @@ export {
 } from "./useOnboardingStatus";
 export { useOrgPersonDetail } from "./useOrgPersonDetail";
 export { useOrgPersonCv } from "./useOrgPersonCv";
+export { useOrgPersonWorkforceEvents } from "./useOrgPersonWorkforceEvents";
 export { useOrgPersonVideo } from "./useOrgPersonVideo";
 export {
   useOrgPersonCompetencies,

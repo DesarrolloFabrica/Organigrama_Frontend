@@ -157,13 +157,13 @@ export function CompetenciesExplorer({ personId }: Props) {
       return (
         <div className="mc-explorer flex flex-col gap-3 overflow-x-hidden pb-2">
           <header className="min-w-0 rounded-xl border border-cyan-400/12 bg-[#06111f]/55 px-3 py-3">
-            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-100/80">
+            <p className="entity-detail-title font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-100/80">
               Perfil profesional
             </p>
-            <h3 className="mt-1.5 text-base font-semibold tracking-tight text-slate-50 sm:text-lg">
+            <h3 className="entity-detail-title mt-1.5 text-base font-semibold tracking-tight text-slate-50 sm:text-lg">
               Perfil profesional en proceso de clasificación
             </h3>
-            <p className="mt-1.5 text-[12px] leading-relaxed text-slate-400">
+            <p className="entity-detail-subtitle mt-1.5 text-[12px] leading-relaxed text-slate-400">
               Hay competencias sustentadas por el CV. La clasificación por
               dominio profesional todavía no está completa.
             </p>
@@ -194,7 +194,7 @@ export function CompetenciesExplorer({ personId }: Props) {
   return (
     <div className="mc-explorer flex flex-col gap-3 overflow-x-hidden pb-2">
       <header className="min-w-0 rounded-xl border border-cyan-400/12 bg-[#06111f]/55 px-3 py-3">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-100/80">
+        <p className="entity-detail-title font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-100/80">
           Perfil profesional
         </p>
 
@@ -281,7 +281,7 @@ export function CompetenciesExplorer({ personId }: Props) {
 
           {selectedSummary ? (
             <div className="min-w-0 px-0.5">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+              <p className="entity-detail-title font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
                 {selectedSummary.presentationStatus === 'EMERGENT'
                   ? 'Capacidad emergente'
                   : 'Especialidad seleccionada'}
@@ -382,7 +382,7 @@ function MvpCapabilitiesSections({
     if (!items.length) return null
     return (
       <section className="min-w-0 rounded-xl border border-cyan-400/10 bg-[#06111f]/40 px-3 py-3">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+        <p className="entity-detail-title font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
           {title}
         </p>
         <ul className="mt-2 flex flex-col gap-1.5">
@@ -413,7 +413,7 @@ function MvpCapabilitiesSections({
     if (!items.length) return null
     return (
       <section className="min-w-0 rounded-xl border border-slate-500/15 bg-slate-950/30 px-3 py-3">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+        <p className="entity-detail-title font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
           {title}
         </p>
         <ul className="mt-2 flex flex-wrap gap-1.5">

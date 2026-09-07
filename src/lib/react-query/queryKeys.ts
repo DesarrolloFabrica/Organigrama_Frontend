@@ -1,41 +1,69 @@
+type OrgChartScopeVersionKey = number | "none" | null;
+
 /** Claves de cache del organigrama (estables, sin keys dinámicas innecesarias). */
 export const orgQueryKeys = {
-  root: (versionId?: number) =>
+  root: (versionId?: number, scopeVersionId?: OrgChartScopeVersionKey) =>
     versionId !== undefined
-      ? (["org-root", versionId] as const)
+      ? (["org-root", versionId, scopeVersionId ?? null] as const)
       : (["org-root"] as const),
   node: (
     personId: string,
     versionId?: number,
     relationId?: number | string | null,
+    scopeVersionId?: OrgChartScopeVersionKey,
   ) =>
     [
       "org-node",
       personId,
       relationId != null ? String(relationId) : null,
       versionId ?? null,
+      scopeVersionId ?? null,
     ] as const,
   children: (
     personId: string,
     versionId?: number,
     relationId?: number | string | null,
+    scopeVersionId?: OrgChartScopeVersionKey,
   ) =>
     [
       "org-children",
       personId,
       relationId != null ? String(relationId) : null,
       versionId ?? null,
+      scopeVersionId ?? null,
     ] as const,
-  summary: (personId: string, versionId?: number) =>
+  summary: (
+    personId: string,
+    versionId?: number,
+    scopeVersionId?: OrgChartScopeVersionKey,
+  ) =>
     versionId !== undefined
-      ? (["org-summary", personId, versionId] as const)
+      ? (["org-summary", personId, versionId, scopeVersionId ?? null] as const)
       : (["org-summary", personId] as const),
-  personDetail: (personId: string, versionId?: number) =>
+  personDetail: (
+    personId: string,
+    versionId?: number,
+    scopeVersionId?: OrgChartScopeVersionKey,
+  ) =>
     versionId !== undefined
-      ? (["org-person-detail", personId, versionId] as const)
+      ? (["org-person-detail", personId, versionId, scopeVersionId ?? null] as const)
       : (["org-person-detail", personId] as const),
   /** Hoja de vida (CV) de una persona; no depende de la versión del organigrama. */
   personCv: (personId: string) => ["org-person-cv", personId] as const,
+  /** Novedades de personal (`workforce_events`); lectura por persona. */
+  personWorkforceEvents: (
+    personId: string,
+    versionId?: number,
+    scopeVersionId?: OrgChartScopeVersionKey,
+  ) =>
+    versionId !== undefined
+      ? ([
+          "org-person-workforce-events",
+          personId,
+          versionId,
+          scopeVersionId ?? null,
+        ] as const)
+      : (["org-person-workforce-events", personId] as const),
   /** Video de presentación (metadatos + ticket); no depende de versión. */
   personVideo: (personId: string) => ["org-person-video", personId] as const,
   /** Resumen del Explorador de Competencias (MC1). */
@@ -69,18 +97,24 @@ export const orgQueryKeys = {
     skillCodes: string[],
     page: number,
     versionId?: number,
+    scopeVersionId?: OrgChartScopeVersionKey,
   ) =>
     [
       "competency-people-search",
       versionId ?? null,
+      scopeVersionId ?? null,
       domainCode,
       specialtyCode,
       skillCodes.join(","),
       page,
     ] as const,
-  search: (query: string, versionId?: number) =>
+  search: (
+    query: string,
+    versionId?: number,
+    scopeVersionId?: OrgChartScopeVersionKey,
+  ) =>
     versionId !== undefined
-      ? (["org-search", query, versionId] as const)
+      ? (["org-search", query, versionId, scopeVersionId ?? null] as const)
       : (["org-search", query] as const),
   versions: ["org-chart-versions"] as const,
   /** Vacantes reales del schema `vacancies` (independiente de la versión). */

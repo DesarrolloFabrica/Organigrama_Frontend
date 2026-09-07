@@ -45,9 +45,11 @@ export type PreviewField = {
       dimensionCode: string
       label: string
       relativeCoverage: number
+      displayCoverage?: number
       rawScore: number
       contributingSkillCodes: string[]
       supportingEvidenceUnitIds: string[]
+      evidenceState?: 'NO_EVIDENCE' | 'WEAK_EVIDENCE' | 'OBSERVED'
     }>
   }
   skillDimensionMappings: Array<{
@@ -74,6 +76,8 @@ export type PreviewPresentation = {
     toolsSeparatedFromSkills: true
     radarSemantics: string
     formulaVersion: string
+    radarCalibrationPolicy?: string
+    radarCalibrationVersion?: string
   } | null
   debug: {
     snapshotId: string

@@ -3,6 +3,7 @@ import {
   type OrgNode,
 } from '../types'
 import { AssignmentStatusBadge } from './AssignmentStatusBadge'
+import { WorkforceEventBadge } from './WorkforceEventBadge'
 
 type Props = {
   node: OrgNode
@@ -65,6 +66,12 @@ export function OrgNodeCard({
             {formatRoleLabel(node)}
           </p>
           <AssignmentStatusBadge
+            node={node}
+            size="md"
+            surface="light"
+            className="mt-1"
+          />
+          <WorkforceEventBadge
             node={node}
             size="md"
             surface="light"

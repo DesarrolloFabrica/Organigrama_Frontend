@@ -1,5 +1,5 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { fetchOrgPersonDetail } from "../../../features/org-chart/services/orgChartService";
+import { useQuery } from "@tanstack/react-query";
+import { getPersonWorkforceEvents } from "../../../features/org-chart/services/orgChartService";
 import {
   useOrgChartRequestOptions,
   useOrgChartVersionQueryId,
@@ -8,19 +8,29 @@ import {
 } from "../../../features/org-chart/context/OrgChartVersionContext";
 import { orgQueryKeys } from "../queryKeys";
 
-export function useOrgPersonDetail(personId: string | null) {
+/**
+ * Historial de novedades de una persona (schema `workforce_events`).
+ * Deshabilitada sin personId o si `enabled` es false.
+ */
+export function useOrgPersonWorkforceEvents(
+  personId: string | null,
+  enabled = true,
+) {
   const versionId = useOrgChartVersionQueryId();
   const scopeVersionId = useOrgChartScopeVersionQueryId();
   const requestOptions = useOrgChartRequestOptions();
   const versionReady = useOrgChartVersionReady();
   return useQuery({
-    queryKey: orgQueryKeys.personDetail(personId ?? "", versionId, scopeVersionId),
+    queryKey: orgQueryKeys.personWorkforceEvents(
+      personId ?? "",
+      versionId,
+      scopeVersionId,
+    ),
     queryFn: () =>
-      fetchOrgPersonDetail(
+      getPersonWorkforceEvents(
         personId!,
         Object.keys(requestOptions).length > 0 ? requestOptions : undefined,
       ),
-    enabled: versionReady && Boolean(personId),
-    placeholderData: keepPreviousData,
+    enabled: versionReady && Boolean(personId) && enabled,
   });
 }

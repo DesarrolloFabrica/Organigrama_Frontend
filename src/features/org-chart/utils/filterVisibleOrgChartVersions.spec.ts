@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   filterVisibleOrgChartVersions,
+  groupScopedOrgChartVersions,
   orgChartVersionSelectorLabel,
 } from "./filterVisibleOrgChartVersions";
 import type { OrgChartVersion } from "../types/orgChartVersion";
@@ -39,10 +40,64 @@ const borrador: OrgChartVersion = {
   isLocked: false,
 };
 
+const fabrica: OrgChartVersion = {
+  ...base,
+  id: 9,
+  code: "fabrica-contenidos",
+  name: "Fábrica de contenidos",
+  isActive: false,
+  isLocked: false,
+  scopeType: "COORDINATION",
+  scopeCode: "fabrica-contenidos",
+  scopeLabel: "Fábrica de contenidos",
+  scopeRootPersonId: 49,
+};
+
 describe("filterVisibleOrgChartVersions", () => {
-  it("devuelve todas las versiones recibidas del backend", () => {
-    const versions = [active, historico, borrador];
-    expect(filterVisibleOrgChartVersions(versions)).toEqual(versions);
+  it("devuelve solo las versiones globales", () => {
+    const versions = [active, historico, borrador, fabrica];
+    expect(filterVisibleOrgChartVersions(versions)).toEqual([
+      active,
+      historico,
+      borrador,
+    ]);
+  });
+});
+
+describe("groupScopedOrgChartVersions", () => {
+  it("agrupa versiones independientes por coordinación", () => {
+    expect(groupScopedOrgChartVersions([active, fabrica])).toEqual([
+      {
+        scopeCode: "fabrica-contenidos",
+        scopeLabel: "Fábrica de contenidos",
+        versions: [fabrica],
+      },
+    ]);
+  });
+
+  it("deja la vigente de Fábrica primero y el borrador oficial después", () => {
+    const vigente: OrgChartVersion = {
+      ...fabrica,
+      id: 5,
+      isActive: true,
+    };
+    const oficial: OrgChartVersion = {
+      ...fabrica,
+      id: 6,
+      code: "fabrica-contenidos-oficial",
+      name: "Fábrica de contenidos (oficial)",
+      isActive: false,
+    };
+
+    expect(
+      groupScopedOrgChartVersions([active, oficial, vigente]).map((group) =>
+        group.versions.map((version) => version.id),
+      ),
+    ).toEqual([[5, 6]]);
+  });
+
+  it("no crea grupos si no hay versiones de coordinación", () => {
+    expect(groupScopedOrgChartVersions([active, historico])).toEqual([]);
   });
 });
 

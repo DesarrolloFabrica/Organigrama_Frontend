@@ -18,8 +18,12 @@ function queryKeyId(queryKey: QueryKey): string {
   return JSON.stringify(queryKey);
 }
 
-function parentHintKey(parentId: string, versionId?: number): string {
-  return `${versionId ?? "default"}:${parentId}`;
+function parentHintKey(
+  parentId: string,
+  versionId?: number,
+  scopeVersionId?: number | "none",
+): string {
+  return `${versionId ?? "default"}:${scopeVersionId ?? "auto"}:${parentId}`;
 }
 
 function childrenSignature(children: OrgNode[]): string {
@@ -67,10 +71,11 @@ export function prefetchDirectChildrenHints(
   parentId: string,
   children: OrgNode[],
   versionId?: number,
+  scopeVersionId?: number | "none",
 ): void {
   if (children.length === 0) return;
 
-  const hintKey = parentHintKey(parentId, versionId);
+  const hintKey = parentHintKey(parentId, versionId, scopeVersionId);
   const signature = childrenSignature(children);
   if (prefetchedParentHints.get(hintKey) === signature) {
     return;
@@ -80,23 +85,24 @@ export function prefetchDirectChildrenHints(
   for (const child of children) {
     if (!child?.id) continue;
 
-    // Se precarga el nodo respetando la posición visual (relation_id) del hijo,
-    // para que coincida con la clave usada al pulsar "Ver equipo" y no se cargue
-    // una versión sin posición (que mostraría el equipo equivocado).
     const childRelationId = child.relation_id ?? null;
-    const nodeKey = orgQueryKeys.node(child.id, versionId, childRelationId);
+    const nodeKey = orgQueryKeys.node(
+      child.id,
+      versionId,
+      childRelationId,
+      scopeVersionId,
+    );
     schedulePrefetch(() =>
       prefetchOne(
         queryClient,
         "org-node",
         nodeKey,
         () =>
-          fetchOrgChartNode(
-            child.id,
-            versionId || childRelationId != null
-              ? { versionId, relationId: childRelationId }
-              : undefined,
-          ),
+          fetchOrgChartNode(child.id, {
+            ...(versionId !== undefined ? { versionId } : {}),
+            ...(scopeVersionId !== undefined ? { scopeVersionId } : {}),
+            ...(childRelationId != null ? { relationId: childRelationId } : {}),
+          }),
       ),
     );
   }

@@ -43,7 +43,7 @@ export function SkillAccordionItem({ skill }: Props) {
           ) : null}
         </div>
         <span
-          className="mt-0.5 font-mono text-[10px] text-cyan-300/80"
+          className="entity-detail-accent-text mt-0.5 font-mono text-[10px] text-cyan-300/80"
           aria-hidden
         >
           {open ? '−' : '+'}

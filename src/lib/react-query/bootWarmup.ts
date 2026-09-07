@@ -6,6 +6,9 @@ import {
 } from "../../features/org-chart/services/orgChartService";
 import type { QueryClient } from "@tanstack/react-query";
 import { orgQueryKeys } from "./queryKeys";
+import {
+  filterVisibleOrgChartVersions,
+} from "../../features/org-chart/utils/filterVisibleOrgChartVersions";
 
 /**
  * Resuelve el versionId activo (misma clave que useOrgChartRoot).
@@ -25,8 +28,10 @@ export async function resolveBootWarmupVersionId(
           queryFn: fetchOrgChartVersions,
         })
       : await fetchOrgChartVersions();
-    if (versions.length === 0) return undefined;
-    const active = versions.find((version) => version.isActive) ?? versions[0];
+    const globalVersions = filterVisibleOrgChartVersions(versions);
+    if (globalVersions.length === 0) return undefined;
+    const active =
+      globalVersions.find((version) => version.isActive) ?? globalVersions[0];
     return active?.id;
   } catch {
     return undefined;
@@ -36,10 +41,16 @@ export async function resolveBootWarmupVersionId(
 export async function prefetchOrgChartRootForBoot(
   queryClient: QueryClient,
 ): Promise<void> {
+  const user = getAuthUser();
   const versionId = await resolveBootWarmupVersionId(queryClient);
-  const key = orgQueryKeys.root(versionId);
+  const scopeVersionId = canUseOrgVersioning(user) ? "none" : undefined;
+  const key = orgQueryKeys.root(versionId, scopeVersionId);
   await queryClient.prefetchQuery({
     queryKey: key,
-    queryFn: () => fetchOrgChartRoot(versionId ? { versionId } : undefined),
+    queryFn: () =>
+      fetchOrgChartRoot({
+        ...(versionId !== undefined ? { versionId } : {}),
+        ...(scopeVersionId !== undefined ? { scopeVersionId } : {}),
+      }),
   });
 }

@@ -518,7 +518,8 @@ body,
   transition: opacity 220ms ease;
 }
 
-.org-map-holo[data-coordination-emblem="true"]:hover {
+.org-map-holo[data-coordination-emblem="true"]:hover,
+.org-map-holo[data-coordination-identity="true"][data-selected="true"] {
   border-color: rgb(var(--coordination-card-glow) / 0.68);
   background:
     linear-gradient(
@@ -549,14 +550,16 @@ body,
     0 0 22px rgb(var(--coordination-card-glow) / 0.14);
 }
 
-.org-map-holo[data-coordination-emblem="true"]:hover::before {
+.org-map-holo[data-coordination-emblem="true"]:hover::before,
+.org-map-holo[data-coordination-identity="true"][data-selected="true"]::before {
   border-color: rgb(var(--coordination-card-glow) / 0.48);
   box-shadow:
     inset 0 0 18px rgb(var(--coordination-card-glow) / 0.12),
     0 0 18px rgb(var(--coordination-card-glow) / 0.12);
 }
 
-.org-map-holo[data-coordination-emblem="true"]:hover::after {
+.org-map-holo[data-coordination-emblem="true"]:hover::after,
+.org-map-holo[data-coordination-identity="true"][data-selected="true"]::after {
   background:
     linear-gradient(
       90deg,
@@ -583,7 +586,8 @@ body,
   );
 }
 
-.org-map-holo:hover .org-map-holo__coordination-watermark {
+.org-map-holo:hover .org-map-holo__coordination-watermark,
+.org-map-holo[data-selected="true"] .org-map-holo__coordination-watermark {
   opacity: 1;
 }
 
@@ -952,7 +956,9 @@ body,
   transition: opacity 220ms ease;
 }
 
-.org-map-mini-card:hover .org-map-mini-card__coordination-watermark {
+.org-map-mini-card:hover .org-map-mini-card__coordination-watermark,
+.org-map-mini-card[data-selected="true"]
+  .org-map-mini-card__coordination-watermark {
   opacity: 1;
 }
 
@@ -1397,13 +1403,15 @@ body,
   box-shadow: none;
 }
 
-.org-map-mini-card:hover {
+.org-map-mini-card:hover,
+.org-map-mini-card[data-selected="true"] {
   border-color: color-mix(in srgb, var(--org-lvl-primary) 36%, transparent);
   background-color: rgba(2, 6, 23, 0.82);
   box-shadow: var(--org-lvl-mini-shadow-hover);
 }
 
-.org-map-mini-card[data-coordination-emblem="true"]:hover {
+.org-map-mini-card[data-coordination-emblem="true"]:hover,
+.org-map-mini-card[data-coordination-identity="true"][data-selected="true"] {
   border-color: rgb(var(--coordination-card-glow) / 0.68);
   background-color: rgba(2, 6, 23, 0.82);
   background-image: linear-gradient(
@@ -1571,6 +1579,273 @@ body,
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.035),
     inset 0 0 42px rgba(0, 0, 0, 0.55);
+}
+
+/* Ficha: 80% azul profundo, 20% identidad de coordinación y grilla técnica. */
+.entity-scan-shell[data-coordination-background="true"] {
+  border-color: rgb(var(--entity-detail-coordination-color) / 0.32);
+  background:
+    linear-gradient(
+      to right,
+      rgb(var(--entity-detail-coordination-color) / 0.09) 1px,
+      transparent 1px
+    ) 0 0 / 128px 128px,
+    linear-gradient(
+      to bottom,
+      rgb(var(--entity-detail-coordination-color) / 0.09) 1px,
+      transparent 1px
+    ) 0 0 / 128px 128px,
+    linear-gradient(
+      to right,
+      rgb(var(--entity-detail-coordination-color) / 0.04) 1px,
+      transparent 1px
+    ) 0 0 / 32px 32px,
+    linear-gradient(
+      to bottom,
+      rgb(var(--entity-detail-coordination-color) / 0.04) 1px,
+      transparent 1px
+    ) 0 0 / 32px 32px,
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      transparent 80%,
+      rgb(var(--entity-detail-coordination-color) / 0.16) 90%,
+      rgb(var(--entity-detail-coordination-color) / 0.5) 100%
+    ),
+    #020617;
+}
+
+/* Los contenedores con forma de tarjeta heredan el color de su coordinación. */
+.entity-scan-shell[data-coordination-background="true"]
+  :where(section, article, header, div, li)[class*="rounded-xl"][class*="border-cyan-"],
+.entity-scan-shell[data-coordination-background="true"]
+  :where(section, article, header, div, li)[class*="rounded-xl"][class*="border-slate-"],
+.entity-scan-shell[data-coordination-background="true"]
+  :where(section, article, header, div, li)[class*="rounded-lg"][class*="border-cyan-"],
+.entity-scan-shell[data-coordination-background="true"]
+  :where(section, article, header, div, li)[class*="rounded-lg"][class*="border-slate-"] {
+  border-color: rgb(var(--entity-detail-coordination-color) / 0.28);
+}
+
+/* Solo los títulos principales usan la identidad de la coordinación. */
+.entity-scan-shell[data-coordination-background="true"] .entity-detail-title {
+  color: rgb(var(--entity-detail-coordination-text-color) / 0.96);
+  text-shadow: 0 0 12px rgb(var(--entity-detail-coordination-color) / 0.16);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  :where(.entity-detail-subtitle, .entity-scan-scroll dt, .entity-scan-scroll summary) {
+  color: rgb(226 232 240 / 0.9);
+}
+
+.entity-scan-shell[data-coordination-background="true"] [role="tab"] {
+  color: rgb(226 232 240 / 0.82);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  [role="tab"][aria-selected="true"] {
+  color: rgb(248 250 252);
+}
+
+.entity-scan-shell[data-coordination-background="true"] .mc-metric__label {
+  color: rgb(226 232 240 / 0.9);
+}
+
+.entity-scan-shell[data-coordination-background="true"] .mc-metric__hint {
+  color: rgb(203 213 225 / 0.78);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  :where([class*="border-cyan-"], [class*="border-teal-"]) {
+  border-color: rgb(var(--entity-detail-coordination-color) / 0.3);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  [class*="border-t-cyan-"] {
+  border-top-color: rgb(var(--entity-detail-coordination-text-color) / 0.92);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .entity-detail-accent-text {
+  color: rgb(226 232 240 / 0.9);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .entity-detail-accent-icon {
+  color: rgb(var(--entity-detail-coordination-text-color) / 0.94);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .entity-detail-accent-border {
+  border-color: rgb(var(--entity-detail-coordination-color) / 0.42);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .entity-detail-accent-frame {
+  border-color: rgb(var(--entity-detail-coordination-color) / 0.48);
+  background-color: rgb(var(--entity-detail-coordination-color) / 0.1);
+  color: rgb(var(--entity-detail-coordination-text-color) / 0.96);
+  box-shadow:
+    inset 0 0 14px rgb(var(--entity-detail-coordination-color) / 0.06),
+    0 0 18px rgb(var(--entity-detail-coordination-color) / 0.16);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .entity-detail-accent-line {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(var(--entity-detail-coordination-text-color) / 0.58),
+    transparent
+  );
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .entity-detail-accent-rail {
+  background: linear-gradient(
+    180deg,
+    rgb(var(--entity-detail-coordination-text-color) / 0.54),
+    rgb(var(--entity-detail-coordination-color) / 0.18),
+    transparent
+  );
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  :where(.entity-detail-accent-dot, .entity-detail-accent-rule) {
+  background-color: rgb(var(--entity-detail-coordination-text-color));
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .entity-detail-accent-dot {
+  box-shadow: 0 0 8px rgb(var(--entity-detail-coordination-color) / 0.42);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .entity-detail-data-row::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(var(--entity-detail-coordination-color) / 0.2),
+    transparent
+  );
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .entity-detail-accent-chip {
+  border-color: rgb(var(--entity-detail-coordination-color) / 0.42);
+  background-color: rgb(var(--entity-detail-coordination-color) / 0.12);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  :where(button, a)[class*="border-cyan-"],
+.entity-scan-shell[data-coordination-background="true"]
+  :where(button, a)[class*="border-teal-"] {
+  border-color: rgb(var(--entity-detail-coordination-color) / 0.46);
+  background-color: rgb(var(--entity-detail-coordination-color) / 0.11);
+  color: rgb(226 232 240 / 0.9);
+  box-shadow: inset 0 0 12px rgb(var(--entity-detail-coordination-color) / 0.05);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  :where(button, a)[class*="border-cyan-"]:hover,
+.entity-scan-shell[data-coordination-background="true"]
+  :where(button, a)[class*="border-teal-"]:hover {
+  border-color: rgb(var(--entity-detail-coordination-text-color) / 0.7);
+  background-color: rgb(var(--entity-detail-coordination-color) / 0.2);
+  color: rgb(248 250 252);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  :where(button, a)[class*="border-slate-"]:hover {
+  border-color: rgb(var(--entity-detail-coordination-color) / 0.5);
+  background-color: rgb(var(--entity-detail-coordination-color) / 0.1);
+  color: rgb(248 250 252 / 0.94);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  [role="tab"][aria-selected="true"] {
+  border-color: rgb(var(--entity-detail-coordination-color) / 0.58);
+  background-color: rgb(var(--entity-detail-coordination-color) / 0.16);
+  box-shadow:
+    inset 0 0 16px rgb(var(--entity-detail-coordination-color) / 0.08),
+    0 0 14px rgb(var(--entity-detail-coordination-color) / 0.1);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  :where(button, a):focus-visible {
+  outline-color: rgb(var(--entity-detail-coordination-text-color) / 0.8);
+  --tw-ring-color: rgb(var(--entity-detail-coordination-text-color) / 0.55);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .mc-radar-svg .entity-detail-radar-axis[data-selected="true"] {
+  stroke: rgb(var(--entity-detail-coordination-text-color) / 0.68);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .mc-radar-svg .entity-detail-radar-series {
+  fill: rgb(var(--entity-detail-coordination-color) / 0.16);
+  stroke: rgb(var(--entity-detail-coordination-text-color) / 0.94);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .mc-radar-svg .entity-detail-radar-point {
+  fill: rgb(var(--entity-detail-coordination-text-color));
+  stroke: rgb(var(--entity-detail-coordination-text-color));
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .mc-radar-svg .entity-detail-radar-point[data-emergent="true"] {
+  fill: transparent;
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .mc-radar-svg :where(.entity-detail-radar-selection, .entity-detail-radar-default) {
+  stroke: rgb(var(--entity-detail-coordination-text-color) / 0.82);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .mc-radar-svg .entity-detail-radar-label-backdrop {
+  fill: rgb(var(--entity-detail-coordination-color) / 0.12);
+  stroke: rgb(var(--entity-detail-coordination-color) / 0.34);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .mc-radar-svg :where(text[data-selected="true"], text[data-radar-percentage="true"]) {
+  fill: rgb(248 250 252);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .mc-radar-svg .mc-radar-hit:focus-visible {
+  fill: rgb(var(--entity-detail-coordination-color) / 0.14);
+  stroke: rgb(var(--entity-detail-coordination-text-color));
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .entity-detail-dimension-radar [data-radar-layer="grid"] path {
+  stroke: rgb(226 232 240 / 0.32);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .entity-detail-dimension-radar [data-radar-layer="grid"] line {
+  stroke: rgb(226 232 240 / 0.38);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .entity-detail-dimension-radar [data-radar-series-part="closed"] {
+  fill: rgb(var(--entity-detail-coordination-color) / 0.16);
+  stroke: rgb(var(--entity-detail-coordination-text-color) / 0.94);
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .entity-detail-dimension-radar [data-radar-layer="points"] circle {
+  fill: rgb(var(--entity-detail-coordination-color));
+  stroke: #020617;
+}
+
+.entity-scan-shell[data-coordination-background="true"]
+  .entity-detail-dimension-radar [data-radar-layer="points"] circle[data-selected="true"] {
+  fill: rgb(var(--entity-detail-coordination-text-color));
 }
 
 /* Panel flotante de ficha (OrgChartPage > aside.entity-detail-overlay) */
@@ -2124,6 +2399,7 @@ body,
     radial-gradient(circle at 50% 50%, rgb(var(--flow-area-color) / 0.09) 0%, rgb(var(--flow-area-color) / 0.045) 30%, transparent 66%),
     linear-gradient(150deg, rgb(var(--flow-area-color) / 0.035) 0%, transparent 42%, rgb(var(--flow-area-color) / 0.025) 100%);
   animation: flowAreaBackgroundIn 0.8s ease-out both;
+  transition: background 0.45s ease;
 }
 
 @keyframes flowAreaBackgroundIn {
@@ -2133,6 +2409,30 @@ body,
 
 .org-flow-area-surface {
   background: transparent;
+  transition: background 0.45s ease;
+}
+
+.org-flow-area-accent {
+  background:
+    radial-gradient(
+      circle at 50% 48%,
+      rgb(var(--flow-area-color, 34 211 238) / 0.12),
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      rgb(var(--flow-area-color, 14 165 233) / 0.1),
+      transparent 42%
+    );
+  transition: background 0.45s ease;
+}
+
+.flow-area-active .org-map-decor-glow {
+  background-color: rgb(var(--flow-area-color) / 0.1);
+}
+
+.org-map-decor-glow {
+  transition: background-color 0.45s ease;
 }
 
 .flow-area-active .org-flow-area-surface {
@@ -2143,6 +2443,7 @@ body,
 
 .org-map-area-surface {
   background: #020617;
+  transition: background 0.45s ease;
 }
 
 .flow-area-active .org-map-area-surface {

@@ -4,6 +4,7 @@ import type { OrgNode } from "../types";
 import { OrgMapTeamMemberMiniCard } from "./OrgMapTeamMemberMiniCard";
 
 import type { OrgMapRenderMode } from "../utils/orgMapDisplayPolicy";
+import type { CoordinationCardThemeIdentity } from "../utils/coordinationCardTheme";
 
 type Props = {
   leaderName: string;
@@ -11,7 +12,8 @@ type Props = {
   /** Profundidad de layout del miembro en el mapa (p. ej. padre depth + 1). */
   memberLayoutDepth: number;
   renderMode: OrgMapRenderMode;
-  onOpenDetail: (id: string) => void;
+  passiveSiblingIdentity?: CoordinationCardThemeIdentity | null;
+  onOpenDetail: (id: string, relationId?: string | null) => void;
   onExploreTeam?: (nodeId: string, relationId?: string | null) => void;
   stopMouse: (e: MouseEvent) => void;
 };
@@ -24,6 +26,7 @@ export function OrgMapExpandedTeamPanel({
   members,
   memberLayoutDepth,
   renderMode,
+  passiveSiblingIdentity = null,
   onOpenDetail,
   onExploreTeam,
   stopMouse,
@@ -49,6 +52,7 @@ export function OrgMapExpandedTeamPanel({
             member={m}
             memberLayoutDepth={memberLayoutDepth}
             renderMode={renderMode}
+            passiveCoordinationIdentity={passiveSiblingIdentity}
             onOpenDetail={onOpenDetail}
             onExploreTeam={onExploreTeam}
             stopMouse={stopMouse}

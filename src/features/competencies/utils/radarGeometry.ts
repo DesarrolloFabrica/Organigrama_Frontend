@@ -61,6 +61,17 @@ export function clamp01(value: number): number {
 }
 
 /**
+ * Additive API compatibility only. Calibration belongs to the backend; the
+ * frontend never evaluates the gamma curve.
+ */
+export function resolveRadarDisplayCoverage(
+  relativeCoverage: number,
+  displayCoverage?: number | null,
+): number {
+  return displayCoverage ?? relativeCoverage
+}
+
+/**
  * Ratio de radio para dibujar (0–1).
  * Solo Coverage semántico exactamente 0 → floor visual.
  * Valores bajos no-cero (p. ej. 0.05) no se alteran.

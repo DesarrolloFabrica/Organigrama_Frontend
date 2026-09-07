@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { useBeginRouteTransition, useHoldRouteTransition } from "../contexts/RouteTransitionContext";
+import {
+  useActivateFlowIdentity,
+  useBeginRouteTransition,
+  useFlowAreaIdentity,
+  useHoldRouteTransition,
+} from "../contexts/RouteTransitionContext";
 import { type OrgNode, countPeopleUnder } from "../features/org-chart/types";
 import { findNodeInTree } from "../features/org-chart/utils/findNodeInTree";
 import { patchNodePhotoUrl } from "../features/org-chart/utils/patchNodePhotoUrl";
@@ -12,7 +17,7 @@ import { PersonDetailPanel } from "../features/org-chart/components/PersonDetail
 import type { ProfileModuleCode } from "../features/org-chart/components/profile-modules/profile-module.types";
 import { PersonDetailRestoreButton } from "../features/org-chart/components/PersonDetailRestoreButton";
 import { OrgChartVersionBar } from "../features/org-chart/components/OrgChartVersionBar";
-import { useOrgChartVersionQueryId, useOrgChartVersionReady } from "../features/org-chart/context/OrgChartVersionContext";
+import { useOrgChartScopeVersionQueryId, useOrgChartVersionQueryId, useOrgChartVersionReady } from "../features/org-chart/context/OrgChartVersionContext";
 import { fetchOrgChartNode } from "../features/org-chart/services/orgChartService";
 import { OrgChartHeader } from "../features/org-chart/components/OrgChartHeader";
 import { useOrgChartConnection } from "../features/org-chart/hooks/useOrgChartConnection";
@@ -37,7 +42,8 @@ import {
   buildTeamExplorePath,
 } from "../features/org-chart/utils/orgChartTeamNavigation";
 import { entityDetailOverlayWidthClass } from "../features/org-chart/utils/personPresentationRules";
-import { resolveCoordinationEmblem } from "../features/org-chart/config/coordinationEmblems";
+import { resolveNodeCoordinationContext } from "../features/org-chart/config/coordinationEmblems";
+import { parseOrgMapNodeKey } from "../features/org-chart/utils/orgMapLayout";
 
 const MAP_MAX_LEVELS = 3;
 
@@ -50,8 +56,11 @@ const defaultMapPersisted = (): OrgMapExpansionPersisted => ({
 function OrgChartPageBody() {
   const navigate = useNavigate();
   const beginRouteTransition = useBeginRouteTransition();
+  const activateFlowIdentity = useActivateFlowIdentity();
+  const flowIdentity = useFlowAreaIdentity();
   const queryClient = useQueryClient();
   const versionId = useOrgChartVersionQueryId();
+  const scopeVersionId = useOrgChartScopeVersionQueryId();
   const versionReady = useOrgChartVersionReady();
   const initialSession = useRef(getOrgChartMainSession(versionId));
   const initial = initialSession.current;
@@ -68,6 +77,9 @@ function OrgChartPageBody() {
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(
     initial?.selectedPersonId ?? null,
   );
+  const [selectedRelationId, setSelectedRelationId] = useState<string | null>(
+    null,
+  );
   const [detailPanelMinimized, setDetailPanelMinimized] = useState(
     initial?.detailPanelMinimized ?? false,
   );
@@ -79,6 +91,9 @@ function OrgChartPageBody() {
   );
   const [activeDetailModule, setActiveDetailModule] =
     useState<ProfileModuleCode | null>(null);
+  const detailReturnIdentityRef = useRef(flowIdentity);
+  const restoredSelectionIdentityAppliedRef = useRef(false);
+  const initializedRootPaletteRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!rootData) return;
@@ -130,28 +145,103 @@ function OrgChartPageBody() {
   const treeDescendantCount =
     tree && selectedPersonId
       ? (() => {
-          const n = findNodeInTree(tree, selectedPersonId);
+          const n = findNodeInTree(tree, selectedPersonId, selectedRelationId);
           return n ? countPeopleUnder(n) : null;
         })()
       : null;
 
-  const handleSelectNodeFromMap = useCallback((id: string) => {
+  const handleSelectNodeFromMap = useCallback(
+    (id: string, relationId?: string | null) => {
+      restoredSelectionIdentityAppliedRef.current = true;
+      const coordination = tree
+        ? resolveNodeCoordinationContext(tree, id, relationId)
+        : null;
+
+      if (selectedPersonId === null) {
+        detailReturnIdentityRef.current = flowIdentity;
+      }
+
+      activateFlowIdentity(coordination?.identity ?? flowIdentity);
+      setDetailPanelMinimized(false);
+      setSelectedPersonId(id);
+      setSelectedRelationId(relationId ?? null);
+    },
+    [activateFlowIdentity, flowIdentity, selectedPersonId, tree],
+  );
+
+  useEffect(() => {
+    if (
+      restoredSelectionIdentityAppliedRef.current ||
+      !tree ||
+      !selectedPersonId
+    ) {
+      return;
+    }
+
+    restoredSelectionIdentityAppliedRef.current = true;
+    const coordination = resolveNodeCoordinationContext(
+      tree,
+      selectedPersonId,
+      selectedRelationId,
+    );
+    activateFlowIdentity(coordination?.identity ?? flowIdentity);
+  }, [
+    activateFlowIdentity,
+    flowIdentity,
+    selectedPersonId,
+    selectedRelationId,
+    tree,
+  ]);
+
+  useEffect(() => {
+    if (
+      !tree ||
+      selectedPersonId ||
+      initializedRootPaletteRef.current === tree.id
+    ) {
+      return;
+    }
+
+    initializedRootPaletteRef.current = tree.id;
+    const rootCoordination = resolveNodeCoordinationContext(
+      tree,
+      tree.id,
+      tree.relation_id,
+    );
+    activateFlowIdentity(rootCoordination?.identity ?? null);
+  }, [activateFlowIdentity, selectedPersonId, tree]);
+
+  const handleCloseDetail = useCallback(() => {
+    activateFlowIdentity(detailReturnIdentityRef.current);
+    setSelectedPersonId(null);
+    setSelectedRelationId(null);
     setDetailPanelMinimized(false);
-    setSelectedPersonId(id);
-  }, []);
+    setActiveDetailModule(null);
+  }, [activateFlowIdentity]);
 
   const handleDirectChildrenVisible = useCallback(
     (parentId: string, children: OrgNode[]) => {
-      prefetchDirectChildrenHints(queryClient, parentId, children, versionId);
+      prefetchDirectChildrenHints(
+        queryClient,
+        parentId,
+        children,
+        versionId,
+        scopeVersionId,
+      );
     },
-    [queryClient, versionId],
+    [queryClient, versionId, scopeVersionId],
   );
 
   const handleExploreTeam = useCallback(
     (id: string, relationId?: string | null) => {
-      const selectedNode = tree ? findNodeInTree(tree, id) : null;
-      const resolvedEmblem = selectedNode ? resolveCoordinationEmblem(selectedNode) : null;
-      const emblem = resolvedEmblem?.flowVisuals === false ? undefined : resolvedEmblem;
+      const coordination = tree
+        ? resolveNodeCoordinationContext(tree, id, relationId)
+        : null;
+      const selectedIdentity = coordination?.identity ?? flowIdentity;
+      const rootIdentity = tree
+        ? (resolveNodeCoordinationContext(tree, tree.id, tree.relation_id)
+            ?.identity ?? flowIdentity)
+        : flowIdentity;
       if (tree) {
         saveOrgChartMainSession(
           {
@@ -165,7 +255,12 @@ function OrgChartPageBody() {
           { immediate: true },
         );
       }
-      const nodeKey = orgQueryKeys.node(id, versionId, relationId);
+      const nodeKey = orgQueryKeys.node(
+        id,
+        versionId,
+        relationId,
+        scopeVersionId,
+      );
       logQueryCacheAccess(
         "org-node-prefetch",
         nodeKey,
@@ -174,25 +269,44 @@ function OrgChartPageBody() {
       void queryClient.prefetchQuery({
         queryKey: nodeKey,
         queryFn: () =>
-          fetchOrgChartNode(
-            id,
-            versionId || relationId != null
-              ? { versionId, relationId }
-              : undefined,
-          ),
+          fetchOrgChartNode(id, {
+            ...(versionId !== undefined ? { versionId } : {}),
+            ...(scopeVersionId !== undefined ? { scopeVersionId } : {}),
+            ...(relationId != null ? { relationId } : {}),
+          }),
       });
-      void beginRouteTransition(emblem).then(() => {
+      void beginRouteTransition(selectedIdentity).then(() => {
         navigate(buildTeamExplorePath(id, relationId), {
-          state: buildTeamExploreNavState({ currentPersonId: null }),
+          state: buildTeamExploreNavState({
+            currentPersonId: null,
+            rootReturnIdentity: rootIdentity,
+          }),
         });
       });
     },
-    [beginRouteTransition, navigate, tree, versionId, selectedPersonId, detailPanelMinimized, expandedNodeId, mapPersisted, queryClient],
+    [
+      beginRouteTransition,
+      navigate,
+      tree,
+      versionId,
+      scopeVersionId,
+      selectedPersonId,
+      detailPanelMinimized,
+      expandedNodeId,
+      mapPersisted,
+      queryClient,
+      flowIdentity,
+    ],
   );
 
   const handleLoadChildren = useCallback(
     async (parentId: string, relationId?: string | null) => {
-      const key = orgQueryKeys.children(parentId, versionId, relationId);
+      const key = orgQueryKeys.children(
+        parentId,
+        versionId,
+        relationId,
+        scopeVersionId,
+      );
       const t0 = performance.now();
       logQueryCacheAccess(
         "org-children",
@@ -200,16 +314,27 @@ function OrgChartPageBody() {
         queryClient.getQueryData(key) !== undefined,
       );
       const loaded = await queryClient.fetchQuery(
-        orgChartChildrenQueryOptions(parentId, versionId, relationId),
+        orgChartChildrenQueryOptions(
+          parentId,
+          versionId,
+          relationId,
+          scopeVersionId,
+        ),
       );
       logQueryNetworkTiming("org-children", key, performance.now() - t0);
       setTree((prev) =>
         prev ? mergeChildrenIntoTree(prev, parentId, loaded, relationId) : prev,
       );
-      prefetchDirectChildrenHints(queryClient, parentId, loaded, versionId);
+      prefetchDirectChildrenHints(
+        queryClient,
+        parentId,
+        loaded,
+        versionId,
+        scopeVersionId,
+      );
       return loaded;
     },
-    [queryClient, versionId],
+    [queryClient, versionId, scopeVersionId],
   );
 
   const handleMapPersistedChange = useCallback(
@@ -240,7 +365,7 @@ function OrgChartPageBody() {
       <main className="org-flow-area-surface relative min-h-0 flex-1 overflow-hidden">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_48%,rgba(34,211,238,0.12),transparent_24%),radial-gradient(circle_at_50%_50%,rgba(14,165,233,0.10),transparent_42%)]"
+          className="org-flow-area-accent pointer-events-none absolute inset-0 z-0"
         />
         {chartError ? (
           <div className="flex h-full min-h-0 items-center justify-center overflow-auto p-6">
@@ -256,7 +381,13 @@ function OrgChartPageBody() {
           <>
             <div className="node-summary-panel__slot">
               <div className="node-summary-panel__dock pointer-events-auto">
-                <NodeSummaryPanel personId={expandedNodeId ?? tree.id} />
+                <NodeSummaryPanel
+                  personId={
+                    expandedNodeId
+                      ? parseOrgMapNodeKey(expandedNodeId).personId
+                      : tree.id
+                  }
+                />
               </div>
             </div>
 
@@ -266,6 +397,7 @@ function OrgChartPageBody() {
                 variant="fullscreen"
                 root={tree}
                 selectedPersonId={selectedPersonId}
+                selectedRelationId={selectedRelationId}
                 onSelectNode={handleSelectNodeFromMap}
                 maxRenderLevels={MAP_MAX_LEVELS}
                 onExploreTeam={handleExploreTeam}
@@ -296,11 +428,7 @@ function OrgChartPageBody() {
                     onDetailPhotoUrl={handleDetailPhotoUrl}
                     onActiveModuleChange={setActiveDetailModule}
                     onMinimize={() => setDetailPanelMinimized(true)}
-                    onClose={() => {
-                      setSelectedPersonId(null);
-                      setDetailPanelMinimized(false);
-                      setActiveDetailModule(null);
-                    }}
+                    onClose={handleCloseDetail}
                   />
                 </aside>
               ) : null}
@@ -320,8 +448,10 @@ function OrgChartPageBody() {
 
 export function OrgChartPage() {
   const versionId = useOrgChartVersionQueryId();
-  // La `key` por versión re-monta el cuerpo al cambiar de versión: descarta
-  // árbol/selección/expansión locales y el estado interno del mapa (React Flow),
-  // forzando una carga limpia de la nueva versión sin datos viejos.
-  return <OrgChartPageBody key={`org-main:v:${versionId ?? "active"}`} />;
+  const scopeVersionId = useOrgChartScopeVersionQueryId();
+  return (
+    <OrgChartPageBody
+      key={`org-main:v:${versionId ?? "active"}:s:${scopeVersionId ?? "auto"}`}
+    />
+  );
 }

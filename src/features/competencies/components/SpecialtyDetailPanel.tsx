@@ -143,7 +143,7 @@ export function SpecialtyDetailPanel({
         className="mt-3 border-t border-cyan-400/10 pt-3"
         aria-label="Skills de la especialidad"
       >
-        <h5 className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+        <h5 className="entity-detail-title font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
           Skills
         </h5>
         <div className="mt-2 space-y-1.5">

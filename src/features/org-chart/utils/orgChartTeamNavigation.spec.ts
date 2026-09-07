@@ -5,6 +5,20 @@ import {
   resolveTeamBackNavigation,
 } from "./orgChartTeamNavigation";
 
+const generalIdentity = {
+  icon: "/general.png",
+  label: "Coordinación General",
+  glowColor: "245 158 11",
+  highlightColor: "254 243 199",
+};
+
+const developmentIdentity = {
+  icon: "/development.png",
+  label: "Fábrica · Desarrollo",
+  glowColor: "79 70 229",
+  highlightColor: "224 231 255",
+};
+
 describe("orgChartTeamNavigation", () => {
   it("desde /org abre equipo sin ancestros", () => {
     expect(buildTeamExploreNavState({ currentPersonId: null })).toEqual({
@@ -62,5 +76,72 @@ describe("orgChartTeamNavigation", () => {
     });
     expect(readOrgTeamNavState({ breadcrumb: [1] })).toBeUndefined();
     expect(readOrgTeamNavState(null)).toBeUndefined();
+  });
+
+  it("guarda la paleta del nodo central al entrar desde /org", () => {
+    expect(
+      buildTeamExploreNavState({
+        currentPersonId: null,
+        rootReturnIdentity: generalIdentity,
+      }),
+    ).toEqual({
+      breadcrumb: [],
+      rootReturnIdentity: generalIdentity,
+    });
+  });
+
+  it("restaura la paleta del nodo padre al volver", () => {
+    const navState = buildTeamExploreNavState({
+      currentPersonId: "general-lead",
+      navState: {
+        breadcrumb: [],
+        rootReturnIdentity: generalIdentity,
+      },
+      currentIdentity: generalIdentity,
+    });
+
+    expect(resolveTeamBackNavigation({ navState })).toEqual({
+      path: "/org/team/general-lead",
+      state: {
+        breadcrumb: [],
+        paletteTrail: [],
+        rootReturnIdentity: generalIdentity,
+      },
+      backgroundIdentity: generalIdentity,
+    });
+  });
+
+  it("al volver a /org recupera la paleta previa a la exploración", () => {
+    expect(
+      resolveTeamBackNavigation({
+        navState: {
+          breadcrumb: [],
+          rootReturnIdentity: developmentIdentity,
+        },
+      }),
+    ).toEqual({
+      path: "/org",
+      backgroundIdentity: developmentIdentity,
+    });
+  });
+
+  it("valida también las identidades almacenadas", () => {
+    expect(
+      readOrgTeamNavState({
+        breadcrumb: ["general-lead"],
+        paletteTrail: [generalIdentity],
+        rootReturnIdentity: developmentIdentity,
+      }),
+    ).toEqual({
+      breadcrumb: ["general-lead"],
+      paletteTrail: [generalIdentity],
+      rootReturnIdentity: developmentIdentity,
+    });
+    expect(
+      readOrgTeamNavState({
+        breadcrumb: ["general-lead"],
+        paletteTrail: [],
+      }),
+    ).toBeUndefined();
   });
 });
