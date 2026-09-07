@@ -267,6 +267,14 @@ export type OrgPersonDetail = {
   canViewFullProfile: boolean
   photoUrl?: string | null
   nodeKind?: OrgNodeKind
+  /**
+   * Teléfono que el backend autorizó para este viewer.
+   *
+   * Con ficha completa coincide con `profile.phone`. Con ficha redactada es
+   * `null`, salvo que el viewer tenga ORG_CONTACT_READ_ALL. La UI solo comprueba
+   * si viene informado: la decisión de permisos es exclusivamente del backend.
+   */
+  phone?: string | null
   profile: OrgPersonFullProfile | null
 }
 

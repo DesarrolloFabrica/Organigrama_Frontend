@@ -515,6 +515,17 @@ export function PersonFichaPanel({
               label="Correo institucional"
               value={formatValue(detail.institutionalEmail)}
             />
+            {/*
+              El backend solo envía `phone` en la ficha redactada cuando el viewer
+              tiene ORG_CONTACT_READ_ALL. La UI no evalúa permisos: si el dato no
+              vino, la fila no existe. La ficha sigue siendo limitada.
+            */}
+            {detail.phone ? (
+              <HudDetailRow
+                label="Teléfono"
+                value={formatValue(detail.phone)}
+              />
+            ) : null}
           </dl>
         </HudSection>
       ) : null}
