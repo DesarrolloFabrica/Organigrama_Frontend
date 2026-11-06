@@ -1892,6 +1892,67 @@ body,
   }
 }
 
+/* Presentación — indicador radar de nivel (color vía currentColor) */
+.presentation-level-radar__ping {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: presentation-level-radar-ping 3.6s cubic-bezier(0.2, 0.6, 0.3, 1)
+    infinite;
+}
+
+.presentation-level-radar__core {
+  animation: presentation-level-radar-glow 3.6s ease-in-out infinite;
+}
+
+.presentation-level-radar__digit {
+  text-shadow: 0 0 6px color-mix(in srgb, currentColor 45%, transparent);
+  animation: presentation-level-radar-digit 3.6s ease-in-out infinite;
+}
+
+@keyframes presentation-level-radar-ping {
+  0% {
+    transform: scale(0.5);
+    stroke-opacity: 0;
+  }
+  15% {
+    stroke-opacity: 0.55;
+  }
+  100% {
+    transform: scale(1);
+    stroke-opacity: 0;
+  }
+}
+
+@keyframes presentation-level-radar-glow {
+  0%,
+  100% {
+    fill-opacity: 0.08;
+    stroke-opacity: 0.5;
+  }
+  50% {
+    fill-opacity: 0.2;
+    stroke-opacity: 0.9;
+  }
+}
+
+@keyframes presentation-level-radar-digit {
+  0%,
+  100% {
+    text-shadow: 0 0 4px color-mix(in srgb, currentColor 30%, transparent);
+  }
+  50% {
+    text-shadow: 0 0 10px color-mix(in srgb, currentColor 70%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .presentation-level-radar__ping,
+  .presentation-level-radar__core,
+  .presentation-level-radar__digit {
+    animation: none;
+  }
+}
+
 /* MC1.4.1.1 — Explorador de Competencias: layout según ancho del contenedor */
 .mc-explorer {
   container-type: inline-size;

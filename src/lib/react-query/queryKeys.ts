@@ -119,6 +119,8 @@ export const orgQueryKeys = {
   versions: ["org-chart-versions"] as const,
   /** Vacantes reales del schema `vacancies` (independiente de la versión). */
   vacancies: ["org-vacancies"] as const,
+  /** Huella de datos del organigrama (sondeo de cambios hechos en Orbit). */
+  changeToken: ["org-change-token"] as const,
   /** Prefijos para invalidar familias de queries del organigrama. */
   allNodes: ["org-node"] as const,
   allPersonDetails: ["org-person-detail"] as const,

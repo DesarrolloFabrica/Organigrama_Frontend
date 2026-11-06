@@ -173,3 +173,24 @@ Smoke navegador: ver entrega de fase (personas con/sin video, limitada, vacante,
 ## 15. Estado
 
 **IMPLEMENTADA_CON_BLOQUEOS** — UI/cliente/hook/tests/build listos. Smoke real de reproducción bloqueado hasta configurar secreto de ticket en el backend local.
+
+---
+
+## 16. Marco visual por nivel
+
+El módulo envuelve su contenido en `PresentationLevelFrame` (`profile-modules/PresentationLevelFrame.tsx`): fondo HUD neutro (retícula, anillos, esquinas). No toca reproducción, ticket ni tabs.
+
+**Marca de agua de coordinación** (`CoordinationWatermark` en `PersonDetailPanel.tsx`): emblema de la coordinación a toda la ficha, en **todas** las pestañas (Ficha, Competencias, Presentación). Identidad = emblema propio de la persona (`resolveCoordinationEmblem`) o, si no tiene, la heredada del mapa (`useFlowAreaIdentity`), la misma que ya colorea la ficha. Sin coordinación → sin marca. El PNG se usa como **máscara** sobre el color de la coordinación (silueta uniforme: emblemas oscuros y claros se ven igual), opacidad 0,09 (0,07 con `softGlow`), recortado a la derecha. Capas: `z-10` sobre el contenido no posicionado (cabecera/tabs son casi opacas con fondo de coordinación) y **por debajo del reproductor** (`relative z-20`; por eso el marco de Presentación no usa `isolate`). `pointer-events: none` y `aria-hidden`.
+
+**Paleta única:** los tres niveles comparten fondo, borde (`border-cyan-400/15`, igual que el resto del panel) y trazo HUD neutro (slate-400). Solo cambia la geometría:
+
+| Nivel | Geometría |
+|-------|-----------|
+| 1 | Retícula amplia, un anillo, sin marcas |
+| 2 | Retícula media, dos anillos, marcas de graduación |
+| 3 | Retícula densa, tres anillos, barrido de radar lento (`motion-safe`) |
+| Sin nivel / 4+ / docente | Marco base, sin número ni indicador |
+
+**Indicador de nivel** (`PresentationLevelIndicator`, cabecera): mini-radar con el dígito y la palabra “NIVEL”, todo en el color del nivel; único elemento con color por nivel (colores del mapa, `ORG_MAP_LEVEL_THEME_MAP`: cian / verde / dorado). Titileo solo CSS (`.presentation-level-radar__*` en `src/index.css`: pulso que se expande dentro del viewBox + respiración del núcleo y del dígito, ciclo 3,6 s); estático con `prefers-reduced-motion: reduce`.
+
+**Criterio de nivel** (`utils/presentationLevel.ts`): `hierarchy.name` (“NIVEL N”, mismo parser que el mapa, `parseOrgHierarchyLevelNumber`) del nodo seleccionado en el árbol — llega a cualquier viewer — y, si la persona no está en el árbol cargado, del `profile` de ficha completa. **Sin** fallback por profundidad del lienzo. No define jerarquía: solo cromática (ver `Organigrama_Backend/docs/organigrama-core.md`).

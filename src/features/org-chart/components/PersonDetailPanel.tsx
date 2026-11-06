@@ -18,10 +18,13 @@ import {
 import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
 import { PersonCompetenciesPanel } from "./profile-modules/PersonCompetenciesPanel";
 import { PersonFichaPanel } from "./profile-modules/PersonFichaPanel";
-import { PersonPresentationPanel } from "./profile-modules/PersonPresentationPanel";
-import type { ProfileModuleCode } from "./profile-modules/profile-module.types";
+import { PersonPresentationPanel } from "./profile-modules/PersonPresentationPanel";import type { ProfileModuleCode } from "./profile-modules/profile-module.types";
 import { usePersonProfileModules } from "./profile-modules/usePersonProfileModules";
 import { resolveCoordinationEmblem } from "../config/coordinationEmblems";
+import {
+  resolvePresentationLevel,
+  type PresentationLevelSource,
+} from "../utils/presentationLevel";
 
 type Props = {
   /** Persona seleccionada en el árbol; `null` muestra estado vacío. */
@@ -41,6 +44,11 @@ type Props = {
   onDetailPhotoUrl?: (personId: string, photoUrl: string) => void;
   /** Notifica el módulo activo (ensanche Presentación en overlay). */
   onActiveModuleChange?: (code: ProfileModuleCode | null) => void;
+  /**
+   * Nodo seleccionado en el árbol cargado (si está). Aporta el nivel visual
+   * del módulo Presentación; llega aunque la ficha sea limitada.
+   */
+  selectedTreeNode?: PresentationLevelSource | null;
 };
 
 /** Iniciales para el núcleo visual; sin lógica de imagen. */
@@ -92,7 +100,46 @@ function IconMinimize({ className }: { className?: string }) {
 type CoordinationVisualIdentity = {
   glowColor: string;
   highlightColor?: string;
+  /** Emblema de la coordinación (marca de agua de la ficha). */
+  icon?: string;
+  /** Arte fuente muy luminoso: la marca de agua baja un poco más su opacidad. */
+  softGlow?: boolean;
 };
+
+/**
+ * Emblema de la coordinación a toda la ficha (todas las pestañas).
+ * Silueta: el PNG (transparente) se usa como máscara sobre el color de la
+ * coordinación, así emblemas oscuros (dragón, lobo) y claros (foca) se ven igual.
+ * Encima del contenido no posicionado (cabecera/tabs son casi opacas con fondo
+ * de coordinación) y por debajo del reproductor de Presentación (`z-20`);
+ * opacidad muy baja, sin eventos de puntero ni lectura por lectores de pantalla.
+ */
+function CoordinationWatermark({
+  identity,
+}: {
+  identity: CoordinationVisualIdentity & { icon: string };
+}) {
+  const mask = `url("${identity.icon}") center / contain no-repeat`;
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 z-10 overflow-hidden"
+      aria-hidden
+      data-coordination-watermark
+    >
+      <div
+        className={[
+          "absolute -right-[18%] top-1/2 aspect-square w-[92%] -translate-y-1/2",
+          identity.softGlow ? "opacity-[0.07]" : "opacity-[0.09]",
+        ].join(" ")}
+        style={{
+          backgroundColor: `rgb(${identity.glowColor})`,
+          mask,
+          WebkitMask: mask,
+        }}
+      />
+    </div>
+  );
+}
 
 type Rgb = readonly [number, number, number];
 
@@ -173,12 +220,15 @@ function EntityScanShell({
   ariaLabel,
   layoutVariant = "sidebar",
   coordinationIdentity,
+  showCoordinationWatermark = false,
 }: {
   children: ReactNode;
   className?: string;
   ariaLabel?: string;
   layoutVariant?: "sidebar" | "overlay";
   coordinationIdentity?: CoordinationVisualIdentity | null;
+  /** Emblema de la coordinación (propia o heredada) como marca de agua. */
+  showCoordinationWatermark?: boolean;
 }) {
   const flowIdentity = useFlowAreaIdentity();
   const visualIdentity = coordinationIdentity ?? flowIdentity;
@@ -197,7 +247,7 @@ function EntityScanShell({
   return (
     <aside
       className={[
-        "entity-scan-shell flex flex-col overflow-hidden rounded-2xl border border-cyan-400/20 bg-[#020617]/94 shadow-[0_0_0_1px_rgba(34,211,238,0.08),0_24px_64px_-16px_rgba(0,0,0,0.65),0_0_40px_rgba(34,211,238,0.08)] backdrop-blur-2xl",
+        "entity-scan-shell relative flex flex-col overflow-hidden rounded-2xl border border-cyan-400/20 bg-[#020617]/94 shadow-[0_0_0_1px_rgba(34,211,238,0.08),0_24px_64px_-16px_rgba(0,0,0,0.65),0_0_40px_rgba(34,211,238,0.08)] backdrop-blur-2xl",
         heightClasses,
         className,
       ]
@@ -212,6 +262,11 @@ function EntityScanShell({
         aria-hidden
       />
       {children}
+      {showCoordinationWatermark && visualIdentity?.icon ? (
+        <CoordinationWatermark
+          identity={{ ...visualIdentity, icon: visualIdentity.icon }}
+        />
+      ) : null}
     </aside>
   );
 }
@@ -239,6 +294,7 @@ export function PersonDetailPanel(props: Props) {
       layoutVariant={props.layoutVariant ?? "sidebar"}
       onDetailPhotoUrl={props.onDetailPhotoUrl}
       onActiveModuleChange={props.onActiveModuleChange}
+      selectedTreeNode={props.selectedTreeNode}
     />
   );
 }
@@ -289,6 +345,7 @@ function PersonDetailLoaded({
   layoutVariant,
   onDetailPhotoUrl,
   onActiveModuleChange,
+  selectedTreeNode,
 }: LoadedProps) {
   const {
     data: detail,
@@ -390,6 +447,7 @@ function PersonDetailLoaded({
       photoFailed={photoFailed}
       onPhotoFailed={() => setPhotoFailed(true)}
       onActiveModuleChange={onActiveModuleChange}
+      selectedTreeNode={selectedTreeNode}
     />
   );
 }
@@ -404,6 +462,7 @@ function PersonDetailContent({
   photoFailed,
   onPhotoFailed,
   onActiveModuleChange,
+  selectedTreeNode,
 }: {
   personId: string;
   detail: NonNullable<ReturnType<typeof useOrgPersonDetail>["data"]>;
@@ -414,6 +473,7 @@ function PersonDetailContent({
   photoFailed: boolean;
   onPhotoFailed: () => void;
   onActiveModuleChange?: (code: ProfileModuleCode | null) => void;
+  selectedTreeNode?: PresentationLevelSource | null;
 }) {
   const displayName = orgPersonDisplayName(detail);
   const hasFull = orgPersonHasFullProfile(detail);
@@ -439,6 +499,9 @@ function PersonDetailContent({
     isFetching: videoIsFetching,
     refreshPersonVideo,
   } = useOrgPersonVideo(personId, probeEnabled);
+
+  // Árbol primero (posición visible, cualquier viewer); ficha completa como respaldo.
+  const presentationLevel = resolvePresentationLevel([selectedTreeNode, profile]);
 
   const hasPresentation = resolveHasPresentation({
     probeEnabled,
@@ -496,6 +559,7 @@ function PersonDetailContent({
       }
       layoutVariant={layoutVariant}
       coordinationIdentity={coordinationIdentity}
+      showCoordinationWatermark
     >
       <header className="shrink-0 border-b border-cyan-400/15 bg-[#041018]/75 px-4 pb-4 pt-3">
         <div className="flex gap-3">
@@ -649,6 +713,7 @@ function PersonDetailContent({
             isFetching={videoIsFetching}
             isError={videoIsError}
             refreshPersonVideo={refreshPersonVideo}
+            level={presentationLevel}
           />
         ) : activeModule === "competencias" &&
           visibleModules.some((m) => m.code === "competencias") ? (

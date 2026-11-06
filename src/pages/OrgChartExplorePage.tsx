@@ -32,6 +32,7 @@ import {
 } from "../features/org-chart/utils/orgChartTeamNavigation";
 import {
   orgChartChildrenQueryOptions,
+  useOrgChartChangeToken,
   useOrgChartNode,
 } from "../lib/react-query/hooks";
 import { orgQueryKeys } from "../lib/react-query/queryKeys";
@@ -60,6 +61,7 @@ function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
   const versionId = useOrgChartVersionQueryId();
   const scopeVersionId = useOrgChartScopeVersionQueryId();
   const versionReady = useOrgChartVersionReady();
+  useOrgChartChangeToken(versionReady);
   const {
     data: tree,
     isLoading,
@@ -109,13 +111,13 @@ function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
     }
   }, [activateFlowIdentity, personId, relationId, tree]);
 
-  const treeDescendantCount =
+  const selectedTreeNode =
     tree && selectedPersonId
-      ? (() => {
-          const n = findNodeInTree(tree, selectedPersonId, selectedRelationId);
-          return n ? countPeopleUnder(n) : null;
-        })()
+      ? findNodeInTree(tree, selectedPersonId, selectedRelationId)
       : null;
+  const treeDescendantCount = selectedTreeNode
+    ? countPeopleUnder(selectedTreeNode)
+    : null;
 
   const handleSelectNodeFromMap = useCallback(
     (id: string, childRelationId?: string | null) => {
@@ -386,6 +388,7 @@ function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
                     <PersonDetailPanel
                       personId={selectedPersonId}
                       treeDescendantCount={treeDescendantCount}
+                      selectedTreeNode={selectedTreeNode}
                       layoutVariant="overlay"
                       onDetailPhotoUrl={handleDetailPhotoUrl}
                       onActiveModuleChange={setActiveDetailModule}

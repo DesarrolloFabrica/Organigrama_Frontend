@@ -14,6 +14,11 @@ import {
   canAutoRetryVideoError,
   shouldRefreshTicketOnEnter,
 } from "../../utils/personPresentationRules";
+import type { PresentationLevel } from "../../utils/presentationLevel";
+import {
+  PresentationLevelFrame,
+  PresentationLevelIndicator,
+} from "./PresentationLevelFrame";
 
 type VideoRefreshResult = {
   data?: PersonVideoResponse;
@@ -25,6 +30,8 @@ type Props = {
   isFetching: boolean;
   isError: boolean;
   refreshPersonVideo: () => Promise<VideoRefreshResult>;
+  /** Nivel visual del marco (número de fondo); `null` = marco base. */
+  level?: PresentationLevel | null;
 };
 
 type UiState =
@@ -41,6 +48,7 @@ export function PersonPresentationPanel({
   isFetching,
   isError,
   refreshPersonVideo,
+  level = null,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const autoRetryUsedRef = useRef(false);
@@ -234,55 +242,62 @@ export function PersonPresentationPanel({
       id="person-panel-presentacion"
       role="tabpanel"
       aria-labelledby="person-tab-presentacion"
-      className="flex flex-col gap-3 pb-4"
+      className="pb-4"
     >
-      <header className="px-0.5">
-        <p className="entity-detail-title font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-100/80">
-          Presentación
-        </p>
-        <p className="entity-detail-subtitle mt-1 text-[12px] leading-snug text-slate-400">
-          Video de presentación de la persona seleccionada
-        </p>
-      </header>
+      <PresentationLevelFrame level={level}>
+        <div className="flex flex-col gap-3">
+          <header className="flex items-center justify-between gap-3 px-0.5">
+            <div className="min-w-0">
+              <p className="entity-detail-title font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-100/80">
+                Presentación
+              </p>
+              <p className="entity-detail-subtitle mt-1 text-[12px] leading-snug text-slate-400">
+                Video de presentación de la persona seleccionada
+              </p>
+            </div>
+            <PresentationLevelIndicator level={level} />
+          </header>
 
-      {statusMessage && uiState !== "ready" ? (
-        <div
-          className="rounded-xl border border-cyan-400/15 bg-cyan-950/25 px-3 py-4 text-center"
-          aria-live="polite"
-        >
-          <p className="text-sm text-slate-300">{statusMessage}</p>
-          {uiState === "error" ? (
-            <button
-              type="button"
-              onClick={() => void onManualRetry()}
-              className="mt-3 inline-flex items-center justify-center rounded-lg border border-cyan-400/25 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/15"
+          {statusMessage && uiState !== "ready" ? (
+            <div
+              className="rounded-xl border border-cyan-400/15 bg-cyan-950/25 px-3 py-4 text-center"
+              aria-live="polite"
             >
-              Reintentar
-            </button>
+              <p className="text-sm text-slate-300">{statusMessage}</p>
+              {uiState === "error" ? (
+                <button
+                  type="button"
+                  onClick={() => void onManualRetry()}
+                  className="mt-3 inline-flex items-center justify-center rounded-lg border border-cyan-400/25 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/15"
+                >
+                  Reintentar
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {showPlayer ? (
+            <div className="relative z-20 overflow-hidden rounded-xl border border-cyan-400/15 bg-black/80 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.06)]">
+              <div className="relative aspect-video w-full bg-neutral-950">
+                <video
+                  ref={videoRef}
+                  className="absolute inset-0 size-full bg-black object-contain"
+                  controls
+                  playsInline
+                  preload="none"
+                  crossOrigin="anonymous"
+                  controlsList="nodownload"
+                  aria-label="Video de presentación de la persona seleccionada"
+                  onLoadedMetadata={onLoadedMetadata}
+                  onError={() => void onVideoError()}
+                >
+                  Su navegador no puede reproducir este video.
+                </video>
+              </div>
+            </div>
           ) : null}
         </div>
-      ) : null}
-
-      {showPlayer ? (
-        <div className="overflow-hidden rounded-xl border border-cyan-400/15 bg-black/80 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.06)]">
-          <div className="relative aspect-video w-full bg-neutral-950">
-            <video
-              ref={videoRef}
-              className="absolute inset-0 size-full bg-black object-contain"
-              controls
-              playsInline
-              preload="none"
-              crossOrigin="anonymous"
-              controlsList="nodownload"
-              aria-label="Video de presentación de la persona seleccionada"
-              onLoadedMetadata={onLoadedMetadata}
-              onError={() => void onVideoError()}
-            >
-              Su navegador no puede reproducir este video.
-            </video>
-          </div>
-        </div>
-      ) : null}
+      </PresentationLevelFrame>
     </div>
   );
 }

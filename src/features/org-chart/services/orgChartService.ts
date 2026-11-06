@@ -254,6 +254,15 @@ export async function fetchOrgChartVacancies(): Promise<OrgChartVacancy[]> {
   return res.items ?? []
 }
 
+/**
+ * Huella de los datos del mapa (personas, relaciones, Planta de Orbit,
+ * versiones, vacantes). Si cambia, hay que recargar el organigrama.
+ * `token: 'unavailable'` cuando el backend no pudo calcularla.
+ */
+export async function fetchOrgChartChangeToken(): Promise<{ token: string }> {
+  return getJson<{ token: string }>('/api/org-chart/change-token')
+}
+
 /** Resumen jerárquico de un nodo: general + desglose por hijos directos. */
 export async function fetchOrgSummary(
   personId: string,

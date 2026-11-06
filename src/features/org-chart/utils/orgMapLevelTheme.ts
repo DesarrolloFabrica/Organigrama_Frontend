@@ -537,6 +537,33 @@ export function clampOrgMapThemeLevel(raw: number): 1 | 2 | 3 | 4 | 5 {
 }
 
 /**
+ * Nivel declarado en el nombre de jerarquía (“Nivel 2”, “NIVEL 3”, “3”), sin acotar.
+ * `null` si el nombre no declara un nivel ≥ 1.
+ */
+export function parseOrgHierarchyLevelNumber(
+  hierarchyName: string | null | undefined,
+): number | null {
+  const name = hierarchyName?.trim();
+  if (!name) return null;
+
+  const m = name.match(HIERARCHY_LEVEL_RE);
+  if (m) {
+    const n = Number.parseInt(m[1]!, 10);
+    if (Number.isFinite(n) && n >= 1) {
+      return n;
+    }
+  }
+  const digit = name.match(/\b(\d{1,2})\b/);
+  if (digit) {
+    const n = Number.parseInt(digit[1]!, 10);
+    if (Number.isFinite(n) && n >= 1 && n <= 99) {
+      return n;
+    }
+  }
+  return null;
+}
+
+/**
  * Resuelve el nivel visual: docentes siempre L5; luego nombre de jerarquía (“Nivel 2”);
  * si no, profundidad en el mapa.
  * `mapLayoutDepth`: 0 = raíz del lienzo, 1 = reportes directos en fila 2, etc.
@@ -549,22 +576,9 @@ export function resolveOrgMapVisualLevel(
     return 5;
   }
 
-  const name = orgNode?.hierarchy?.name?.trim();
-  if (name) {
-    const m = name.match(HIERARCHY_LEVEL_RE);
-    if (m) {
-      const n = Number.parseInt(m[1]!, 10);
-      if (Number.isFinite(n) && n >= 1) {
-        return clampOrgMapThemeLevel(n);
-      }
-    }
-    const digit = name.match(/\b(\d{1,2})\b/);
-    if (digit) {
-      const n = Number.parseInt(digit[1]!, 10);
-      if (Number.isFinite(n) && n >= 1 && n <= 99) {
-        return clampOrgMapThemeLevel(n);
-      }
-    }
+  const declared = parseOrgHierarchyLevelNumber(orgNode?.hierarchy?.name);
+  if (declared != null) {
+    return clampOrgMapThemeLevel(declared);
   }
   return clampOrgMapThemeLevel(mapLayoutDepth + 1);
 }
