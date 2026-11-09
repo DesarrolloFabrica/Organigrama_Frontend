@@ -18,6 +18,7 @@ import type { ProfileModuleCode } from "../features/org-chart/components/profile
 import { PersonDetailRestoreButton } from "../features/org-chart/components/PersonDetailRestoreButton";
 import { OrgChartVersionBar } from "../features/org-chart/components/OrgChartVersionBar";
 import { useOrgChartScopeVersionQueryId, useOrgChartVersionQueryId, useOrgChartVersionReady } from "../features/org-chart/context/OrgChartVersionContext";
+import { OrgChartDirectoryExportBar } from "../features/org-chart/components/OrgChartDirectoryExportBar";
 import { fetchOrgChartNode } from "../features/org-chart/services/orgChartService";
 import { OrgChartHeader } from "../features/org-chart/components/OrgChartHeader";
 import { useOrgChartConnection } from "../features/org-chart/hooks/useOrgChartConnection";
@@ -296,6 +297,7 @@ function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
       />
 
       <OrgChartVersionBar />
+      <OrgChartDirectoryExportBar />
 
       <main className="org-flow-area-surface relative min-h-0 flex-1 overflow-hidden">
         <div
