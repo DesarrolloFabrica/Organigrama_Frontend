@@ -174,6 +174,39 @@ export async function fetchOrgChartVacancies(): Promise<OrgChartVacancy[]> {
   return res.items ?? []
 }
 
+/**
+ * Excel del organigrama activo (área, jefe, contacto y emergencia).
+ * Autorización en backend: ORG_CHART_DIRECTORY_EXPORT_EMAILS.
+ */
+export async function downloadOrgChartDirectoryExcel(): Promise<void> {
+  const token = getAccessToken()
+  const res = await fetch(`${BASE_URL}/api/org-chart/export/directory`, {
+    headers: {
+      Accept: 'application/vnd.ms-excel',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  })
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(
+      `HTTP ${res.status} al descargar el directorio${detail ? `: ${detail.slice(0, 200)}` : ''}`,
+    )
+  }
+
+  const blob = await res.blob()
+  const disposition = res.headers.get('content-disposition')
+  const match = disposition?.match(/filename="?([^"]+)"?/i)
+  const filename = match?.[1] ?? 'organigrama-activo.xls'
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 /** Resumen jerárquico de un nodo: general + desglose por hijos directos. */
 export async function fetchOrgSummary(
   personId: string,

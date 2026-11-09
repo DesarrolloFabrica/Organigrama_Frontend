@@ -11,6 +11,7 @@ import { OrgMapView } from "../features/org-chart/components/OrgMapView";
 import { PersonDetailPanel } from "../features/org-chart/components/PersonDetailPanel";
 import { PersonDetailRestoreButton } from "../features/org-chart/components/PersonDetailRestoreButton";
 import { OrgChartVersionBar } from "../features/org-chart/components/OrgChartVersionBar";
+import { OrgChartDirectoryExportBar } from "../features/org-chart/components/OrgChartDirectoryExportBar";
 import { useOrgChartVersionQueryId, useOrgChartVersionReady } from "../features/org-chart/context/OrgChartVersionContext";
 import { fetchOrgChartNode } from "../features/org-chart/services/orgChartService";
 import { OrgChartHeader } from "../features/org-chart/components/OrgChartHeader";
@@ -225,6 +226,7 @@ function OrgChartPageBody() {
       />
 
       <OrgChartVersionBar />
+      <OrgChartDirectoryExportBar />
 
       <main className="relative min-h-0 flex-1 overflow-hidden bg-transparent">
         <div
