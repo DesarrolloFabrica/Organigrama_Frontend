@@ -1,0 +1,74 @@
+/**
+ * Reglas puras del módulo Presentación — testeables sin DOM.
+ *
+ * Presentación: visible para cualquier usuario autenticado (probe sin ficha completa).
+ * Ficha / CV / competencias siguen políticas propias.
+ */
+
+import { isPersonVideoTicketFresh } from "./personVideoStreamUrl";
+
+/** Módulo del panel que cambia el ancho del overlay. */
+export type DetailOverlayModule = "ficha" | "presentacion" | null;
+
+/** ¿Se puede lanzar el probe GET …/video? */
+export function shouldProbePersonVideo(opts: {
+  personId: string | null | undefined;
+  isVacancy: boolean;
+  /** Panel cerrado → no probe. Default: abierto. */
+  panelOpen?: boolean;
+  /**
+   * @deprecated Ya no se usa como gate. Conservado opcional por compatibilidad de llamadas.
+   */
+  hasFullProfile?: boolean;
+}): boolean {
+  if (!opts.personId) return false;
+  if (opts.panelOpen === false) return false;
+  return !opts.isVacancy;
+}
+
+/**
+ * Presentación visible solo con éxito + hasVideo.
+ * Error de probe ≠ hasVideo false (ambos ocultan la pestaña).
+ */
+export function resolveHasPresentation(opts: {
+  probeEnabled: boolean;
+  probeSuccess: boolean;
+  hasVideo: boolean | undefined;
+}): boolean {
+  return (
+    opts.probeEnabled &&
+    opts.probeSuccess &&
+    opts.hasVideo === true
+  );
+}
+
+/** Renovar ticket al entrar si falta vigencia (>15s de margen). */
+export function shouldRefreshTicketOnEnter(
+  expiresAtIso: string | null | undefined,
+  skewSeconds = 15,
+  nowMs: number = Date.now(),
+): boolean {
+  if (!expiresAtIso) return true;
+  return !isPersonVideoTicketFresh(expiresAtIso, skewSeconds, nowMs);
+}
+
+/** Ancho desktop del overlay (px). Móvil no usa este valor. */
+export function entityDetailOverlayWidthPx(
+  activeModule: DetailOverlayModule,
+): 420 | 600 {
+  return activeModule === "presentacion" ? 600 : 420;
+}
+
+export function entityDetailOverlayWidthClass(
+  activeModule: DetailOverlayModule,
+): string {
+  if (activeModule === "presentacion") {
+    return "max-w-[600px] sm:w-[min(600px,calc(100vw-2rem))] transition-[max-width,width] duration-300 ease-out";
+  }
+  return "max-w-[420px] sm:w-[min(420px,calc(100vw-2rem))] transition-[max-width,width] duration-300 ease-out";
+}
+
+/** Máximo 1 reintento automático por montaje / persona. */
+export function canAutoRetryVideoError(autoRetryUsed: boolean): boolean {
+  return !autoRetryUsed;
+}

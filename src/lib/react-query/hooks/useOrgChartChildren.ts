@@ -17,6 +17,9 @@ export function orgChartChildrenQueryOptions(
           ? { versionId, relationId }
           : undefined,
       ),
+    staleTime: 0,
+    refetchOnMount: "always" as const,
+    refetchOnWindowFocus: true,
   } as const;
 }
 

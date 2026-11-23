@@ -73,8 +73,12 @@ export function OrgChartVersionProvider({ children }: { children: ReactNode }) {
 
     if (selectedStillVisible) return;
 
-    const active =
-      visibleVersions.find((version) => version.isActive) ?? visibleVersions[0];
+    // Misma regla que el backend getActiveVersion: entre activas, la de id más bajo
+    // (Versión actual / periodo-agosto), no la última creada (Fábrica 2.0).
+    const actives = visibleVersions
+      .filter((version) => version.isActive)
+      .sort((a, b) => a.id - b.id);
+    const active = actives[0] ?? visibleVersions[0];
     setSelectedVersionIdState(active.id);
   }, [canVersion, visibleVersions, selectedVersionId]);
 

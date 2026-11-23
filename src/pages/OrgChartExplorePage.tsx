@@ -31,6 +31,7 @@ import {
 } from "../lib/react-query/hooks";
 import { orgQueryKeys } from "../lib/react-query/queryKeys";
 import { prefetchDirectChildrenHints } from "../lib/react-query/orgChartPrefetch";
+import { entityDetailOverlayWidthClass } from "../features/org-chart/utils/personPresentationRules";
 
 const MAP_MAX_LEVELS = 4;
 
@@ -57,6 +58,7 @@ function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
 
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [detailPanelMinimized, setDetailPanelMinimized] = useState(false);
+  const [presentationActive, setPresentationActive] = useState(false);
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -248,7 +250,7 @@ function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
               >
                 {detailOverlayOpen ? (
                   <aside
-                    className="entity-detail-overlay pointer-events-auto flex h-full max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] min-h-0 w-full max-w-[420px] flex-col overflow-hidden shadow-[0_24px_64px_-12px_rgba(0,0,0,0.45)] max-sm:fixed max-sm:bottom-3 max-sm:left-3 max-sm:right-3 max-sm:top-auto max-sm:max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] sm:max-h-[calc(100vh-var(--app-header-h)-2rem)] sm:w-[min(420px,calc(100vw-2rem))]"
+                    className={`entity-detail-overlay pointer-events-auto flex h-full max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] min-h-0 w-full flex-col overflow-hidden shadow-[0_24px_64px_-12px_rgba(0,0,0,0.45)] max-sm:fixed max-sm:bottom-3 max-sm:left-3 max-sm:right-3 max-sm:top-auto max-sm:max-h-[min(85dvh,calc(100vh-var(--app-header-h)-1.5rem))] sm:max-h-[calc(100vh-var(--app-header-h)-2rem)] ${entityDetailOverlayWidthClass(presentationActive ? "presentacion" : "ficha")}`}
                     aria-label="Ficha técnica de la persona"
                   >
                     <PersonDetailPanel
@@ -256,6 +258,7 @@ function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
                       treeDescendantCount={treeDescendantCount}
                       layoutVariant="overlay"
                       onDetailPhotoUrl={handleDetailPhotoUrl}
+                      onPresentationActive={setPresentationActive}
                       onMinimize={() => setDetailPanelMinimized(true)}
                       onClose={() => {
                         setSelectedPersonId(null);

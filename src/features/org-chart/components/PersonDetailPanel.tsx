@@ -5,9 +5,20 @@ import {
   orgPersonDisplayName,
   orgPersonHasFullProfile,
 } from "../types";
-import { useOrgPersonDetail, useOrgPersonCv } from "../../../lib/react-query/hooks";
+import {
+  useOrgPersonDetail,
+  useOrgPersonCv,
+  useOrgPersonVideo,
+} from "../../../lib/react-query/hooks";
+import { getAuthUser, isOrgAdmin } from "../../../auth/authStorage";
 import { withPhotoAccessToken } from "../../../auth/photoUrl";
+import { PersonContactEditor } from "./PersonContactEditor";
 import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
+import { PersonPresentationPanel } from "./profile-modules/PersonPresentationPanel";
+import {
+  resolveHasPresentation,
+  shouldProbePersonVideo,
+} from "../utils/personPresentationRules";
 
 type Props = {
   /** Persona seleccionada en el árbol; `null` muestra estado vacío. */
@@ -25,6 +36,8 @@ type Props = {
   layoutVariant?: "sidebar" | "overlay";
   /** Sincroniza `photoUrl` del detalle con el árbol del mapa (p. ej. tras foto persistida). */
   onDetailPhotoUrl?: (personId: string, photoUrl: string) => void;
+  /** El overlay se ensancha mientras la pestaña Presentación está abierta. */
+  onPresentationActive?: (active: boolean) => void;
 };
 
 function formatValue(value: string | null | undefined): string {
@@ -456,6 +469,7 @@ export function PersonDetailPanel(props: Props) {
       onMinimize={props.onMinimize}
       layoutVariant={props.layoutVariant ?? "sidebar"}
       onDetailPhotoUrl={props.onDetailPhotoUrl}
+      onPresentationActive={props.onPresentationActive}
     />
   );
 }
@@ -498,6 +512,7 @@ function PersonDetailLoaded({
   onMinimize,
   layoutVariant,
   onDetailPhotoUrl,
+  onPresentationActive,
 }: LoadedProps) {
   const {
     data: detail,
@@ -506,6 +521,20 @@ function PersonDetailLoaded({
     error: queryError,
   } = useOrgPersonDetail(personId);
   const [photoFailed, setPhotoFailed] = useState(false);
+  const [section, setSection] = useState<"ficha" | "presentacion">("ficha");
+  const isVacancyForProbe = detail ? isOrgNodeVacancy(detail) : true;
+  const probeVideo = shouldProbePersonVideo({
+    personId: detail ? personId : null,
+    isVacancy: isVacancyForProbe,
+    panelOpen: true,
+  });
+  const videoQuery = useOrgPersonVideo(personId, probeVideo);
+  const hasPresentation = resolveHasPresentation({
+    probeEnabled: probeVideo,
+    probeSuccess: videoQuery.isSuccess,
+    hasVideo: videoQuery.data?.hasVideo,
+  });
+  const presentationOpen = hasPresentation && section === "presentacion";
 
   useEffect(() => {
     setPhotoFailed(false);
@@ -516,6 +545,17 @@ function PersonDetailLoaded({
       onDetailPhotoUrl?.(detail.id, detail.photoUrl);
     }
   }, [detail, onDetailPhotoUrl]);
+
+  useEffect(() => {
+    if (!hasPresentation && section === "presentacion") {
+      setSection("ficha");
+    }
+  }, [hasPresentation, section]);
+
+  useEffect(() => {
+    onPresentationActive?.(presentationOpen);
+    return () => onPresentationActive?.(false);
+  }, [presentationOpen, onPresentationActive]);
 
   const showSkeleton = isLoading && !detail;
   const error = isError
@@ -589,6 +629,9 @@ function PersonDetailLoaded({
   const displayName = orgPersonDisplayName(detail);
   const hasFull = orgPersonHasFullProfile(detail);
   const profile = hasFull ? detail.profile : null;
+  const canEditContact =
+    Boolean(personId) &&
+    (getAuthUser()?.personId === personId || isOrgAdmin());
   const regionName = profile?.location?.region?.name ?? null;
   const cityName = profile?.location?.city?.name ?? null;
   const campusName = profile?.location?.campus?.name ?? null;
@@ -714,8 +757,63 @@ function PersonDetailLoaded({
         </div>
       </header>
 
+      {hasPresentation ? (
+        <div
+          className="flex shrink-0 gap-1 border-b border-cyan-400/15 px-3 py-2"
+          role="tablist"
+          aria-label="Módulos de la ficha"
+        >
+          <button
+            type="button"
+            role="tab"
+            id="person-tab-ficha"
+            aria-selected={section === "ficha"}
+            aria-controls="person-panel-ficha"
+            className={[
+              "rounded-md px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em]",
+              section === "ficha"
+                ? "bg-cyan-400/15 text-cyan-100"
+                : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
+            ].join(" ")}
+            onClick={() => setSection("ficha")}
+          >
+            Ficha
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="person-tab-presentacion"
+            aria-selected={section === "presentacion"}
+            aria-controls="person-panel-presentacion"
+            className={[
+              "rounded-md px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em]",
+              section === "presentacion"
+                ? "bg-cyan-400/15 text-cyan-100"
+                : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
+            ].join(" ")}
+            onClick={() => setSection("presentacion")}
+          >
+            Presentación
+          </button>
+        </div>
+      ) : null}
+
       <div className="entity-scan-scroll flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-3 sm:px-4">
-        <div className="flex flex-col gap-3.5 pb-4">
+        {presentationOpen && videoQuery.data?.hasVideo === true ? (
+          <PersonPresentationPanel
+            personId={personId}
+            video={videoQuery.data}
+            isFetching={videoQuery.isFetching}
+            isError={videoQuery.isError}
+            refreshPersonVideo={videoQuery.refreshPersonVideo}
+          />
+        ) : (
+        <div
+          className="flex flex-col gap-3.5 pb-4"
+          id="person-panel-ficha"
+          role={hasPresentation ? "tabpanel" : undefined}
+          aria-labelledby={hasPresentation ? "person-tab-ficha" : undefined}
+        >
           {!hasFull ? (
             <HudSection id="sec-public" title="Contacto institucional" icon="contact">
               <dl>
@@ -730,6 +828,10 @@ function PersonDetailLoaded({
           {hasFull && profile ? (
           <>
           <HudSection id="sec-contact" title="Datos de contacto" icon="contact">
+            {canEditContact && personId ? (
+              <PersonContactEditor personId={personId} profile={profile} />
+            ) : (
+            <>
             <dl>
               <HudDetailRow
                 label="Documento"
@@ -764,6 +866,8 @@ function PersonDetailLoaded({
                 />
               </dl>
             </div>
+            </>
+            )}
             {/*
               Acción secundaria: hoja de vida (CV).
               Va debajo de los datos de contacto, no dentro del nodo del mapa.
@@ -896,6 +1000,7 @@ function PersonDetailLoaded({
           </>
           ) : null}
         </div>
+        )}
       </div>
     </EntityScanShell>
   );

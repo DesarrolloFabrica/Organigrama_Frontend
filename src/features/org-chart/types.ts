@@ -225,6 +225,20 @@ export type OrgPersonDetail = {
   profile: OrgPersonFullProfile | null
 }
 
+/** GET /api/org-chart/person/:id/video */
+export type PersonVideoResponse =
+  | { hasVideo: false }
+  | {
+      hasVideo: true
+      fileName: string
+      mimeType: string
+      sizeBytes: number | null
+      lastSync: string | null
+      streamTicket: string
+      streamTicketExpiresAt: string
+      streamUrl: string
+    }
+
 export function orgPersonDisplayName(detail: OrgPersonDetail): string {
   return detail.profile?.full_name?.trim() || detail.name?.trim() || '—'
 }

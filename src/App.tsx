@@ -33,6 +33,11 @@ const OrgChartExplorePage = lazy(() =>
     default: module.OrgChartExplorePage,
   })),
 );
+const MyDataPage = lazy(() =>
+  import("./pages/MyDataPage").then((module) => ({
+    default: module.MyDataPage,
+  })),
+);
 
 function RouteSuspense({ children }: { children: ReactNode }) {
   return <Suspense fallback={<PageLoadingScreen />}>{children}</Suspense>;
@@ -108,6 +113,15 @@ function App() {
                 element={
                   <RouteSuspense>
                     <OrgChartPage />
+                  </RouteSuspense>
+                }
+              />
+
+              <Route
+                path="/org/mis-datos"
+                element={
+                  <RouteSuspense>
+                    <MyDataPage />
                   </RouteSuspense>
                 }
               />

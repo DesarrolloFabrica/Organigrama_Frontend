@@ -36,6 +36,8 @@ export const orgQueryKeys = {
       : (["org-person-detail", personId] as const),
   /** Hoja de vida (CV) de una persona; no depende de la versión del organigrama. */
   personCv: (personId: string) => ["org-person-cv", personId] as const,
+  /** Video de presentación; el ticket se renueva aparte del staleTime. */
+  personVideo: (personId: string) => ["org-person-video", personId] as const,
   search: (query: string, versionId?: number) =>
     versionId !== undefined
       ? (["org-search", query, versionId] as const)

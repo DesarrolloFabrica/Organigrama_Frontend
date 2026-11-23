@@ -44,6 +44,23 @@ export async function fetchProfileMe(): Promise<ProfileMe> {
   return res.json() as Promise<ProfileMe>
 }
 
+export async function patchPersonContact(
+  personId: string,
+  payload: UpdateProfilePayload,
+): Promise<ProfileMe> {
+  const res = await fetch(`${BASE_URL}/api/profile/person/${personId}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  })
+
+  if (!res.ok) {
+    throw new Error(await parseError(res))
+  }
+
+  return res.json() as Promise<ProfileMe>
+}
+
 export async function patchProfileMe(
   payload: UpdateProfilePayload,
 ): Promise<ProfileMe> {

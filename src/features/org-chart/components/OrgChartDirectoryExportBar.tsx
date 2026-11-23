@@ -1,28 +1,31 @@
 import { useState } from "react";
 import { getAuthUser } from "../../../auth/authStorage";
-import { downloadOrgChartDirectoryExcel } from "../services/orgChartService";
+import {
+  downloadOrgChartDirectoryExcel,
+  downloadOrgChartHtml,
+} from "../services/orgChartService";
 import { canDownloadOrgDirectory } from "../utils/canDownloadOrgDirectory";
 
 export function OrgChartDirectoryExportBar() {
   const user = getAuthUser();
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   if (!canDownloadOrgDirectory(user)) return null;
 
-  const handleDownload = async () => {
+  const runDownload = async (
+    key: string,
+    action: () => Promise<void>,
+    fallback: string,
+  ) => {
     setError(null);
-    setBusy(true);
+    setBusy(key);
     try {
-      await downloadOrgChartDirectoryExcel();
+      await action();
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "No se pudo descargar el organigrama activo.",
-      );
+      setError(err instanceof Error ? err.message : fallback);
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -33,12 +36,18 @@ export function OrgChartDirectoryExportBar() {
     >
       <span className="font-medium text-slate-200">Directorio activo</span>
       <span className="text-slate-500">
-        Excel con área, jefe, contacto y emergencia (hasta líderes docentes)
+        Excel y HTML del organigrama
       </span>
       <button
         type="button"
-        onClick={() => void handleDownload()}
-        disabled={busy}
+        onClick={() =>
+          void runDownload(
+            "excel",
+            downloadOrgChartDirectoryExcel,
+            "No se pudo descargar el Excel.",
+          )
+        }
+        disabled={busy !== null}
         className="inline-flex items-center gap-1.5 rounded-md border border-cyan-300/25 bg-cyan-950/50 px-2.5 py-1 font-medium text-cyan-100 transition hover:border-cyan-300/45 hover:bg-cyan-900/40 disabled:cursor-wait disabled:opacity-60"
       >
         <svg
@@ -55,7 +64,21 @@ export function OrgChartDirectoryExportBar() {
             strokeLinejoin="round"
           />
         </svg>
-        {busy ? "Generando…" : "Descargar Excel"}
+        {busy === "excel" ? "Generando…" : "Descargar Excel"}
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          void runDownload(
+            "html",
+            downloadOrgChartHtml,
+            "No se pudo descargar el HTML.",
+          )
+        }
+        disabled={busy !== null}
+        className="inline-flex items-center rounded-md border border-cyan-300/25 bg-cyan-950/50 px-2.5 py-1 font-medium text-cyan-100 transition hover:border-cyan-300/45 hover:bg-cyan-900/40 disabled:cursor-wait disabled:opacity-60"
+      >
+        {busy === "html" ? "Generando…" : "Descargar HTML"}
       </button>
       {error ? (
         <span role="alert" className="text-rose-300">

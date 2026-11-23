@@ -8,6 +8,7 @@ import type {
   OrgPersonDetail,
   OrgSummaryResponse,
   PersonCvResponse,
+  PersonVideoResponse,
 } from '../types'
 import type {
   CreateOrgChartSnapshotPayload,
@@ -15,6 +16,7 @@ import type {
   OrgChartVersion,
 } from '../types/orgChartVersion'
 import { buildVersionQuery } from '../utils/orgChartVersionQuery'
+import { assertSafePersonVideoStreamPath } from '../utils/personVideoStreamUrl'
 
 /**
  * Origen del API. En desarrollo suele ser el Nest en :3000.
@@ -139,6 +141,65 @@ export async function getPersonCv(personId: number): Promise<PersonCvResponse> {
   return getJson<PersonCvResponse>(`/api/org-chart/person/${safeId}/cv`)
 }
 
+/**
+ * Disponibilidad + ticket + streamUrl de video de presentación.
+ * GET /api/org-chart/person/:personId/video (JWT de sesión).
+ * El stream en sí usa solo el ticket embebido en streamUrl (sin Bearer).
+ */
+export async function getPersonVideo(
+  personId: string,
+): Promise<PersonVideoResponse> {
+  const safeId = encodeURIComponent(personId)
+  const data = await getJson<PersonVideoResponse>(
+    `/api/org-chart/person/${safeId}/video`,
+  )
+  return parsePersonVideoResponse(data)
+}
+
+/** Parseo estricto del contrato de video (exportado para tests). */
+export function parsePersonVideoResponse(data: unknown): PersonVideoResponse {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Respuesta de video inválida')
+  }
+  const row = data as Record<string, unknown>
+  if (row.hasVideo === false) {
+    return { hasVideo: false }
+  }
+  if (row.hasVideo !== true) {
+    throw new Error('Respuesta de video inválida')
+  }
+  if (
+    typeof row.fileName !== 'string' ||
+    typeof row.mimeType !== 'string' ||
+    typeof row.streamTicket !== 'string' ||
+    typeof row.streamTicketExpiresAt !== 'string' ||
+    typeof row.streamUrl !== 'string'
+  ) {
+    throw new Error('Metadatos de video incompletos')
+  }
+  assertSafePersonVideoStreamPath(row.streamUrl)
+  return {
+    hasVideo: true,
+    fileName: row.fileName,
+    mimeType: row.mimeType,
+    sizeBytes:
+      row.sizeBytes == null
+        ? null
+        : typeof row.sizeBytes === 'number' && Number.isFinite(row.sizeBytes)
+          ? row.sizeBytes
+          : null,
+    lastSync: typeof row.lastSync === 'string' ? row.lastSync : null,
+    streamTicket: row.streamTicket,
+    streamTicketExpiresAt: row.streamTicketExpiresAt,
+    streamUrl: row.streamUrl,
+  }
+}
+
+/** Base URL del API (sin slash final). Exportada para resolver streamUrl del video. */
+export function getOrgChartApiBaseUrl(): string {
+  return BASE_URL
+}
+
 /** Comprueba que el backend responde; útil para indicadores en cabecera. */
 export async function fetchHealth(): Promise<{ ok: boolean }> {
   return getJson<{ ok: boolean }>('/api/health')
@@ -178,11 +239,15 @@ export async function fetchOrgChartVacancies(): Promise<OrgChartVacancy[]> {
  * Excel del organigrama activo (área, jefe, contacto y emergencia).
  * Autorización en backend: ORG_CHART_DIRECTORY_EXPORT_EMAILS.
  */
-export async function downloadOrgChartDirectoryExcel(): Promise<void> {
+async function downloadOrgChartExport(
+  path: string,
+  accept: string,
+  fallbackFilename: string,
+): Promise<void> {
   const token = getAccessToken()
-  const res = await fetch(`${BASE_URL}/api/org-chart/export/directory`, {
+  const res = await fetch(`${BASE_URL}${path}`, {
     headers: {
-      Accept: 'application/vnd.ms-excel',
+      Accept: accept,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   })
@@ -196,15 +261,36 @@ export async function downloadOrgChartDirectoryExcel(): Promise<void> {
   const blob = await res.blob()
   const disposition = res.headers.get('content-disposition')
   const match = disposition?.match(/filename="?([^"]+)"?/i)
-  const filename = match?.[1] ?? 'organigrama-activo.xls'
-  const url = URL.createObjectURL(blob)
+  const filename = match?.[1] ?? fallbackFilename
+  const file = new File([blob], filename, { type: blob.type || accept })
+  const url = URL.createObjectURL(file)
   const link = document.createElement('a')
   link.href = url
   link.download = filename
+  link.rel = 'noopener'
   document.body.appendChild(link)
   link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
+  // Chrome lee el archivo después del click; se revoca luego para no cortar la descarga.
+  window.setTimeout(() => {
+    link.remove()
+    URL.revokeObjectURL(url)
+  }, 60_000)
+}
+
+export function downloadOrgChartDirectoryExcel(): Promise<void> {
+  return downloadOrgChartExport(
+    '/api/org-chart/export/directory',
+    'application/vnd.ms-excel',
+    'organigrama-activo.xls',
+  )
+}
+
+export function downloadOrgChartHtml(): Promise<void> {
+  return downloadOrgChartExport(
+    '/api/org-chart/export/html',
+    'text/html',
+    'organigrama.html',
+  )
 }
 
 /** Resumen jerárquico de un nodo: general + desglose por hijos directos. */

@@ -13,5 +13,8 @@ export function useOrgChartRoot(enabled = true) {
     queryKey: orgQueryKeys.root(versionId),
     queryFn: () => fetchOrgChartRoot(versionId ? { versionId } : undefined),
     enabled: enabled && versionReady,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 }
