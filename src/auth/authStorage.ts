@@ -31,6 +31,16 @@ export function saveAuthSession(accessToken: string, user: AuthUser): void {
   sessionStorage.setItem(USER_KEY, JSON.stringify(user))
 }
 
+/**
+ * Reemplaza los permisos del usuario guardado (sin tocar el token). Se usa
+ * para reflejar en la UI una revocación detectada por el backend.
+ */
+export function updateAuthUserPermissions(permissions: string[]): void {
+  const user = getAuthUser()
+  if (!user) return
+  sessionStorage.setItem(USER_KEY, JSON.stringify({ ...user, permissions }))
+}
+
 export function clearAuthSession(): void {
   sessionStorage.removeItem(TOKEN_KEY)
   sessionStorage.removeItem(USER_KEY)

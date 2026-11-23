@@ -17,6 +17,10 @@ import type {
   OrgChartVersion,
 } from '../types/orgChartVersion'
 import { buildVersionQuery } from '../utils/orgChartVersionQuery'
+import type {
+  DirectoryExportAccess,
+  DirectoryExportFormat,
+} from '../utils/directoryExportAccess'
 import { assertSafePersonVideoStreamPath } from '../utils/personVideoStreamUrl'
 
 /**
@@ -264,14 +268,48 @@ export async function fetchOrgChartChangeToken(): Promise<{ token: string }> {
 }
 
 /**
- * Excel del organigrama activo (área, jefe, contacto y emergencia).
- * Autorización en backend: ORG_CHART_DIRECTORY_EXPORT_EMAILS.
+ * El backend rechazó la descarga por falta del permiso del formato
+ * (ORG_DIRECTORY_EXPORT_HTML / ORG_DIRECTORY_EXPORT_XLS), p. ej. porque fue
+ * revocado mientras el JWT seguía vigente.
  */
-async function downloadOrgChartExport(
-  path: string,
-  accept: string,
-  fallbackFilename: string,
-): Promise<void> {
+export class DirectoryExportForbiddenError extends Error {
+  readonly format: DirectoryExportFormat
+
+  constructor(format: DirectoryExportFormat) {
+    super('Acceso denegado: no tienes permiso para descargar este informe.')
+    this.name = 'DirectoryExportForbiddenError'
+    this.format = format
+  }
+}
+
+const DIRECTORY_EXPORT_REQUEST: Record<
+  DirectoryExportFormat,
+  { path: string; accept: string; fallbackFilename: string; label: string }
+> = {
+  html: {
+    path: '/api/org-chart/export/html',
+    accept: 'text/html',
+    fallbackFilename: 'organigrama.html',
+    label: 'el HTML',
+  },
+  xls: {
+    path: '/api/org-chart/export/directory',
+    accept: 'application/vnd.ms-excel',
+    fallbackFilename: 'organigrama-activo.xls',
+    label: 'el Excel',
+  },
+}
+
+/**
+ * Pide el archivo al backend (autorización y auditoría en el servidor).
+ * 403 → DirectoryExportForbiddenError. Separado de la descarga en el
+ * navegador para poder probarlo.
+ */
+export async function requestOrgChartExport(
+  format: DirectoryExportFormat,
+): Promise<{ blob: Blob; filename: string; type: string }> {
+  const { path, accept, fallbackFilename, label } =
+    DIRECTORY_EXPORT_REQUEST[format]
   const token = getAccessToken()
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: {
@@ -279,18 +317,36 @@ async function downloadOrgChartExport(
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   })
+  if (res.status === 403) {
+    throw new DirectoryExportForbiddenError(format)
+  }
+  if (res.status === 401) {
+    throw new Error('Tu sesión expiró. Inicia sesión de nuevo para descargar.')
+  }
   if (!res.ok) {
-    const detail = await res.text().catch(() => '')
-    throw new Error(
-      `HTTP ${res.status} al descargar el directorio${detail ? `: ${detail.slice(0, 200)}` : ''}`,
-    )
+    throw new Error(`No se pudo descargar ${label} (HTTP ${res.status}).`)
   }
 
   const blob = await res.blob()
   const disposition = res.headers.get('content-disposition')
   const match = disposition?.match(/filename="?([^"]+)"?/i)
-  const filename = match?.[1] ?? fallbackFilename
-  const file = new File([blob], filename, { type: blob.type || accept })
+  return {
+    blob,
+    filename: match?.[1] ?? fallbackFilename,
+    type: blob.type || accept,
+  }
+}
+
+/** Formatos que la sesión puede descargar ahora (leído de la BD en el backend). */
+export async function fetchDirectoryExportPermissions(): Promise<DirectoryExportAccess> {
+  return getJson<DirectoryExportAccess>('/api/org-chart/export/permissions')
+}
+
+async function downloadOrgChartExport(
+  format: DirectoryExportFormat,
+): Promise<void> {
+  const { blob, filename, type } = await requestOrgChartExport(format)
+  const file = new File([blob], filename, { type })
   const url = URL.createObjectURL(file)
   const link = document.createElement('a')
   link.href = url
@@ -306,19 +362,11 @@ async function downloadOrgChartExport(
 }
 
 export function downloadOrgChartDirectoryExcel(): Promise<void> {
-  return downloadOrgChartExport(
-    '/api/org-chart/export/directory',
-    'application/vnd.ms-excel',
-    'organigrama-activo.xls',
-  )
+  return downloadOrgChartExport('xls')
 }
 
 export function downloadOrgChartHtml(): Promise<void> {
-  return downloadOrgChartExport(
-    '/api/org-chart/export/html',
-    'text/html',
-    'organigrama.html',
-  )
+  return downloadOrgChartExport('html')
 }
 
 /** Resumen jerárquico de un nodo: general + desglose por hijos directos. */
