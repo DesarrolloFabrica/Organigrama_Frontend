@@ -52,6 +52,31 @@ export function withDirectoryExportAccess(
   return [...others, ...granted]
 }
 
+export function sameDirectoryExportAccess(
+  a: DirectoryExportAccess,
+  b: DirectoryExportAccess,
+): boolean {
+  return a.html === b.html && a.xls === b.xls
+}
+
+/**
+ * Al montar la barra: permisos vigentes según el backend (core.person_permission),
+ * para reflejar concesiones o revocaciones posteriores al login sin esperar
+ * a que el usuario reinicie sesión. `null` si no se pudo consultar: el
+ * llamador conserva lo que dice la sesión (el backend sigue autorizando cada
+ * descarga).
+ */
+export async function fetchCurrentDirectoryExportAccess(
+  fetchCurrent: () => Promise<DirectoryExportAccess>,
+): Promise<DirectoryExportAccess | null> {
+  try {
+    const fresh = await fetchCurrent()
+    return { html: fresh.html === true, xls: fresh.xls === true }
+  } catch {
+    return null
+  }
+}
+
 /**
  * Tras un 403 (permiso revocado con JWT vigente): consulta los permisos
  * vigentes al backend. Si esa consulta falla, al menos se retira el formato

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   getAuthUser,
   updateAuthUserPermissions,
@@ -10,9 +10,11 @@ import {
   fetchDirectoryExportPermissions,
 } from "../services/orgChartService";
 import {
+  fetchCurrentDirectoryExportAccess,
   getDirectoryExportAccess,
   hasAnyDirectoryExport,
   resyncDirectoryExportAccess,
+  sameDirectoryExportAccess,
   withDirectoryExportAccess,
   type DirectoryExportAccess,
   type DirectoryExportFormat,
@@ -36,6 +38,33 @@ export function OrgChartDirectoryExportBar() {
   );
   const [busy, setBusy] = useState<DirectoryExportFormat | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Los permisos del JWT se fijan al iniciar sesión. Al montar se consultan
+  // los vigentes (BD) para mostrar concesiones/revocaciones posteriores sin
+  // reiniciar sesión. Si la consulta falla se conserva lo de la sesión.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchCurrentDirectoryExportAccess(fetchDirectoryExportPermissions).then(
+      (fresh) => {
+        if (cancelled || !fresh) return;
+        setAccess((current) =>
+          sameDirectoryExportAccess(current, fresh) ? current : fresh,
+        );
+        const user = getAuthUser();
+        if (
+          user &&
+          !sameDirectoryExportAccess(getDirectoryExportAccess(user), fresh)
+        ) {
+          updateAuthUserPermissions(
+            withDirectoryExportAccess(user.permissions, fresh),
+          );
+        }
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Sin permisos no hay acciones; el mensaje de un rechazo reciente sí se
   // mantiene visible para explicar por qué desaparecieron los botones.

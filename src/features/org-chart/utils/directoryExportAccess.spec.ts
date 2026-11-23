@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  fetchCurrentDirectoryExportAccess,
+  sameDirectoryExportAccess,
   getDirectoryExportAccess,
   hasAnyDirectoryExport,
   resyncDirectoryExportAccess,
@@ -41,6 +43,35 @@ describe("withDirectoryExportAccess", () => {
       ...LEGACY,
       HTML,
     ]);
+  });
+});
+
+describe("fetchCurrentDirectoryExportAccess (al montar la barra)", () => {
+  it("refleja una concesión posterior al login", async () => {
+    const fresh = await fetchCurrentDirectoryExportAccess(
+      vi.fn().mockResolvedValue({ html: true, xls: true }),
+    );
+    expect(fresh).toEqual({ html: true, xls: true });
+    expect(
+      sameDirectoryExportAccess(getDirectoryExportAccess({ permissions: [] }), fresh!),
+    ).toBe(false);
+  });
+
+  it("refleja una revocación posterior al login", async () => {
+    await expect(
+      fetchCurrentDirectoryExportAccess(vi.fn().mockResolvedValue({ html: false, xls: false })),
+    ).resolves.toEqual({ html: false, xls: false });
+  });
+
+  it("si la consulta falla devuelve null (se conserva la sesión)", async () => {
+    await expect(
+      fetchCurrentDirectoryExportAccess(vi.fn().mockRejectedValue(new Error("401"))),
+    ).resolves.toBeNull();
+  });
+
+  it("sameDirectoryExportAccess compara ambos formatos", () => {
+    expect(sameDirectoryExportAccess({ html: true, xls: false }, { html: true, xls: false })).toBe(true);
+    expect(sameDirectoryExportAccess({ html: true, xls: false }, { html: true, xls: true })).toBe(false);
   });
 });
 
