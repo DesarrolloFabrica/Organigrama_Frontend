@@ -43,6 +43,11 @@ const Mc1ProfilePreviewPage = lazy(() =>
     default: module.Mc1ProfilePreviewPage,
   })),
 );
+const MyDataPage = lazy(() =>
+  import("./pages/MyDataPage").then((module) => ({
+    default: module.MyDataPage,
+  })),
+);
 
 function RouteSuspense({ children }: { children: ReactNode }) {
   return <Suspense fallback={<PageLoadingScreen variant="flow" />}>{children}</Suspense>;
@@ -118,6 +123,15 @@ function App() {
                 element={
                   <RouteSuspense>
                     <OrgChartPage />
+                  </RouteSuspense>
+                }
+              />
+
+              <Route
+                path="/org/mis-datos"
+                element={
+                  <RouteSuspense>
+                    <MyDataPage />
                   </RouteSuspense>
                 }
               />

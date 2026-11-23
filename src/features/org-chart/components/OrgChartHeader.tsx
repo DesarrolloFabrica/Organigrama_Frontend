@@ -235,6 +235,13 @@ function HeaderToolbar({
 
 
 
+        <Link
+          to="/org/mis-datos"
+          className="inline-flex items-center rounded-full px-2.5 py-1.5 text-[10px] font-medium tracking-wide text-slate-400 transition hover:bg-white/[0.06] hover:text-slate-200"
+        >
+          Mis datos
+        </Link>
+
         <LogoutButton />
 
       </div>

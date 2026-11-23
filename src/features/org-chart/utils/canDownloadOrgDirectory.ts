@@ -1,20 +1,11 @@
 import type { AuthUser } from '../../../auth/types';
 
-const DEFAULT_DIRECTORY_EXPORT_EMAILS = [
-  'desarrollofabrica@cun.edu.co',
-  'lorena_gomez@cun.edu.co',
-  'maria_ballen@cun.edu.co',
-  'raul_valencia@cun.edu.co',
-  'sara_murillofo@cun.edu.co',
-] as const;
-
 function getDirectoryExportEmailsSet(): Set<string> {
   const raw = import.meta.env.VITE_ORG_CHART_DIRECTORY_EXPORT_EMAILS?.trim();
-  const source =
-    raw && raw.length > 0 ? raw : DEFAULT_DIRECTORY_EXPORT_EMAILS.join(',');
+  if (!raw) return new Set();
 
   return new Set(
-    source
+    raw
       .split(',')
       .map((email: string) => email.trim().toLowerCase())
       .filter(Boolean),
@@ -22,8 +13,11 @@ function getDirectoryExportEmailsSet(): Set<string> {
 }
 
 /**
- * Descarga del organigrama activo: solo correos en
- * VITE_ORG_CHART_DIRECTORY_EXPORT_EMAILS (debe coincidir con el backend).
+ * Botones de descarga (Excel y HTML) del organigrama activo: solo correos en
+ * VITE_ORG_CHART_DIRECTORY_EXPORT_EMAILS (debe coincidir con
+ * ORG_CHART_DIRECTORY_EXPORT_EMAILS del backend, que es quien autoriza).
+ *
+ * Deshabilitado por defecto: sin la variable nadie ve los botones.
  */
 export function canDownloadOrgDirectory(
   user: Pick<AuthUser, 'eduEmail'> | null | undefined,

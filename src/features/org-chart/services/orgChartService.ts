@@ -267,11 +267,15 @@ export async function fetchOrgChartChangeToken(): Promise<{ token: string }> {
  * Excel del organigrama activo (área, jefe, contacto y emergencia).
  * Autorización en backend: ORG_CHART_DIRECTORY_EXPORT_EMAILS.
  */
-export async function downloadOrgChartDirectoryExcel(): Promise<void> {
+async function downloadOrgChartExport(
+  path: string,
+  accept: string,
+  fallbackFilename: string,
+): Promise<void> {
   const token = getAccessToken()
-  const res = await fetch(`${BASE_URL}/api/org-chart/export/directory`, {
+  const res = await fetch(`${BASE_URL}${path}`, {
     headers: {
-      Accept: 'application/vnd.ms-excel',
+      Accept: accept,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   })
@@ -285,15 +289,36 @@ export async function downloadOrgChartDirectoryExcel(): Promise<void> {
   const blob = await res.blob()
   const disposition = res.headers.get('content-disposition')
   const match = disposition?.match(/filename="?([^"]+)"?/i)
-  const filename = match?.[1] ?? 'organigrama-activo.xls'
-  const url = URL.createObjectURL(blob)
+  const filename = match?.[1] ?? fallbackFilename
+  const file = new File([blob], filename, { type: blob.type || accept })
+  const url = URL.createObjectURL(file)
   const link = document.createElement('a')
   link.href = url
   link.download = filename
+  link.rel = 'noopener'
   document.body.appendChild(link)
   link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
+  // Chrome lee el archivo después del click; se revoca luego para no cortar la descarga.
+  window.setTimeout(() => {
+    link.remove()
+    URL.revokeObjectURL(url)
+  }, 60_000)
+}
+
+export function downloadOrgChartDirectoryExcel(): Promise<void> {
+  return downloadOrgChartExport(
+    '/api/org-chart/export/directory',
+    'application/vnd.ms-excel',
+    'organigrama-activo.xls',
+  )
+}
+
+export function downloadOrgChartHtml(): Promise<void> {
+  return downloadOrgChartExport(
+    '/api/org-chart/export/html',
+    'text/html',
+    'organigrama.html',
+  )
 }
 
 /** Resumen jerárquico de un nodo: general + desglose por hijos directos. */

@@ -1,28 +1,39 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { canDownloadOrgDirectory } from "./canDownloadOrgDirectory";
 
-const AUTHORIZED_EMAILS = [
-  "desarrollofabrica@cun.edu.co",
-  "lorena_gomez@cun.edu.co",
-  "maria_ballen@cun.edu.co",
-  "raul_valencia@cun.edu.co",
-  "sara_murillofo@cun.edu.co",
-] as const;
+/** Correos sintéticos: ninguno corresponde a una persona real. */
+const AUTHORIZED = "exportador.sintetico@example.test";
 
 describe("canDownloadOrgDirectory", () => {
-  it.each(AUTHORIZED_EMAILS)("true para %s", (eduEmail) => {
-    expect(canDownloadOrgDirectory({ eduEmail })).toBe(true);
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
-  it("false para usuario normal", () => {
-    expect(
-      canDownloadOrgDirectory({
-        eduEmail: "camilo_quintero@cun.edu.co",
-      }),
-    ).toBe(false);
+  it.each(["", "   ", " , "])(
+    "deshabilitado por defecto: VITE_ORG_CHART_DIRECTORY_EXPORT_EMAILS=%j",
+    (value) => {
+      vi.stubEnv("VITE_ORG_CHART_DIRECTORY_EXPORT_EMAILS", value);
+      expect(canDownloadOrgDirectory({ eduEmail: AUTHORIZED })).toBe(false);
+      // Ninguna de las cuentas del antiguo valor por defecto queda habilitada.
+      expect(
+        canDownloadOrgDirectory({ eduEmail: "desarrollofabrica@cun.edu.co" }),
+      ).toBe(false);
+    },
+  );
+
+  it("true para un correo listado, sin distinguir mayúsculas", () => {
+    vi.stubEnv("VITE_ORG_CHART_DIRECTORY_EXPORT_EMAILS", ` ${AUTHORIZED} ,otro@example.test`);
+    expect(canDownloadOrgDirectory({ eduEmail: "Exportador.Sintetico@example.test" })).toBe(true);
   });
 
-  it("false si user es null", () => {
+  it("false para un correo no listado", () => {
+    vi.stubEnv("VITE_ORG_CHART_DIRECTORY_EXPORT_EMAILS", AUTHORIZED);
+    expect(canDownloadOrgDirectory({ eduEmail: "usuario@example.test" })).toBe(false);
+  });
+
+  it("false si user es null o sin correo", () => {
+    vi.stubEnv("VITE_ORG_CHART_DIRECTORY_EXPORT_EMAILS", AUTHORIZED);
     expect(canDownloadOrgDirectory(null)).toBe(false);
+    expect(canDownloadOrgDirectory({ eduEmail: null })).toBe(false);
   });
 });
