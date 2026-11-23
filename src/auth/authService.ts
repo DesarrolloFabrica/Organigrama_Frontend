@@ -41,6 +41,24 @@ export async function loginWithGoogleIdToken(
   return JSON.parse(bodyText) as GoogleLoginResult
 }
 
+/**
+ * ¿El backend conectado acepta el login dev? Solo se consulta en builds de
+ * desarrollo. Cualquier error (404 en producción, red, respuesta inesperada)
+ * cuenta como "no disponible": el formulario no se muestra.
+ */
+export async function fetchDevLoginAvailable(): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/auth/dev-login/status`, {
+      headers: { Accept: 'application/json' },
+    })
+    if (!res.ok) return false
+    const body = (await res.json()) as { enabled?: unknown }
+    return body.enabled === true
+  } catch {
+    return false
+  }
+}
+
 export async function loginWithDevEmail(
   email: string,
 ): Promise<GoogleLoginResult> {

@@ -3,14 +3,19 @@ import { GoogleLogin } from "@react-oauth/google";
 import { useNavigate } from "react-router-dom";
 import { performAppLogout } from "../auth/appLogout";
 import { isAuthenticated, saveAuthSession } from "../auth/authStorage";
-import { loginWithDevEmail, loginWithGoogleIdToken } from "../auth/authService";
+import {
+  fetchDevLoginAvailable,
+  loginWithDevEmail,
+  loginWithGoogleIdToken,
+} from "../auth/authService";
 import { setProfileCompleted } from "../auth/profileGateStorage";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchProfileMe } from "../features/profile/services/profileService";
 import { profileQueryKeys } from "../lib/react-query/queryKeys";
 
 const SUBMARINE_SRC = "/img/Submarino.png";
-const DEV_LOGIN_ENABLED = import.meta.env.DEV;
+/** Solo builds de desarrollo consultan si el backend admite el login dev. */
+const DEV_BUILD = import.meta.env.DEV;
 const GOOGLE_BTN_WIDTH_DESKTOP = 300;
 const GOOGLE_BTN_WIDTH_TABLET = 280;
 const GOOGLE_BTN_WIDTH_MOBILE = 240;
@@ -49,7 +54,22 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [devEmail, setDevEmail] = useState("");
+  const [devLoginAvailable, setDevLoginAvailable] = useState(false);
   const googleButtonWidth = useGoogleButtonWidth();
+
+  // El formulario dev solo aparece en builds de desarrollo Y si el backend
+  // conectado lo acepta (p. ej. QA con identidades sintéticas). Contra un
+  // backend con DEV_LOGIN_ENABLED=false (o en producción) queda oculto.
+  useEffect(() => {
+    if (!DEV_BUILD) return;
+    let cancelled = false;
+    void fetchDevLoginAvailable().then((available) => {
+      if (!cancelled) setDevLoginAvailable(available);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -331,7 +351,7 @@ export function LoginPage() {
             )}
           </div>
 
-          {DEV_LOGIN_ENABLED ? (
+          {DEV_BUILD && devLoginAvailable ? (
             <form
               onSubmit={(e) => void handleDevLogin(e)}
               className="login-dev mt-6 flex w-full max-w-[26.25rem] flex-col gap-3 rounded-2xl border border-cyan-300/20 bg-white/5 p-4 text-left backdrop-blur-sm"
