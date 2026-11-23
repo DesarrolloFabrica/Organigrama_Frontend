@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Informes descargados de los exportadores (pueden contener datos personales reales).
+# Los ejemplos sintéticos de QA usan otro nombre (…-ejemplo-sintetico.*).
+organigrama-20[0-9][0-9]-*.html
+organigrama-activo-20[0-9][0-9]-*.xls
