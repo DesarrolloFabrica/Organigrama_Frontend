@@ -12,6 +12,8 @@ import {
   useOrgPersonCv,
   useOrgPersonWorkforceEvents,
 } from "../../../../lib/react-query/hooks";
+import { PersonContactEditor } from "../PersonContactEditor";
+import { canEditPersonContact } from "../../utils/canEditPersonContact";
 
 type Props = {
   personId: string;
@@ -533,6 +535,10 @@ export function PersonFichaPanel({
       {hasFull && profile ? (
         <>
           <HudSection id="sec-contact" title="Datos de contacto" icon="contact">
+            {canEditPersonContact(personId) ? (
+              <PersonContactEditor personId={personId} profile={profile} />
+            ) : (
+            <>
             <dl>
               <HudDetailRow
                 label="Documento"
@@ -567,6 +573,8 @@ export function PersonFichaPanel({
                 />
               </dl>
             </div>
+            </>
+            )}
             {!isVacancy ? (
               <div className="mt-3 border-t border-cyan-400/10 pt-2">
                 <p className="entity-detail-title mb-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
