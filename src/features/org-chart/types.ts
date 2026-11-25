@@ -601,6 +601,23 @@ export interface OrgChartVacancyListResponse {
   items: OrgChartVacancy[]
 }
 
+/**
+ * Alcance que aplicó el backend a `GET /api/org-chart/vacancies?personId=`.
+ * - `global`: raíz del mapa (todas las requisiciones).
+ * - `coordination`: cabeza de coordinación (requisiciones de su área).
+ * - `none`: otro nodo; sin regla de asignación, el panel omite el bloque.
+ */
+export interface OrgChartVacancyScope {
+  kind: 'global' | 'coordination' | 'none'
+  personId: string
+  areaName: string | null
+}
+
+export interface OrgChartNodeVacancyListResponse
+  extends OrgChartVacancyListResponse {
+  scope: OrgChartVacancyScope
+}
+
 // ─── Hoja de vida (CV) ────────────────────────────────────────────────────────
 
 /**

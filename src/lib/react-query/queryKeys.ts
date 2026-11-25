@@ -117,8 +117,29 @@ export const orgQueryKeys = {
       ? (["org-search", query, versionId, scopeVersionId ?? null] as const)
       : (["org-search", query] as const),
   versions: ["org-chart-versions"] as const,
-  /** Vacantes reales del schema `vacancies` (independiente de la versión). */
+  /**
+   * Vacantes reales del schema `vacancies` (lista global, independiente de la
+   * versión). Es también el PREFIJO de `nodeVacancies`: invalidarlo (token de
+   * cambio de Orbit) refresca la lista global y las de todos los nodos.
+   */
   vacancies: ["org-vacancies"] as const,
+  /**
+   * Requisiciones con el alcance de un nodo. Depende de la versión y del
+   * overlay porque el backend decide raíz / coordinación / otro nodo sobre el
+   * mapa de esa versión.
+   */
+  nodeVacancies: (
+    personId: string,
+    versionId?: number,
+    scopeVersionId?: OrgChartScopeVersionKey,
+  ) =>
+    [
+      "org-vacancies",
+      "node",
+      personId,
+      versionId ?? null,
+      scopeVersionId ?? null,
+    ] as const,
   /** Huella de datos del organigrama (sondeo de cambios hechos en Orbit). */
   changeToken: ["org-change-token"] as const,
   /** Prefijos para invalidar familias de queries del organigrama. */

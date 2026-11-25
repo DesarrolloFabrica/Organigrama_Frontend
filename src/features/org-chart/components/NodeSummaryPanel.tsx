@@ -1,13 +1,18 @@
 import { useState, type ReactNode } from "react";
 import {
+  useOrgChartNodeVacancies,
   useOrgChartSummary,
-  useOrgChartVacancies,
 } from "../../../lib/react-query/hooks";
 import {
   isOrgSummaryVacancy,
   type OrgChartVacancy,
   type OrgSummaryItem,
 } from "../types";
+import {
+  formatVacancyTotals,
+  formatVacancyTotalsCaption,
+  resolveNodeVacancyPanelState,
+} from "../utils/orgChartNodeVacancies";
 
 type Props = {
   personId: string;
@@ -111,7 +116,7 @@ function IconVacancy({ className = "size-6" }: { className?: string }) {
 
 type KpiCardProps = {
   icon: ReactNode;
-  value: number;
+  value: number | string;
   label: string;
   accent: "blue" | "green";
 };
@@ -260,7 +265,7 @@ function KpiCard({ icon, value, label, accent }: KpiCardProps) {
 
 export function NodeSummaryPanel({ personId, className }: Props) {
   const { data, isLoading, isError, error } = useOrgChartSummary(personId);
-  const { data: realVacancies = [] } = useOrgChartVacancies();
+  const nodeVacancies = useOrgChartNodeVacancies(personId);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const showSkeleton = isLoading && !data;
@@ -282,11 +287,28 @@ export function NodeSummaryPanel({ personId, className }: Props) {
 
   const teamLabel =
     data && data.areas.length === 1 ? "equipo directo" : "equipos directos";
-  // Las vacantes provienen del endpoint real (`vacancies.vacancy`,
-  // operation_status = requisition_sent), NO del resumen del nodo ni del árbol.
-  const vacancyKpi = realVacancies.length;
+  // Requisiciones de Orbit (`vacancies.vacancy`, requisition_sent) con el
+  // alcance que resuelve el backend para ESTE nodo: raíz → todas; cabeza de
+  // coordinación → las de su área; otro nodo → bloque omitido. Son distintas
+  // de las vacantes del árbol («vac.» de Equipo directo), que no cambian.
+  // Indicador y lista salen de la misma respuesta (`vacancyState.items`).
+  const vacancyState = resolveNodeVacancyPanelState({
+    personId,
+    data: nodeVacancies.data,
+    isError: nodeVacancies.isError,
+    error: nodeVacancies.error,
+  });
+  const vacancyTotalsLabel =
+    vacancyState.kind === "ready"
+      ? formatVacancyTotals(vacancyState.totals)
+      : null;
+  const vacancyScopeLabel =
+    vacancyState.kind !== "ready"
+      ? null
+      : vacancyState.scope.kind === "coordination"
+        ? `Coordinación ${vacancyState.scope.areaName || "sin área"}`
+        : "Toda la institución";
   const hasTeamSection = Boolean(data && data.areas.length > 0);
-  const hasRealVacancies = realVacancies.length > 0;
   const collapsedHint =
     data && !isExpanded
       ? `${data.general.totalPeople} pers. · ${data.areas.length} ${teamLabel}`
@@ -395,12 +417,24 @@ export function NodeSummaryPanel({ personId, className }: Props) {
                     label={teamLabel}
                     accent="green"
                   />
-                  <KpiCard
-                    icon={<IconVacancy />}
-                    value={vacancyKpi}
-                    label="Vacantes"
-                    accent="blue"
-                  />
+                  {vacancyState.kind === "hidden" ? null : (
+                    <KpiCard
+                      icon={<IconVacancy />}
+                      value={
+                        vacancyState.kind === "ready"
+                          ? vacancyState.totals.requisitions
+                          : vacancyState.kind === "loading"
+                            ? "…"
+                            : "—"
+                      }
+                      label={
+                        vacancyState.kind === "ready"
+                          ? formatVacancyTotalsCaption(vacancyState.totals)
+                          : "Requisiciones"
+                      }
+                      accent="blue"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -420,33 +454,45 @@ export function NodeSummaryPanel({ personId, className }: Props) {
                   </>
                 ) : null}
 
-                <div
-                  className={[
-                    "shrink-0 border-b border-cyan-400/10 bg-cyan-950/20 px-4 py-2",
-                    hasTeamSection ? "border-t border-cyan-400/10" : "",
-                  ].join(" ")}
-                >
-                  <h3 className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
-                    Vacantes
-                  </h3>
-                  <p className="mt-0.5 text-[10px] text-slate-400">
-                    {realVacancies.length === 0
-                      ? "Sin plazas activas"
-                      : realVacancies.length === 1
-                        ? "1 plaza"
-                        : `${realVacancies.length} plazas`}
-                  </p>
-                </div>
-                {hasRealVacancies ? (
-                  <ul className="flex flex-col gap-1.5 px-3 py-2">
-                    {realVacancies.map((vacancy) => (
-                      <VacancyListRow key={vacancy.id} vacancy={vacancy} />
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="px-5 py-4 text-center text-xs text-slate-400">
-                    No hay vacantes activas
-                  </p>
+                {vacancyState.kind === "hidden" ? null : (
+                  <>
+                    <div
+                      className={[
+                        "shrink-0 border-b border-cyan-400/10 bg-cyan-950/20 px-4 py-2",
+                        hasTeamSection ? "border-t border-cyan-400/10" : "",
+                      ].join(" ")}
+                    >
+                      <h3 className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                        Requisiciones de Orbit
+                      </h3>
+                      <p className="mt-0.5 text-[10px] text-slate-400">
+                        {vacancyState.kind === "ready"
+                          ? `${vacancyScopeLabel} · ${vacancyTotalsLabel}`
+                          : vacancyState.kind === "loading"
+                            ? "Cargando…"
+                            : "No disponible"}
+                      </p>
+                    </div>
+                    {vacancyState.kind === "error" ? (
+                      <p
+                        className="px-5 py-4 text-center text-xs text-rose-300/90"
+                        role="alert"
+                      >
+                        No se pudieron cargar las requisiciones.
+                      </p>
+                    ) : vacancyState.kind === "ready" &&
+                      vacancyState.items.length > 0 ? (
+                      <ul className="flex flex-col gap-1.5 px-3 py-2">
+                        {vacancyState.items.map((vacancy) => (
+                          <VacancyListRow key={vacancy.id} vacancy={vacancy} />
+                        ))}
+                      </ul>
+                    ) : vacancyState.kind === "ready" ? (
+                      <p className="px-5 py-4 text-center text-xs text-slate-400">
+                        No hay requisiciones enviadas
+                      </p>
+                    ) : null}
+                  </>
                 )}
               </div>
             </div>

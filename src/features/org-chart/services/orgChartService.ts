@@ -2,6 +2,7 @@ import { getAccessToken } from '../../../auth/authStorage'
 import type {
   GeneralAreaSummary,
   OrgChartSearchHit,
+  OrgChartNodeVacancyListResponse,
   OrgChartVacancy,
   OrgChartVacancyListResponse,
   OrgNode,
@@ -17,6 +18,7 @@ import type {
   OrgChartVersion,
 } from '../types/orgChartVersion'
 import { buildVersionQuery } from '../utils/orgChartVersionQuery'
+import { buildNodeVacanciesPath } from '../utils/orgChartNodeVacancies'
 import type {
   DirectoryExportAccess,
   DirectoryExportFormat,
@@ -256,6 +258,21 @@ export async function fetchOrgChartVacancies(): Promise<OrgChartVacancy[]> {
     '/api/org-chart/vacancies',
   )
   return res.items ?? []
+}
+
+/**
+ * Requisiciones de Orbit (`requisition_sent`) con el alcance del nodo:
+ * raíz → todas; cabeza de coordinación → las de su área; otro nodo → ninguna
+ * (`scope.kind = 'none'`). El backend responde 400/404 ante un nodo inválido:
+ * nunca se sustituye por la lista global.
+ */
+export async function fetchOrgChartNodeVacancies(
+  personId: string,
+  options?: OrgChartRequestOptions,
+): Promise<OrgChartNodeVacancyListResponse> {
+  return getJson<OrgChartNodeVacancyListResponse>(
+    buildNodeVacanciesPath(personId, options),
+  )
 }
 
 /**
