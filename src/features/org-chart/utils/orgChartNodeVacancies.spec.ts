@@ -4,7 +4,6 @@ import type { OrgChartNodeVacancyListResponse, OrgChartVacancy } from "../types"
 import {
   buildNodeVacanciesPath,
   formatVacancyTotals,
-  formatVacancyTotalsCaption,
   resolveNodeVacancyPanelState,
   summarizeVacancies,
 } from "./orgChartNodeVacancies";
@@ -84,16 +83,26 @@ describe("summarizeVacancies / formatVacancyTotals", () => {
       vacancy(3, null),
     ]);
     expect(totals).toEqual({ requisitions: 3, positions: 4 });
-    expect(formatVacancyTotals(totals)).toBe("3 requisiciones · 4 plazas");
-    expect(formatVacancyTotalsCaption(totals)).toBe("requisiciones · 4 plazas");
+    expect(formatVacancyTotals(totals)).toBe(
+      "4 plazas solicitadas · 3 requisiciones",
+    );
   });
 
   it("usa singular y maneja la lista vacía", () => {
     expect(formatVacancyTotals(summarizeVacancies([vacancy(1, 1)]))).toBe(
-      "1 requisición · 1 plaza",
+      "1 plaza solicitada · 1 requisición",
     );
     expect(formatVacancyTotals(summarizeVacancies([]))).toBe(
-      "0 requisiciones · 0 plazas",
+      "0 plazas solicitadas · 0 requisiciones",
+    );
+  });
+
+  it("plazas y requisiciones difieren cuando hay quantity > 1", () => {
+    // Caso de la QA: raíz 9 filas / 15 plazas; Especializaciones 2 / 4.
+    const totals = summarizeVacancies([vacancy(1, 3), vacancy(2, 1)]);
+    expect(totals.positions).not.toBe(totals.requisitions);
+    expect(formatVacancyTotals(totals)).toBe(
+      "4 plazas solicitadas · 2 requisiciones",
     );
   });
 });

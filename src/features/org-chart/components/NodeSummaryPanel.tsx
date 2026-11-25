@@ -10,7 +10,6 @@ import {
 } from "../types";
 import {
   formatVacancyTotals,
-  formatVacancyTotalsCaption,
   resolveNodeVacancyPanelState,
 } from "../utils/orgChartNodeVacancies";
 
@@ -420,18 +419,16 @@ export function NodeSummaryPanel({ personId, className }: Props) {
                   {vacancyState.kind === "hidden" ? null : (
                     <KpiCard
                       icon={<IconVacancy />}
+                      // Cifra principal = suma de `quantity` (equivale a
+                      // «solic.» en Orbit); el número de filas va en el detalle.
                       value={
                         vacancyState.kind === "ready"
-                          ? vacancyState.totals.requisitions
+                          ? vacancyState.totals.positions
                           : vacancyState.kind === "loading"
                             ? "…"
                             : "—"
                       }
-                      label={
-                        vacancyState.kind === "ready"
-                          ? formatVacancyTotalsCaption(vacancyState.totals)
-                          : "Requisiciones"
-                      }
+                      label="Plazas solicitadas"
                       accent="blue"
                     />
                   )}

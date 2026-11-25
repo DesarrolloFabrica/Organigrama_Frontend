@@ -44,21 +44,17 @@ export function summarizeVacancies(
 }
 
 /**
- * Texto que acompaña al número de requisiciones en el indicador:
- * «requisiciones · Y plazas» (singular cuando corresponde).
+ * Detalle del bloque: «Y plazas solicitadas · X requisiciones», en el mismo
+ * orden que el indicador (plazas primero, como «solic.» en Orbit) y con
+ * singular cuando corresponde. X = filas de la lista.
  */
-export function formatVacancyTotalsCaption({
+export function formatVacancyTotals({
   requisitions,
   positions,
 }: VacancyTotals): string {
+  const p = positions === 1 ? "plaza solicitada" : "plazas solicitadas";
   const r = requisitions === 1 ? "requisición" : "requisiciones";
-  const p = positions === 1 ? "plaza" : "plazas";
-  return `${r} · ${positions} ${p}`;
-}
-
-/** «X requisiciones · Y plazas», con singular cuando corresponde. */
-export function formatVacancyTotals(totals: VacancyTotals): string {
-  return `${totals.requisitions} ${formatVacancyTotalsCaption(totals)}`;
+  return `${positions} ${p} · ${requisitions} ${r}`;
 }
 
 export type NodeVacancyPanelState =
