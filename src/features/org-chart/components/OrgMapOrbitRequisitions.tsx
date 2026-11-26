@@ -18,7 +18,7 @@ export function OrgMapOrbitRequisitionCard({
       className="org-map-mini-card org-map-mini-card--vacancy org-map-orbit-card relative flex min-h-0 flex-col gap-2 rounded-sm p-2.5"
       data-node-kind="orbit-requisition"
       data-requisition-id={card.requisitionId}
-      aria-label={`Vacante Orbit: ${card.positionName}${
+      aria-label={`Vacante: ${card.positionName}${
         card.quantityLabel ? `, ${card.quantityLabel}` : ""
       }, requisición enviada`}
     >
@@ -31,7 +31,7 @@ export function OrgMapOrbitRequisitionCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className="org-map-orbit-card__tag inline-flex items-center rounded-sm px-1.5 py-0.5 font-mono text-[8.5px] font-bold uppercase tracking-[0.16em]">
-            Vacante Orbit
+            Vacante
           </p>
           <h4
             className="org-map-person-name-2l mt-1 w-full text-[12px] font-semibold tracking-tight text-slate-100"
