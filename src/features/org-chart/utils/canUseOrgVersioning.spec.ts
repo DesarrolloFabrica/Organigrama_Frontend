@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { canUseOrgVersioning } from "./canUseOrgVersioning";
 
-const AUTHORIZED_EMAILS = [
-  "desarrollofabrica@cun.edu.co",
+const FORMER_VERSION_ADMIN_EMAILS = [
   "iron_fuentes@cun.edu.co",
   "raul_valencia@cun.edu.co",
   "haider_bello@cun.edu.co",
@@ -10,14 +9,26 @@ const AUTHORIZED_EMAILS = [
 ] as const;
 
 describe("canUseOrgVersioning", () => {
-  it.each(AUTHORIZED_EMAILS)("true para %s", (eduEmail) => {
+  it("true solo para la cuenta de desarrollo", () => {
     expect(
       canUseOrgVersioning({
-        personId: "9999",
-        eduEmail,
+        personId: "1229",
+        eduEmail: "DesarrolloFabrica@cun.edu.co",
       }),
     ).toBe(true);
   });
+
+  it.each(FORMER_VERSION_ADMIN_EMAILS)(
+    "false para %s (ve solo la versión oficial)",
+    (eduEmail) => {
+      expect(
+        canUseOrgVersioning({
+          personId: "9999",
+          eduEmail,
+        }),
+      ).toBe(false);
+    },
+  );
 
   it("false para ORG_ADMIN genérico", () => {
     expect(

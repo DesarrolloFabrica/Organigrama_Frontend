@@ -1,12 +1,7 @@
 import type { AuthUser } from '../../../auth/types';
 
-const DEFAULT_VERSION_ADMIN_EMAILS = [
-  'desarrollofabrica@cun.edu.co',
-  'iron_fuentes@cun.edu.co',
-  'raul_valencia@cun.edu.co',
-  'haider_bello@cun.edu.co',
-  'sara_murillofo@cun.edu.co',
-] as const;
+/** Solo la cuenta de desarrollo; el resto ve únicamente la versión oficial. */
+const DEFAULT_VERSION_ADMIN_EMAILS = ['desarrollofabrica@cun.edu.co'] as const;
 
 function getVersionAdminEmailsSet(): Set<string> {
   const raw = import.meta.env.VITE_ORG_CHART_VERSION_ADMIN_EMAILS?.trim();
