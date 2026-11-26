@@ -391,6 +391,7 @@ function OrgChartPageBody() {
                       ? parseOrgMapNodeKey(expandedNodeId).personId
                       : tree.id
                   }
+                  tree={tree}
                 />
               </div>
             </div>

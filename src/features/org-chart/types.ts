@@ -595,6 +595,20 @@ export interface OrgChartVacancy {
   areaName?: string | null
   schoolName?: string | null
   programName?: string | null
+  /**
+   * Grupo al que pertenece el área de la requisición (solo con `?personId=`).
+   * `null`/ausente: el área no corresponde a ninguna coordinación.
+   */
+  coordination?: OrgChartVacancyCoordination | null
+}
+
+/** Coordinación (o Dirección) de una requisición, según su área. */
+export interface OrgChartVacancyCoordination {
+  kind: 'coordination' | 'direction'
+  /** Área oficial del grupo. */
+  areaName: string
+  /** Cabezas de la coordinación, o raíz de la Dirección. */
+  headPersonIds: string[]
 }
 
 export interface OrgChartVacancyListResponse {
@@ -605,10 +619,12 @@ export interface OrgChartVacancyListResponse {
  * Alcance que aplicó el backend a `GET /api/org-chart/vacancies?personId=`.
  * - `global`: raíz del mapa (todas las requisiciones).
  * - `coordination`: cabeza de coordinación (requisiciones de su área).
+ * - `direction`: jefe de coordinaciones en la Dirección (Coordinación
+ *   General): requisiciones de esas coordinaciones y de su área.
  * - `none`: otro nodo; sin regla de asignación, el panel omite el bloque.
  */
 export interface OrgChartVacancyScope {
-  kind: 'global' | 'coordination' | 'none'
+  kind: 'global' | 'coordination' | 'direction' | 'none'
   personId: string
   areaName: string | null
 }

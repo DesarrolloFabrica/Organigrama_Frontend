@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import {
   useOrgChartNodeVacancies,
   useOrgChartSummary,
@@ -6,15 +6,24 @@ import {
 import {
   isOrgSummaryVacancy,
   type OrgChartVacancy,
+  type OrgNode,
   type OrgSummaryItem,
 } from "../types";
 import {
   formatVacancyTotals,
   resolveNodeVacancyPanelState,
 } from "../utils/orgChartNodeVacancies";
+import {
+  buildCoordinationEmblemIndex,
+  resolveVacancyCoordinationBadge,
+  sortVacanciesByCoordination,
+  type VacancyCoordinationBadge,
+} from "../utils/orgChartVacancyCoordination";
 
 type Props = {
   personId: string;
+  /** Árbol cargado en el mapa: de él salen los emblemas de coordinación. */
+  tree?: OrgNode | null;
   className?: string;
 };
 
@@ -190,8 +199,53 @@ function SummaryTeamRow({ item }: { item: OrgSummaryItem }) {
   );
 }
 
+/** Emblema de la coordinación de la requisición (o el ícono de vacante). */
+function VacancyCoordinationAvatar({
+  badge,
+}: {
+  badge: VacancyCoordinationBadge | null;
+}) {
+  const emblem = badge?.emblem ?? null;
+  if (!emblem) {
+    return (
+      <div
+        className="flex size-9 shrink-0 items-center justify-center rounded-md bg-slate-800/80 text-slate-300"
+        title={badge?.label}
+        aria-hidden
+      >
+        <IconVacancy className="size-4" />
+      </div>
+    );
+  }
+  const style = {
+    "--vac-emblem-glow": emblem.glowColor,
+  } as CSSProperties;
+  return (
+    <div
+      className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[rgb(var(--vac-emblem-glow)/0.4)] bg-[rgb(var(--vac-emblem-glow)/0.14)] shadow-[0_0_12px_rgb(var(--vac-emblem-glow)/0.22)]"
+      style={style}
+      title={badge?.label}
+      data-vacancy-coordination-emblem={badge?.label}
+    >
+      <img
+        src={emblem.icon}
+        alt={badge?.label ?? ""}
+        className="size-7 object-contain drop-shadow-[0_0_4px_rgb(var(--vac-emblem-glow)/0.55)]"
+        decoding="async"
+        draggable={false}
+      />
+    </div>
+  );
+}
+
 /** Fila de una vacante real del schema `vacancies` (no es un nodo del mapa). */
-function VacancyListRow({ vacancy }: { vacancy: OrgChartVacancy }) {
+function VacancyListRow({
+  vacancy,
+  badge,
+}: {
+  vacancy: OrgChartVacancy;
+  badge: VacancyCoordinationBadge | null;
+}) {
   const positionName = vacancy.positionName?.trim();
   const title = positionName ? `VACANTE — ${positionName}` : "VACANTE";
   const detail =
@@ -200,16 +254,32 @@ function VacancyListRow({ vacancy }: { vacancy: OrgChartVacancy }) {
     vacancy.schoolName?.trim() ||
     null;
   const quantity = vacancy.quantity ?? null;
+  const badgeStyle = badge?.emblem
+    ? ({ "--vac-emblem-hl": badge.emblem.highlightColor } as CSSProperties)
+    : undefined;
 
   return (
-    <li className="flex items-center gap-2 rounded-lg border border-slate-500/25 bg-slate-900/40 px-2 py-1.5 shadow-[0_2px_12px_-8px_rgba(0,0,0,0.45)]">
-      <div
-        className="flex size-9 shrink-0 items-center justify-center rounded-md bg-slate-800/80 text-slate-300"
-        aria-hidden
-      >
-        <IconVacancy className="size-4" />
-      </div>
+    <li
+      className="flex items-center gap-2 rounded-lg border border-slate-500/25 bg-slate-900/40 px-2 py-1.5 shadow-[0_2px_12px_-8px_rgba(0,0,0,0.45)]"
+      data-requisition-id={vacancy.id}
+    >
+      <VacancyCoordinationAvatar badge={badge} />
       <div className="min-w-0 flex-1">
+        {badge ? (
+          <p
+            className={[
+              "truncate text-[9px] font-bold uppercase leading-tight tracking-[0.12em]",
+              badge.emblem
+                ? "text-[rgb(var(--vac-emblem-hl)/0.9)]"
+                : "text-slate-400",
+            ].join(" ")}
+            style={badgeStyle}
+            title={badge.label}
+            data-vacancy-coordination={badge.label}
+          >
+            {badge.label}
+          </p>
+        ) : null}
         <p
           className="truncate text-[11px] font-bold leading-tight text-slate-100"
           title={title}
@@ -262,7 +332,7 @@ function KpiCard({ icon, value, label, accent }: KpiCardProps) {
   );
 }
 
-export function NodeSummaryPanel({ personId, className }: Props) {
+export function NodeSummaryPanel({ personId, tree, className }: Props) {
   const { data, isLoading, isError, error } = useOrgChartSummary(personId);
   const nodeVacancies = useOrgChartNodeVacancies(personId);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -306,7 +376,29 @@ export function NodeSummaryPanel({ personId, className }: Props) {
       ? null
       : vacancyState.scope.kind === "coordination"
         ? `Coordinación ${vacancyState.scope.areaName || "sin área"}`
-        : "Toda la institución";
+        : vacancyState.scope.kind === "direction"
+          ? "Coordinaciones a cargo"
+          : "Toda la institución";
+  // Emblema de la coordinación de cada requisición, con el resolver del mapa.
+  const emblemIndex = useMemo(
+    () =>
+      buildCoordinationEmblemIndex({
+        tree,
+        summaryItems: data ? [data.general, ...data.areas] : [],
+      }),
+    [tree, data],
+  );
+  // Con varias coordinaciones (raíz, Coordinación General) se agrupan.
+  const vacancyRows =
+    vacancyState.kind !== "ready"
+      ? []
+      : (vacancyState.scope.kind === "coordination"
+          ? vacancyState.items
+          : sortVacanciesByCoordination(vacancyState.items, emblemIndex)
+        ).map((vacancy) => ({
+          vacancy,
+          badge: resolveVacancyCoordinationBadge(vacancy, emblemIndex),
+        }));
   const hasTeamSection = Boolean(data && data.areas.length > 0);
   const collapsedHint =
     data && !isExpanded
@@ -480,8 +572,12 @@ export function NodeSummaryPanel({ personId, className }: Props) {
                     ) : vacancyState.kind === "ready" &&
                       vacancyState.items.length > 0 ? (
                       <ul className="flex flex-col gap-1.5 px-3 py-2">
-                        {vacancyState.items.map((vacancy) => (
-                          <VacancyListRow key={vacancy.id} vacancy={vacancy} />
+                        {vacancyRows.map(({ vacancy, badge }) => (
+                          <VacancyListRow
+                            key={vacancy.id}
+                            vacancy={vacancy}
+                            badge={badge}
+                          />
                         ))}
                       </ul>
                     ) : vacancyState.kind === "ready" ? (

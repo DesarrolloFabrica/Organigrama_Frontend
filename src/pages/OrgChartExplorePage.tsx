@@ -332,6 +332,7 @@ function OrgChartExploreBody({ personId, relationId }: ExploreBodyProps) {
                         ? parseOrgMapNodeKey(expandedNodeId).personId
                         : personId
                     }
+                    tree={tree}
                   />
                 </div>
               </div>
