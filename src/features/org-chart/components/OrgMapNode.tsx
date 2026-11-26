@@ -14,6 +14,7 @@ import { orgMapNodeThemeToCssVars } from "../utils/orgMapLevelTheme";
 import { AssignmentStatusBadge } from "./AssignmentStatusBadge";
 import { WorkforceEventBadge } from "./WorkforceEventBadge";
 import { OrgMapExpandedTeamPanel } from "./OrgMapExpandedTeamPanel";
+import { OrgMapOrbitRequisitionsForNode } from "./OrgMapOrbitRequisitions";
 import { useOrgMapSelection } from "../context/OrgMapSelectionContext";
 import { OrgMapNodePhoto } from "./OrgMapNodePhoto";
 import { OrgMapVacancyGlyph } from "./OrgMapVacancyGlyph";
@@ -407,6 +408,11 @@ function OrgMapNodeComponent({ id, data }: NodeProps) {
             onOpenDetail={typedData.onOpenDetail}
             onExploreTeam={typedData.onExploreTeam}
             stopMouse={stopMouse}
+          />
+          {/* Requisiciones de Orbit de la coordinación, bajo su equipo. */}
+          <OrgMapOrbitRequisitionsForNode
+            personId={node.id}
+            leaderName={node.name}
           />
         </div>
       ) : null}

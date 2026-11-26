@@ -1403,6 +1403,38 @@ body,
   box-shadow: none;
 }
 
+/* Vacantes de Orbit en el mapa (requisiciones; no son personas del árbol) */
+.org-map-orbit-node {
+  border: 1px solid color-mix(in srgb, var(--org-lvl-primary) 22%, transparent);
+  background-color: rgba(2, 6, 23, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.05);
+  cursor: default;
+}
+
+.org-map-orbit-card {
+  cursor: default;
+}
+
+.org-map-orbit-card:hover {
+  border-color: color-mix(in srgb, var(--org-lvl-primary) 46%, transparent);
+  background-color: rgba(2, 6, 23, 0.82);
+}
+
+.org-map-orbit-card__tag {
+  border: 1px solid color-mix(in srgb, var(--org-lvl-primary) 34%, transparent);
+  background: color-mix(in srgb, var(--org-lvl-primary) 10%, transparent);
+  color: color-mix(in srgb, var(--org-lvl-primary) 55%, #e2e8f0);
+}
+
+.org-map-orbit-card__status {
+  color: rgb(253 230 138 / 0.88);
+}
+
+.org-map-orbit-card__pulse {
+  background: rgb(251 191 36 / 0.85);
+  box-shadow: 0 0 6px rgb(251 191 36 / 0.55);
+}
+
 .org-map-mini-card:hover,
 .org-map-mini-card[data-selected="true"] {
   border-color: color-mix(in srgb, var(--org-lvl-primary) 36%, transparent);

@@ -20,6 +20,7 @@ import {
 import { AssignmentStatusBadge } from "./AssignmentStatusBadge";
 import { WorkforceEventBadge } from "./WorkforceEventBadge";
 import { OrgMapTeamMemberMiniCard } from "./OrgMapTeamMemberMiniCard";
+import { OrgMapOrbitRequisitionsForNode } from "./OrgMapOrbitRequisitions";
 import { RadarBackground } from "./RadarBackground";
 import { useOrgPerfLite } from "../context/OrgPerfLiteContext";
 import { resolveCoordinationEmblem } from "../config/coordinationEmblems";
@@ -284,6 +285,18 @@ export function TeamScrollListView({
               </div>
             )}
           </section>
+
+          {/* Requisiciones de Orbit de la coordinación, bajo su equipo. */}
+          <div
+            className="mt-6"
+            style={orgMapNodeThemeToCssVars(leader, 1)}
+          >
+            <OrgMapOrbitRequisitionsForNode
+              personId={leader.id}
+              leaderName={leader.name}
+              variant="list"
+            />
+          </div>
         </div>
       </div>
     </div>

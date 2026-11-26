@@ -7,6 +7,7 @@ export { useOrgChartNode } from "./useOrgChartNode";
 export { useOrgChartSummary } from "./useOrgChartSummary";
 export { useOrgChartVacancies } from "./useOrgChartVacancies";
 export { useOrgChartNodeVacancies } from "./useOrgChartNodeVacancies";
+export { useOrbitRequisitionCards } from "./useOrbitRequisitionCards";
 export { useOrgChartChangeToken } from "./useOrgChartChangeToken";
 export { useProfile } from "./useProfile";
 export { usePatchProfile, usePostPhotoFromGoogle } from "./useProfileMutations";

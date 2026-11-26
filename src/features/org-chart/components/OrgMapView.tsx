@@ -12,6 +12,7 @@ import {
   MarkerType,
   useOnViewportChange,
   useReactFlow,
+  type Node,
 } from "@xyflow/react";
 import type { OrgMapExpansionPersisted } from "../state/orgChartMainSession";
 import "@xyflow/react/dist/style.css";
@@ -28,8 +29,21 @@ import {
   shouldRenderInternalTeamHub,
   shouldRenderTeamBox,
 } from "../utils/orgMapDisplayPolicy";
-import { buildOrgMap, orgMapNodeKey, type OrgMapNodeData } from "../utils/orgMapLayout";
-import { resolveOrgMapTheme, resolveOrgMapVisualLevel } from "../utils/orgMapLevelTheme";
+import {
+  buildOrgMap,
+  orbitRequisitionsNodeId,
+  orbitRequisitionsNodePosition,
+  orgMapNodeKey,
+  type OrgMapNodeData,
+} from "../utils/orgMapLayout";
+import {
+  orgMapNodeThemeToCssVars,
+  resolveOrgMapTheme,
+  resolveOrgMapVisualLevel,
+} from "../utils/orgMapLevelTheme";
+import { OrgMapOrbitRequisitionsNode } from "./OrgMapOrbitRequisitionsNode";
+import type { OrgMapOrbitRequisitionsNodeData } from "./OrgMapOrbitRequisitions";
+import { useOrbitRequisitionCards } from "../../../lib/react-query/hooks";
 import { truncateTreeToMaxLevels } from "../utils/truncateOrgTreeLevels";
 import { RadarBackground } from "./RadarBackground";
 import { OrgMapSelectionProvider } from "../context/OrgMapSelectionContext";
@@ -141,7 +155,12 @@ function OrgMapViewCamera({
       if (expanded) {
         const isRoot = parentId === layoutRootId;
         if (isRoot && shouldRenderHorizontalRow(full)) {
-          targetIds = [parentId, ...full.children.map((c) => orgMapNodeKey(c))];
+          // Incluye la sección de Orbit bajo la fila si ya está en el lienzo.
+          targetIds = [
+            parentId,
+            ...full.children.map((c) => orgMapNodeKey(c)),
+            orbitRequisitionsNodeId(parentId),
+          ];
         } else {
           targetIds = [parentId];
           fitPadding = 0.06;
@@ -406,7 +425,96 @@ function OrgMapInitialCenter({
  */
 const nodeTypes = {
   orgNode: OrgMapNode,
+  orbitRequisitions: OrgMapOrbitRequisitionsNode,
 };
+
+/** Ancho por columna de las tarjetas de Orbit en el nodo de lienzo. */
+const ORBIT_CARD_COLUMN_PX = 250;
+/** Alto estimado de la sección de Orbit mientras React Flow no la mide. */
+const ORBIT_NODE_ESTIMATED_H = 220;
+
+/**
+ * Encuadra la raíz, su fila y la sección de Orbit cuando esta aparece (llega
+ * después del primer centrado porque depende de la consulta). Una sola vez por
+ * sección: si el usuario mueve el mapa después, no se vuelve a mover.
+ */
+function OrgMapOrbitRequisitionsReveal({
+  orbitNodeId,
+  rowNodeIds,
+}: {
+  orbitNodeId: string | null;
+  rowNodeIds: string[];
+}) {
+  const { fitBounds, getInternalNode, getNodes } = useReactFlow();
+  const revealedRef = useRef<string | null>(null);
+  const rowKey = rowNodeIds.join("|");
+
+  useEffect(() => {
+    if (!orbitNodeId) {
+      revealedRef.current = null;
+      return;
+    }
+    if (revealedRef.current === orbitNodeId) return;
+    const reducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0;
+    let timeoutId = 0;
+    let attempts = 0;
+    // Con `onlyRenderVisibleElements` un nodo fuera de la vista no se mide:
+    // el rectángulo usa la posición conocida y, sin medida, un alto estimado.
+    const tryReveal = () => {
+      const wanted = new Set([...rowKey.split("|"), orbitNodeId]);
+      const nodes = getNodes().filter((n) => wanted.has(n.id));
+      const orbit = nodes.find((n) => n.id === orbitNodeId);
+      // Los nodos son controlados (sin onNodesChange): las medidas viven en
+      // los nodos internos de React Flow, no en `getNodes()`.
+      const measuredOf = (id: string) => getInternalNode(id)?.measured;
+      const rowMeasured = nodes.some(
+        (n) => n.id !== orbitNodeId && measuredOf(n.id)?.height,
+      );
+      if (!orbit || !rowMeasured) {
+        attempts += 1;
+        if (attempts < 60) raf = requestAnimationFrame(tryReveal);
+        return;
+      }
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (const n of nodes) {
+        const styleWidth =
+          typeof n.style?.width === "number" ? n.style.width : undefined;
+        const measured = measuredOf(n.id);
+        const w = measured?.width ?? styleWidth ?? INITIAL_CENTER_NODE_W;
+        const h =
+          measured?.height ??
+          (n.id === orbitNodeId ? ORBIT_NODE_ESTIMATED_H : INITIAL_CENTER_NODE_H);
+        const left = n.position.x - (n.origin?.[0] ?? 0) * w;
+        const top = n.position.y - (n.origin?.[1] ?? 0) * h;
+        minX = Math.min(minX, left);
+        minY = Math.min(minY, top);
+        maxX = Math.max(maxX, left + w);
+        maxY = Math.max(maxY, top + h);
+      }
+      revealedRef.current = orbitNodeId;
+      void fitBounds(
+        { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
+        { padding: 0.12, duration: reducedMotion ? 0 : CAMERA_DURATION_MS },
+      );
+    };
+    // Después del centrado inicial (que se programa con dos frames).
+    timeoutId = window.setTimeout(() => {
+      raf = requestAnimationFrame(tryReveal);
+    }, 120);
+    return () => {
+      window.clearTimeout(timeoutId);
+      cancelAnimationFrame(raf);
+    };
+  }, [fitBounds, getInternalNode, getNodes, orbitNodeId, rowKey]);
+
+  return null;
+}
 
 /**
  * Vista tipo mapa para el organigrama.
@@ -833,6 +941,68 @@ export function OrgMapView({
     ],
   );
 
+  /*
+   * Requisiciones de Orbit de la raíz cuando su equipo es una fila de nodos
+   * (árbol horizontal): van en un nodo propio bajo esa fila. En caja de equipo
+   * o hub las dibuja `OrgMapNode` dentro de la tarjeta. Si se abre el hub de un
+   * nodo de la fila 2, la selección pasa a ese nodo y esta sección se oculta.
+   */
+  const layoutRootKey = orgMapNodeKey(layoutRoot);
+  const layoutRootFull = nodeById.get(layoutRootKey) ?? layoutRoot;
+  const showRootOrbitRequisitions =
+    showRootChildren &&
+    expandedHubForLayout == null &&
+    layoutRoot.children.length > 0 &&
+    shouldRenderHorizontalRow(layoutRootFull);
+  const rootOrbitCards = useOrbitRequisitionCards(
+    layoutRoot.id,
+    showRootOrbitRequisitions,
+  );
+
+  const flowNodes = useMemo(() => {
+    if (!showRootOrbitRequisitions || rootOrbitCards.length === 0) {
+      return baseInteractiveNodes;
+    }
+    const columns = Math.min(3, rootOrbitCards.length);
+    const orbitNode: Node<OrgMapOrbitRequisitionsNodeData> = {
+      id: orbitRequisitionsNodeId(layoutRootKey),
+      type: "orbitRequisitions",
+      origin: [0.5, 0],
+      position: orbitRequisitionsNodePosition(),
+      draggable: false,
+      selectable: false,
+      connectable: false,
+      style: {
+        // Ancho de una tarjeta de la fila 2 por columna (más gaps y padding).
+        width: columns * ORBIT_CARD_COLUMN_PX + (columns - 1) * 10 + 26,
+        pointerEvents: "all" as const,
+      },
+      data: {
+        cards: rootOrbitCards,
+        leaderName: layoutRoot.name,
+        themeVars: orgMapNodeThemeToCssVars(layoutRootFull, 1),
+        columns,
+      },
+    };
+    return [...baseInteractiveNodes, orbitNode];
+  }, [
+    baseInteractiveNodes,
+    layoutRoot.name,
+    layoutRootFull,
+    layoutRootKey,
+    rootOrbitCards,
+    showRootOrbitRequisitions,
+  ]);
+
+  const orbitRevealNodeId =
+    showRootOrbitRequisitions && rootOrbitCards.length > 0
+      ? orbitRequisitionsNodeId(layoutRootKey)
+      : null;
+  const orbitRevealRowIds = useMemo(
+    () => [layoutRootKey, ...layoutRoot.children.map((c) => orgMapNodeKey(c))],
+    [layoutRoot.children, layoutRootKey],
+  );
+
   const edgesWithStyle = useMemo(
     () =>
       graph.edges.map((edge) => {
@@ -1010,7 +1180,7 @@ export function OrgMapView({
                 {...(persistedMapState?.viewport
                   ? { defaultViewport: persistedMapState.viewport }
                   : {})}
-                nodes={baseInteractiveNodes}
+                nodes={flowNodes}
                 edges={edgesWithStyle}
                 nodeTypes={nodeTypes}
                 minZoom={0.25}
@@ -1032,6 +1202,10 @@ export function OrgMapView({
                     lastViewportRef={lastViewportRef}
                   />
                 ) : null}
+                <OrgMapOrbitRequisitionsReveal
+                  orbitNodeId={orbitRevealNodeId}
+                  rowNodeIds={orbitRevealRowIds}
+                />
                 <OrgMapViewCamera
                   cameraNonce={cameraNonce}
                   expansionStateKey={expansionStateKey}

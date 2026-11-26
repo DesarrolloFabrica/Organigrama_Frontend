@@ -84,6 +84,22 @@ export function parseOrgMapNodeKey(nodeKey: string): OrgMapNodeIdentity {
 
 const LAYOUT_SLOT_PX = 340
 const VERTICAL_SPACING = 360
+/** Alto reservado para una tarjeta de la fila 2 antes de la sección de Orbit. */
+const ROW2_CARD_RESERVED_PX = 330
+
+/** Id del nodo de lienzo con las requisiciones de Orbit de la raíz. */
+export function orbitRequisitionsNodeId(rootKey: string): string {
+  return `orbit-requisitions:${rootKey}`
+}
+
+/**
+ * Posición (centro horizontal, borde superior) de la sección de Orbit bajo la
+ * fila de reportes directos de la raíz. El mapa solo tiene dos filas de nodos,
+ * así que debajo de la fila 2 no hay otros nodos con los que solaparse.
+ */
+export function orbitRequisitionsNodePosition(): { x: number; y: number } {
+  return { x: 0, y: VERTICAL_SPACING + ROW2_CARD_RESERVED_PX }
+}
 
 /** Máximo ancho reservado en layout para la card hub expandida (coherente con CSS). */
 export const HUB_LAYOUT_MAX_PX = 900
